@@ -1,0 +1,12 @@
+node_modules
+.next
+out
+.env.local
+.env*.local
+.DS_Store
+.vercel
+.env.local
+.env*.local
+node_modules/
+.next/
+.vercel/

@@ -1,0 +1,163 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+
+  --background: 248 250 252;
+  --foreground: 15 23 42;
+  --card: 255 255 255;
+  --card-border: 226 232 240;
+  --muted: 100 116 139;
+  --muted-foreground: 148 163 184;
+  --primary: 29 78 216;
+  --primary-foreground: 255 255 255;
+  --primary-soft: 239 246 255;
+  --radius: 0.75rem;
+  --shadow-card: 0 1px 2px 0 rgb(15 23 42 / 0.04), 0 1px 3px 0 rgb(15 23 42 / 0.06);
+  --shadow-elevated: 0 4px 6px -1px rgb(15 23 42 / 0.06), 0 2px 4px -2px rgb(15 23 42 / 0.04);
+}
+
+body {
+  margin: 0;
+  background: rgb(var(--background));
+  color: rgb(var(--foreground));
+  font-feature-settings: "rlig" 1, "calt" 1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+@layer components {
+  .ui-card {
+    @apply rounded-xl border border-slate-200/90 bg-white shadow-card;
+  }
+
+  .ui-card-elevated {
+    @apply rounded-xl border border-slate-200/90 bg-white shadow-elevated;
+  }
+
+  .ui-card-header {
+    @apply border-b border-slate-100 px-5 py-4;
+  }
+
+  .ui-card-body {
+    @apply p-5;
+  }
+
+  .ui-page-title {
+    @apply text-2xl font-semibold tracking-tight text-slate-950;
+  }
+
+  .ui-page-desc {
+    @apply mt-1 text-sm leading-relaxed text-slate-500;
+  }
+
+  .ui-toolbar {
+    @apply mb-5 flex flex-wrap items-center gap-3 rounded-xl border border-slate-200/90 bg-white p-4 shadow-card;
+  }
+
+  .ui-input {
+    @apply rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-okestro-500 focus:ring-2 focus:ring-okestro-100;
+  }
+
+  .ui-select {
+    @apply rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-okestro-500 focus:ring-2 focus:ring-okestro-100;
+  }
+
+  .ui-btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .ui-btn-primary {
+    @apply ui-btn bg-okestro-600 text-white shadow-sm hover:bg-okestro-700;
+  }
+
+  .ui-btn-secondary {
+    @apply ui-btn border border-slate-200 bg-white text-slate-700 shadow-sm hover:border-slate-300 hover:bg-slate-50;
+  }
+
+  .ui-btn-ghost {
+    @apply ui-btn text-slate-600 hover:bg-slate-100 hover:text-slate-900;
+  }
+
+  .ui-btn-accent {
+    @apply ui-btn bg-slate-900 text-white shadow-sm hover:bg-slate-800;
+  }
+
+  .ui-badge {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold ring-1 ring-inset;
+  }
+
+  .ui-badge-neutral {
+    @apply ui-badge bg-slate-50 text-slate-600 ring-slate-200;
+  }
+
+  .ui-badge-primary {
+    @apply ui-badge bg-blue-50 text-blue-700 ring-blue-200/60;
+  }
+
+  .ui-badge-success {
+    @apply ui-badge bg-emerald-50 text-emerald-700 ring-emerald-200/60;
+  }
+
+  .ui-badge-warning {
+    @apply ui-badge bg-amber-50 text-amber-800 ring-amber-200/60;
+  }
+
+  .ui-badge-danger {
+    @apply ui-badge bg-red-50 text-red-700 ring-red-200/60;
+  }
+
+  .ui-table-shell {
+    @apply w-full overflow-hidden rounded-xl border border-slate-200/90 bg-white shadow-card;
+  }
+
+  .ui-table-head {
+    @apply bg-slate-50/90 text-xs font-semibold uppercase tracking-wide text-slate-500;
+  }
+
+  .ui-table-row {
+    @apply transition-colors hover:bg-slate-50/80;
+  }
+
+  .ui-table-cell {
+    @apply px-5 py-3.5 text-sm text-slate-700 align-top;
+  }
+
+  .ui-tab {
+    @apply relative flex items-center gap-2 rounded-t-lg px-4 py-2.5 text-sm font-medium text-slate-600 transition hover:text-slate-900;
+  }
+
+  .ui-tab-active {
+    @apply ui-tab border border-b-0 border-slate-200 bg-white font-semibold text-okestro-700;
+  }
+
+  .ui-link {
+    @apply font-medium text-okestro-600 hover:text-okestro-700 hover:underline;
+  }
+
+  .ui-kpi {
+    @apply flex h-full min-h-[100px] flex-col justify-between gap-2 rounded-xl border border-slate-200/90 bg-white p-4 shadow-card transition hover:shadow-elevated;
+  }
+
+  .ui-empty {
+    @apply rounded-xl border border-dashed border-slate-200 bg-slate-50/50 px-8 py-12 text-center;
+  }
+
+  .ui-error {
+    @apply rounded-xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-800;
+  }
+
+  .ui-oke-panel {
+    @apply border-slate-200/90 bg-white;
+  }
+
+  .ui-oke-result {
+    @apply rounded-xl border border-slate-200/90 bg-white p-4 shadow-card;
+  }
+}

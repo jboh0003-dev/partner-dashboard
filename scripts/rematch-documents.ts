@@ -1,0 +1,95 @@
+/**
+ * 기존 partner_documents 메타데이터 재검사 스크립트
+ * Storage 파일은 변경하지 않고 DB 메타데이터만 보정합니다.
+ *
+ * Usage: npx tsx scripts/rematch-documents.ts
+ */
+import { buildDocumentReinspectUpdate } from "../src/lib/documents/reinspect";
+import { createAdminClient } from "../src/lib/supabase/admin";
+
+async function main() {
+  const supabase = createAdminClient();
+
+  const [{ data: documents, error: documentError }, { data: partners, error: partnerError }] =
+    await Promise.all([
+      supabase
+        .from("partner_documents")
+        .select(
+          "id, partner_id, original_filename, file_name, source_folder, source_file, document_type, display_name, contract_date, grade_from_file, partner_no, partner_name_raw, match_method, match_confidence, partners!inner(company_name)"
+        )
+        .is("deleted_at", null),
+      supabase.from("partners").select("id, company_name, external_no")
+    ]);
+
+  if (documentError) throw documentError;
+  if (partnerError) throw partnerError;
+
+  const partnerRows =
+    partners?.map((row) => ({
+      id: String(row.id),
+      company_name: String(row.company_name),
+      external_no: (row.external_no as string | null) ?? null
+    })) ?? [];
+
+  let updated = 0;
+  let needsReview = 0;
+
+  for (const row of documents ?? []) {
+    const partnersRel = row.partners as { company_name: string } | { company_name: string }[];
+    const partner = Array.isArray(partnersRel) ? partnersRel[0] : partnersRel;
+
+    const payload = buildDocumentReinspectUpdate(
+      {
+        id: String(row.id),
+        partner_id: String(row.partner_id),
+        partner_name: partner?.company_name ?? "",
+        original_filename: (row.original_filename as string | null) ?? null,
+        file_name: String(row.file_name ?? row.original_filename ?? ""),
+        source_folder: (row.source_folder as string | null) ?? null,
+        source_file: (row.source_file as string | null) ?? null,
+        document_type: (row.document_type as string | null) ?? null,
+        display_name: (row.display_name as string | null) ?? null,
+        contract_date: (row.contract_date as string | null) ?? null,
+        grade_from_file: (row.grade_from_file as string | null) ?? null,
+        partner_no: (row.partner_no as string | null) ?? null,
+        partner_name_raw: (row.partner_name_raw as string | null) ?? null,
+        match_method: (row.match_method as string | null) ?? null,
+        match_confidence: (row.match_confidence as number | null) ?? null
+      },
+      partnerRows
+    );
+
+    const { error } = await supabase
+      .from("partner_documents")
+      .update({
+        document_type: payload.document_type,
+        display_name: payload.display_name,
+        file_name: payload.display_name,
+        extracted_partner_name: payload.extracted_partner_name,
+        partner_name_raw: payload.partner_name_raw,
+        contract_date: payload.contract_date,
+        grade_from_file: payload.grade_from_file,
+        match_status: payload.match_status,
+        match_confidence: payload.match_confidence,
+        match_method: payload.match_method,
+        review_status: payload.review_status,
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", payload.id);
+
+    if (error) {
+      console.error(`Failed ${payload.id}:`, error.message);
+      continue;
+    }
+
+    updated += 1;
+    if (payload.match_status === "needs_review") needsReview += 1;
+  }
+
+  console.log(`Updated ${updated} documents. Needs review: ${needsReview}.`);
+}
+
+main().catch((error) => {
+  console.error(error);
+  process.exit(1);
+});
