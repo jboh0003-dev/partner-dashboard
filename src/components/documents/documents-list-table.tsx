@@ -12,6 +12,11 @@ import {
   DocumentFileNameLink,
   DocumentPreviewButton
 } from "@/components/documents/document-row-actions";
+import {
+  confirmDocumentNormal,
+  designateDocumentRepresentative,
+  excludeDocumentFromReview
+} from "@/app/dashboard/documents/actions";
 import { DocumentRematchModal } from "@/components/documents/document-rematch-modal";
 import type { DocumentMatchStatus } from "@/lib/documents/constants";
 import {
@@ -21,6 +26,7 @@ import {
   hasPartnerNameMismatch,
   resolveMatchStatus
 } from "@/lib/documents/display";
+import { isManuallyConfirmedReview } from "@/lib/documents/review-status";
 import { formatDate } from "@/lib/utils";
 
 export type DocumentListRow = {
@@ -61,8 +67,14 @@ function toDocumentSource(row: DocumentListRow) {
   };
 }
 
-function MatchStatusBadge({ status }: { status: DocumentMatchStatus }) {
-  const label = getMatchStatusLabel(status);
+function MatchStatusBadge({
+  status,
+  reviewStatus
+}: {
+  status: DocumentMatchStatus;
+  reviewStatus?: string | null;
+}) {
+  const label = isManuallyConfirmedReview(reviewStatus) ? "정상" : getMatchStatusLabel(status);
   const className =
     status === "matched"
       ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
@@ -71,13 +83,28 @@ function MatchStatusBadge({ status }: { status: DocumentMatchStatus }) {
         : "bg-slate-100 text-slate-600 ring-slate-200";
 
   return (
-    <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1 ${className}`}>
-      {label}
-    </span>
+    <div className="space-y-1">
+      <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1 ${className}`}>
+        {label}
+      </span>
+      {isManuallyConfirmedReview(reviewStatus) ? (
+        <p className="text-[10px] text-slate-500">수동 확인 완료</p>
+      ) : null}
+    </div>
   );
 }
 
-function buildColumns(onRematch: (row: DocumentListRow) => void): SortableColumn<DocumentListRow>[] {
+type DocumentRowActions = {
+  onRematch: (row: DocumentListRow) => void;
+  onAction: (documentId: string, action: "confirm" | "exclude" | "representative") => Promise<void>;
+  pendingId: string | null;
+};
+
+function buildColumns({
+  onRematch,
+  onAction,
+  pendingId
+}: DocumentRowActions): SortableColumn<DocumentListRow>[] {
   return [
     {
       key: "partner_name",
@@ -89,7 +116,8 @@ function buildColumns(onRematch: (row: DocumentListRow) => void): SortableColumn
         const mismatch = hasPartnerNameMismatch({
           partner_name: row.partner_name,
           extracted_partner_name: row.extracted_partner_name,
-          match_status: row.match_status
+          match_status: row.match_status,
+          review_status: row.review_status
         });
 
         return (
@@ -161,8 +189,13 @@ function buildColumns(onRematch: (row: DocumentListRow) => void): SortableColumn
         <MatchStatusBadge
           status={resolveMatchStatus({
             match_status: row.match_status,
-            review_status: row.review_status
+            review_status: row.review_status,
+            document_type: row.document_type,
+            partner_name: row.partner_name,
+            extracted_partner_name: row.extracted_partner_name,
+            summary: row.summary
           })}
+          reviewStatus={row.review_status}
         />
       )
     },
@@ -175,21 +208,53 @@ function buildColumns(onRematch: (row: DocumentListRow) => void): SortableColumn
       render: (row) => {
         const status = resolveMatchStatus({
           match_status: row.match_status,
-          review_status: row.review_status
+          review_status: row.review_status,
+          document_type: row.document_type,
+          partner_name: row.partner_name,
+          extracted_partner_name: row.extracted_partner_name,
+          summary: row.summary
         });
+        const isPending = pendingId === row.id;
 
         return (
           <div className="flex flex-wrap items-center justify-end gap-2">
             <DocumentPreviewButton documentId={row.id} document={toDocumentSource(row)} />
             <DocumentDownloadButton documentId={row.id} document={toDocumentSource(row)} />
             {status === "needs_review" ? (
-              <button
-                type="button"
-                onClick={() => onRematch(row)}
-                className="rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-800 hover:bg-amber-100"
-              >
-                재매칭
-              </button>
+              <>
+                <button
+                  type="button"
+                  disabled={isPending}
+                  onClick={() => onRematch(row)}
+                  className="rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-800 hover:bg-amber-100 disabled:opacity-50"
+                >
+                  재매칭
+                </button>
+                <button
+                  type="button"
+                  disabled={isPending}
+                  onClick={() => void onAction(row.id, "confirm")}
+                  className="rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-800 hover:bg-emerald-100 disabled:opacity-50"
+                >
+                  정상 처리
+                </button>
+                <button
+                  type="button"
+                  disabled={isPending}
+                  onClick={() => void onAction(row.id, "exclude")}
+                  className="rounded-md border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                >
+                  제외
+                </button>
+                <button
+                  type="button"
+                  disabled={isPending}
+                  onClick={() => void onAction(row.id, "representative")}
+                  className="rounded-md border border-blue-200 bg-blue-50 px-2.5 py-1 text-[11px] font-semibold text-blue-800 hover:bg-blue-100 disabled:opacity-50"
+                >
+                  대표 지정
+                </button>
+              </>
             ) : null}
           </div>
         );
@@ -207,12 +272,40 @@ export function DocumentsListTable({
 }) {
   const router = useRouter();
   const [rematchDocument, setRematchDocument] = useState<DocumentListRow | null>(null);
+  const [pendingId, setPendingId] = useState<string | null>(null);
+
+  async function handleAction(
+    documentId: string,
+    action: "confirm" | "exclude" | "representative"
+  ) {
+    setPendingId(documentId);
+    try {
+      const result =
+        action === "confirm"
+          ? await confirmDocumentNormal(documentId)
+          : action === "exclude"
+            ? await excludeDocumentFromReview(documentId)
+            : await designateDocumentRepresentative(documentId);
+
+      if (!result.ok) {
+        window.alert(result.message ?? "처리에 실패했습니다.");
+        return;
+      }
+      router.refresh();
+    } finally {
+      setPendingId(null);
+    }
+  }
 
   return (
     <>
       <ClientSortableTable
         rows={rows}
-        columns={buildColumns(setRematchDocument)}
+        columns={buildColumns({
+          onRematch: setRematchDocument,
+          onAction: handleAction,
+          pendingId
+        })}
         defaultSortKey="created_at"
         defaultDir="desc"
         minWidth="1120px"

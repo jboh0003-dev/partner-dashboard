@@ -1,18 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { Copy, Download } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { EmptyState } from "@/components/common/empty-state";
-import { buildCsv, downloadCsv, todayStamp } from "@/lib/csv";
+import { TableCopyToolbar } from "@/components/common/table-copy-toolbar";
+import { useTableSelection } from "@/hooks/use-table-selection";
+import {
+  RECRUITMENT_SELECTED_ROW_TSV,
+  recruitmentRowToCopyable
+} from "@/lib/clipboard/row-mappers";
 import { COURSE_TAGS } from "@/lib/trainings/course-tags";
 import {
   parseMonthsParam,
   recruitmentRowsToCsv,
   type RecruitmentRow
 } from "@/lib/trainings/recruitment";
-
-type EmailSeparator = "comma" | "semicolon";
 
 type TrainingRecruitmentPanelProps = {
   rows: RecruitmentRow[];
@@ -31,84 +33,11 @@ export function TrainingRecruitmentPanel({
   const selectedAttendedTags = parseTagsParam(params.attended_tags);
   const selectedNotAttendedTags = parseTagsParam(params.not_attended_tags);
 
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [separator, setSeparator] = useState<EmailSeparator>("comma");
-  const [copyMessage, setCopyMessage] = useState<string | null>(null);
-  const [csvBusy, setCsvBusy] = useState(false);
-
-  const rowsWithEmail = useMemo(
-    () => rows.filter((row) => row.contactEmail?.trim()),
-    [rows]
-  );
-
-  const allSelected =
-    rowsWithEmail.length > 0 && selectedIds.size === rowsWithEmail.length;
+  const selection = useTableSelection(rows, (row) => row.id);
+  const copyableRows = useMemo(() => rows.map(recruitmentRowToCopyable), [rows]);
+  const csvRows = useMemo(() => recruitmentRowsToCsv(rows), [rows]);
 
   const audience = typeof params.audience === "string" ? params.audience : "no_history";
-
-  function toggleRow(id: string) {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }
-
-  function toggleAll() {
-    if (allSelected) {
-      setSelectedIds(new Set());
-      return;
-    }
-    setSelectedIds(new Set(rowsWithEmail.map((row) => row.id)));
-  }
-
-  function collectEmails(targetRows: RecruitmentRow[]): string[] {
-    const seen = new Set<string>();
-    const emails: string[] = [];
-
-    for (const row of targetRows) {
-      const email = row.contactEmail?.trim();
-      if (!email) continue;
-      const key = email.toLowerCase();
-      if (seen.has(key)) continue;
-      seen.add(key);
-      emails.push(email);
-    }
-
-    return emails;
-  }
-
-  async function copyEmails(targetRows: RecruitmentRow[], label: string) {
-    const emails = collectEmails(targetRows);
-    if (emails.length === 0) {
-      setCopyMessage("복사할 이메일이 없습니다.");
-      return;
-    }
-
-    const delimiter = separator === "semicolon" ? "; " : ", ";
-    try {
-      await navigator.clipboard.writeText(emails.join(delimiter));
-      setCopyMessage(`${label} ${emails.length}건을 복사했습니다.`);
-    } catch {
-      setCopyMessage("클립보드 복사에 실패했습니다.");
-    }
-
-    setTimeout(() => setCopyMessage(null), 2500);
-  }
-
-  function handleCsvDownload() {
-    if (rows.length === 0 || csvBusy) return;
-    setCsvBusy(true);
-    try {
-      const csv = buildCsv(recruitmentRowsToCsv(rows));
-      downloadCsv(`training-recruitment-${todayStamp()}`, csv);
-    } finally {
-      setTimeout(() => setCsvBusy(false), 80);
-    }
-  }
-
-  const selectedRows = rows.filter((row) => selectedIds.has(row.id));
 
   return (
     <>
@@ -290,57 +219,16 @@ export function TrainingRecruitmentPanel({
         </div>
       </form>
 
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div className="text-xs text-slate-500">
-          총 <span className="font-semibold text-slate-700">{rows.length}</span>건 ·
-          이메일 보유{" "}
-          <span className="font-semibold text-slate-700">{rowsWithEmail.length}</span>건
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600">
-            <span>구분자</span>
-            <select
-              value={separator}
-              onChange={(event) =>
-                setSeparator(event.target.value as EmailSeparator)
-              }
-              className="rounded-lg border border-slate-200 px-2 py-1 text-sm text-slate-800"
-            >
-              <option value="comma">쉼표 (,)</option>
-              <option value="semicolon">세미콜론 (;)</option>
-            </select>
-          </label>
-
-          <ActionButton
-            icon={<Copy size={16} />}
-            label="선택 이메일 복사"
-            count={selectedRows.filter((row) => row.contactEmail?.trim()).length}
-            disabled={selectedRows.length === 0}
-            onClick={() => copyEmails(selectedRows, "선택")}
-          />
-          <ActionButton
-            icon={<Copy size={16} />}
-            label="전체 이메일 복사"
-            count={rowsWithEmail.length}
-            disabled={rowsWithEmail.length === 0}
-            onClick={() => copyEmails(rowsWithEmail, "전체")}
-          />
-          <ActionButton
-            icon={<Download size={16} />}
-            label="CSV 다운로드"
-            count={rows.length}
-            disabled={rows.length === 0 || csvBusy}
-            onClick={handleCsvDownload}
-          />
-        </div>
-      </div>
-
-      {copyMessage ? (
-        <div className="mb-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-800">
-          {copyMessage}
-        </div>
-      ) : null}
+      <TableCopyToolbar
+        allRows={copyableRows}
+        selectedIds={selection.selectedIds}
+        selectedCount={selection.selectedCount}
+        filterResultCount={rows.length}
+        onClearSelection={selection.clearSelection}
+        selectedRowTsv={RECRUITMENT_SELECTED_ROW_TSV}
+        csvRows={csvRows}
+        csvFilenamePrefix="training-recruitment"
+      />
 
       {error ? (
         <EmptyState title="모객 대상을 불러오지 못했습니다." description={error} />
@@ -352,15 +240,18 @@ export function TrainingRecruitmentPanel({
       ) : (
         <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div className="w-full overflow-x-auto">
-            <table className="w-full min-w-[1500px] divide-y divide-slate-200">
+            <table className="w-full min-w-[1500px] divide-y divide-slate-200 select-none">
               <thead className="bg-slate-50">
                 <tr>
-                  <th className="px-4 py-3 text-left">
+                  <th className="w-10 px-4 py-3 text-left">
                     <input
                       type="checkbox"
-                      checked={allSelected}
-                      onChange={toggleAll}
-                      aria-label="전체 선택"
+                      checked={selection.allSelected}
+                      ref={(input) => {
+                        if (input) input.indeterminate = selection.someSelected;
+                      }}
+                      onChange={selection.toggleAll}
+                      aria-label="현재 필터 결과 전체 선택"
                       className="h-4 w-4 rounded border-slate-300"
                     />
                   </th>
@@ -379,18 +270,15 @@ export function TrainingRecruitmentPanel({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {rows.map((row) => {
-                  const hasEmail = !!row.contactEmail?.trim();
-                  return (
+                {rows.map((row) => (
                     <tr key={row.id} className="transition hover:bg-slate-50">
                       <td className="px-4 py-4 align-top">
                         <input
                           type="checkbox"
-                          checked={selectedIds.has(row.id)}
-                          disabled={!hasEmail}
-                          onChange={() => toggleRow(row.id)}
+                          checked={selection.selectedIds.has(row.id)}
+                          onChange={() => selection.toggleRow(row.id)}
                           aria-label={`${row.companyName} 선택`}
-                          className="h-4 w-4 rounded border-slate-300 disabled:opacity-40"
+                          className="h-4 w-4 rounded border-slate-300"
                         />
                       </td>
                       <td className="px-5 py-4 align-top text-sm">
@@ -436,8 +324,7 @@ export function TrainingRecruitmentPanel({
                         </span>
                       </td>
                     </tr>
-                  );
-                })}
+                ))}
               </tbody>
             </table>
           </div>
@@ -455,35 +342,6 @@ function getStringParam(value: string | string[] | undefined): string {
 function parseTagsParam(value: string | string[] | undefined): string[] {
   if (!value) return [];
   return Array.isArray(value) ? value : [value];
-}
-
-function ActionButton({
-  icon,
-  label,
-  count,
-  disabled,
-  onClick
-}: {
-  icon: React.ReactNode;
-  label: string;
-  count: number;
-  disabled: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-blue-500 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-    >
-      {icon}
-      {label}
-      <span className="text-xs font-normal opacity-70">
-        ({count.toLocaleString("ko-KR")})
-      </span>
-    </button>
-  );
 }
 
 function Th({

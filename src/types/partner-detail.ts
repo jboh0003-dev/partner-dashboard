@@ -22,7 +22,29 @@ export type PartnerTrainingHistoryItem = {
   attendee_position: string | null;
   attended: boolean;
   score: number | null;
+  converted_score: number | null;
+  rank: number | null;
+  exam_status: string | null;
+  attendance_days: number | null;
+  partial_days: number | null;
+  absent_days: number | null;
   evaluation_result: string | null;
+  extra_json: Record<string, unknown> | null;
+};
+
+export type PartnerTrainingSessionGroup = {
+  training_id: string;
+  training_name: string;
+  training_type: string | null;
+  start_date: string | null;
+  end_date: string | null;
+  description: string | null;
+  is_tech_partner: boolean;
+  participants: PartnerTrainingHistoryItem[];
+  attendee_count: number;
+  exam_taken_count: number;
+  avg_total_score: number | null;
+  avg_converted_score: number | null;
 };
 
 /** 파트너 상세 — 행사 이력 (partner_event_partners × partner_events) */
@@ -48,9 +70,23 @@ export type PartnerDetailBundle = {
   contacts: PartnerContact[];
   notes: PartnerNote[];
   trainings: PartnerTrainingHistoryItem[];
+  trainingSessions: PartnerTrainingSessionGroup[];
   monthlyTrainings: PartnerTrainingMonthly[];
   events: PartnerEventHistoryItem[];
   pocs: PartnerPoc[];
   assets: PartnerAsset[];
   documents: PartnerDocument[];
+  performance: PartnerPerformanceBundle;
+};
+
+export type PartnerPerformanceBundle = {
+  snapshot: { snapshot_date: string; snapshot_label: string } | null;
+  win_forecast_amount_million: number;
+  win_forecast_count: number;
+  new_reg_amount_million: number;
+  new_reg_count: number;
+  revenue_amount_million: number;
+  revenue_count: number;
+  opportunities: import("@/types/partner-performance").PartnerPipelineOpportunity[];
+  win_probability_breakdown: Array<{ label: string; amount_million: number; count: number }>;
 };

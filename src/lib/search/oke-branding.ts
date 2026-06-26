@@ -9,4 +9,6 @@ export const OKE_POLICY_LABEL = "오케가 안내하는 정책·가이드";
 export const OKE_EVENT_LABEL = "오케가 찾은 행사 자료";
 export const OKE_NO_KNOWLEDGE =
   "등록된 파트너 정책/기준 정보가 없습니다. 관리자에게 정책 정보를 등록해 주세요.";
+export const OKE_POLICY_NOT_FOUND =
+  "현재 등록된 정책 자료에서는 확인되지 않습니다.";
 export const OKE_MENU_LABEL = "오케 AI";

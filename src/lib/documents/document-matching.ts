@@ -1,6 +1,10 @@
 import type { DocumentMatchMethod, DocumentMatchStatus } from "@/lib/documents/constants";
 import { namesAreConsistent } from "@/lib/documents/display";
 import {
+  shouldFlagContractDateMismatch,
+  shouldIgnoreNameMismatchForReview
+} from "@/lib/documents/review-rules";
+import {
   companyNamesMatchWithVariants,
   matchReasonForStrategy
 } from "@/lib/documents/partner-aliases";
@@ -474,6 +478,9 @@ export function evaluateExistingDocumentMatch(input: {
   partnerCompanyName: string;
   matchConfidence?: number | null;
   matchMethod?: string | null;
+  documentType?: string | null;
+  contractDate?: string | null;
+  periodYear?: number | null;
 }): Pick<DocumentMatchResult, "match_status" | "match_confidence" | "reason" | "save_enabled"> {
   if (input.matchMethod === "manual" || input.matchMethod === "folder") {
     return {
@@ -496,11 +503,42 @@ export function evaluateExistingDocumentMatch(input: {
     };
   }
 
+  if (
+    !consistent &&
+    shouldIgnoreNameMismatchForReview({
+      document_type: input.documentType,
+      extracted_partner_name: input.extractedPartnerName
+    })
+  ) {
+    return {
+      match_status: "matched",
+      match_confidence: confidence,
+      reason: "연도·참고 정보는 확인 필요 대상에서 제외",
+      save_enabled: true
+    };
+  }
+
   if (!consistent) {
     return {
       match_status: "needs_review",
       match_confidence: Math.min(confidence, 50),
       reason: REASON.sourceConflict,
+      save_enabled: false
+    };
+  }
+
+  if (
+    shouldFlagContractDateMismatch({
+      document_type: input.documentType,
+      contract_date: input.contractDate,
+      period_year: input.periodYear,
+      extracted_partner_name: input.extractedPartnerName
+    })
+  ) {
+    return {
+      match_status: "needs_review",
+      match_confidence: Math.min(confidence, 60),
+      reason: "계약일자와 문서 연도가 다릅니다.",
       save_enabled: false
     };
   }

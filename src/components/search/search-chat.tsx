@@ -27,6 +27,7 @@ import {
   OKE_SUBTITLE,
   PAGE_EXAMPLE_QUESTIONS
 } from "@/components/search/search-examples";
+import { getSearchIntentLabel } from "@/lib/search/intent-labels";
 import {
   OKE_EVENT_LABEL,
   OKE_POLICY_LABEL,
@@ -343,6 +344,10 @@ function SearchResultPanel({
         {result.criteria ? (
           <p className="mt-2 text-sm text-slate-600">조회 기준: {result.criteria}</p>
         ) : null}
+
+        <p className="mt-2 text-xs font-medium text-slate-500">
+          조회 유형: {getSearchIntentLabel(result.intent)}
+        </p>
 
         {result.summaryCards && result.summaryCards.length > 0 ? (
           <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">

@@ -1,6 +1,7 @@
 import { COURSE_TAGS, type CourseTag } from "@/lib/trainings/course-tags";
 import { yearMonthKey } from "@/lib/training-display";
 import { stripNonPartnerTerms } from "@/lib/search/company-terms";
+import { isPipelineQuery } from "@/lib/search/pipeline-query";
 import { compactSearchQuery, normalizeSearchQuery } from "@/lib/search/query-normalize";
 import type { ParsedSearchQuery, SearchIntent } from "@/lib/search/types";
 import type { Training } from "@/types/training";
@@ -12,6 +13,8 @@ const LIST_INTENTS = new Set<SearchIntent>([
   "missing_document_lookup",
   "asset_partner_list",
   "training_gap_lookup",
+  "tech_partner_training_lookup",
+  "pipeline_lookup",
   "date_condition_lookup",
   "policy_lookup",
   "event_lookup",
@@ -32,6 +35,8 @@ const INTENT_KEYWORDS: Record<
     | "missing_document_lookup"
     | "asset_partner_list"
     | "training_gap_lookup"
+    | "tech_partner_training_lookup"
+    | "pipeline_lookup"
   >,
   string[]
 > = {
@@ -254,16 +259,30 @@ function isPolicyLookupQuery(query: string): boolean {
     /^파트너\s*정책\s*$/.test(lower.trim()) ||
     /파트너\s*정책/.test(lower) ||
     /파트너정책/.test(compact) ||
+    /^파트너\s*등급\s*$/.test(lower.trim()) ||
+    /파트너\s*등급/.test(lower) ||
+    /파트너등급/.test(compact) ||
+    /파트너\s*등급\s*기준/.test(lower) ||
     /파트너\s*승급\s*기준/.test(lower) ||
     /^승급\s*기준/.test(lower.trim()) ||
-    /파트너\s*신청.*(문서|서류|필요)/.test(lower);
+    /파트너\s*신청.*(문서|서류|필요)/.test(lower) ||
+    /^(계약\s*절차|교육\s*정책|poc\s*지원)/.test(lower.trim());
 
-  const asksPolicy =
-    barePolicy ||
-    /(정책|기준|혜택|승급|등급|플래티넘|골드|실버|운영\s*기준|필요한\s*문서|제출\s*서류|계약.*기준|교육.*기준|등록\s*기준)/.test(
+  const policyTopics =
+    /(영업기회\s*등록|deal\s*registration|파트너\s*계약\s*절차|수익\s*프로그램|base\s*profit|promotion|target\s*incentive|technical\s*support\s*fee|care\s*pack|파트너\s*인증|파트너\s*kpi|파트너\s*목표|기술파트너\s*level|level\s*[12]|등록\s*절차|계약\s*절차|인증서\s*발급|profit\s*program|technical\s*program|support\s*program)/.test(
       lower
     );
-  const isQuestion = /(\?|뭐|어떻|알려|설명|무엇)/.test(lower) || barePolicy;
+
+  const asksPolicy =
+    policyTopics ||
+    barePolicy ||
+    /(정책|기준|혜택|승급|등급|플래티넘|골드|실버|운영\s*기준|필요한\s*문서|제출\s*서류|계약.*기준|교육.*기준|등록\s*기준|계약\s*절차|poc)/.test(
+      lower
+    );
+  const isQuestion =
+    policyTopics ||
+    /(\?|뭐|어떻|알려|설명|무엇|절차|방법|조건|차이)/.test(lower) ||
+    barePolicy;
   const asksDataList =
     /(파트너를\s*알려|파트너사를|보여줘|목록|찾아줘|찾아\s*줘)/.test(lower) &&
     !/(기준|정책|뭐|어떻)/.test(lower);
@@ -332,10 +351,11 @@ function parseKnowledgeCategory(query: string): string | null {
   const lower = query.toLowerCase();
   if (/(정책|policy)/.test(lower)) return "정책";
   if (/(faq|가이드)/.test(lower)) return "FAQ";
-  if (/(운영|기준|담당자)/.test(lower)) return "운영기준";
+  if (/(등급|승급|플래티넘|골드|platinum|gold|silver|실버|partner\s*type)/.test(lower)) return "등급";
+  if (/(교육|수강|certification|인증)/.test(lower)) return "교육";
   if (/(계약|서류|신청)/.test(lower)) return "계약";
-  if (/(등급|승급|플래티넘|골드)/.test(lower)) return "등급";
-  if (/(교육|수강)/.test(lower)) return "교육";
+  if (/(영업기회|deal\s*registration|kpi|목표)/.test(lower)) return "운영기준";
+  if (/(운영|기준|담당자)/.test(lower)) return "운영기준";
   if (/(행사|세미나|간담회)/.test(lower)) return "행사";
   return null;
 }
@@ -355,8 +375,20 @@ export function inferListIntentFromQuery(query: string): SearchIntent | null {
   if (isPolicyLookupQuery(normalized)) return "policy_lookup";
   if (isGeneralKnowledgeLookupQuery(normalized)) return "general_knowledge_lookup";
   if (isTrainingGapLookupQuery(normalized)) return "training_gap_lookup";
+  if (isPipelineQuery(normalized)) return "pipeline_lookup";
+  if (isTechPartnerTrainingQuery(normalized)) return "tech_partner_training_lookup";
   if (isAssetPartnerListQuery(normalized)) return "asset_partner_list";
   return null;
+}
+
+export function isTechPartnerTrainingQuery(query: string): boolean {
+  const compact = compactSearchQuery(query);
+  const lower = query.toLowerCase();
+  if (/미응시/.test(lower) && /(기술|교육|파트너)/.test(lower)) return true;
+  if (/기술파트너/.test(compact) && /(교육|시험|점수|결과|평균|응시)/.test(compact)) return true;
+  if (/2026년상반기/.test(compact) && /(기술|교육|파트너)/.test(compact)) return true;
+  if (/(점수|평균).*(높|상위)/.test(compact) && /(파트너|교육)/.test(compact)) return true;
+  return /기술파트너교육|시험결과/.test(compact);
 }
 
 export function classifyIntent(query: string): SearchIntent {
@@ -512,6 +544,8 @@ export function buildFollowUpQuery(
     contact_lookup: "담당자 연락처",
     training_lookup: "교육 참석 현황",
     training_gap_lookup: "교육 미수강 파트너",
+    tech_partner_training_lookup: "기술파트너 교육 결과",
+    pipeline_lookup: "파트너 실적/파이프라인",
     asset_partner_list: "장비 보유 파트너",
     missing_document_lookup: "계약서 미등록 파트너",
     partner_profile: "기본 정보",

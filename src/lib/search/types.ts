@@ -15,7 +15,9 @@ export type SearchIntent =
   | "general_knowledge_lookup"
   | "missing_document_lookup"
   | "asset_partner_list"
-  | "training_gap_lookup";
+  | "training_gap_lookup"
+  | "tech_partner_training_lookup"
+  | "pipeline_lookup";
 
 export type SearchListColumn = {
   key: string;

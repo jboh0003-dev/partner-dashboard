@@ -9,15 +9,20 @@ import {
 } from "@/lib/data/search";
 import { extractCompanyCandidateFromQuery } from "@/lib/search/extract-company";
 import { resolveCompanyName } from "@/lib/search/fuzzy-company";
+import { stripNonPartnerTerms } from "@/lib/search/company-terms";
+import { isPipelineQuery } from "@/lib/search/pipeline-query";
+import { handlePipelineLookup } from "@/lib/search/pipeline-lookup-handler";
 import { buildFollowUpQuery, inferListIntentFromQuery, isRegisteredDocumentListMode, parseSearchQuery } from "@/lib/search/parse-query";
 import {
   getDefaultKnowledgeRows,
+  policyChunksToKnowledgeRows,
   searchPartnerKnowledge,
+  type KnowledgeSearchHit,
   type PartnerKnowledgeRow
 } from "@/lib/search/knowledge";
 import { searchPartnerEvents, wantsEventAllFiles } from "@/lib/search/event-search";
 import { EVENT_DOCUMENT_TYPE_LABEL } from "@/lib/events/event-document-types";
-import { OKE_NO_KNOWLEDGE } from "@/lib/search/oke-branding";
+import { OKE_NO_KNOWLEDGE, OKE_POLICY_NOT_FOUND } from "@/lib/search/oke-branding";
 import type {
   ParsedSearchQuery,
   SearchContactItem,
@@ -286,8 +291,61 @@ function handleAssetLookup(
   };
 }
 
-function knowledgeRows(context: SearchContext): PartnerKnowledgeRow[] {
-  return context.knowledge.length > 0 ? context.knowledge : getDefaultKnowledgeRows();
+function knowledgeRows(
+  context: SearchContext,
+  options?: { policyOnly?: boolean }
+): PartnerKnowledgeRow[] {
+  const policyRows =
+    context.policyDocument && context.policyChunks.length > 0
+      ? policyChunksToKnowledgeRows(context.policyDocument, context.policyChunks)
+      : [];
+
+  const legacyRows =
+    context.knowledge.length > 0 ? context.knowledge : getDefaultKnowledgeRows();
+
+  if (options?.policyOnly) {
+    return policyRows.length > 0 ? policyRows : legacyRows;
+  }
+
+  if (policyRows.length > 0) return [...policyRows, ...legacyRows];
+  return legacyRows;
+}
+
+function isPolicyVersionComparisonQuery(query: string): boolean {
+  return /이전\s*버전|변경\s*(전|후)|비교|달라|차이|old|previous/.test(query.toLowerCase());
+}
+
+function extractSlideNumbers(hits: KnowledgeSearchHit[]): number[] {
+  const slides = new Set<number>();
+  for (const hit of hits) {
+    const match = hit.content.match(/\[슬라이드\s*(\d+)\]/);
+    if (match) slides.add(Number(match[1]));
+  }
+  return [...slides].sort((left, right) => left - right);
+}
+
+function stripSlidePrefix(content: string): string {
+  return content.replace(/^\[슬라이드\s*\d+\]\s*/, "").trim();
+}
+
+function formatPolicyKnowledgeAnswer(
+  hits: KnowledgeSearchHit[],
+  document: SearchContext["policyDocument"]
+): string {
+  const body = hits
+    .slice(0, 3)
+    .map((hit) => stripSlidePrefix(hit.content))
+    .filter(Boolean)
+    .join("\n\n");
+  const trimmed = body.length > 700 ? `${body.slice(0, 700)}…` : body;
+  const slides = extractSlideNumbers(hits);
+  const slideRef = slides.length > 0 ? ` (근거: 슬라이드 ${slides.join(", ")})` : "";
+
+  if (document) {
+    return `${document.version_label} 정책(기준일 ${document.effective_date}) 기준으로 ${trimmed}${slideRef}`;
+  }
+
+  return `${trimmed}${slideRef}`;
 }
 
 function partnerMatchesContractDate(
@@ -592,9 +650,11 @@ function handleKnowledgeLookup(
   context: SearchContext,
   intent: "policy_lookup"
 ): SearchResult {
-  const rows = knowledgeRows(context);
+  const rows = knowledgeRows(context, { policyOnly: true });
   let hits = searchPartnerKnowledge(parsed.raw, rows, 5);
-  const criteria = "파트너 정책·가이드 검색";
+  const criteria = context.policyDocument
+    ? `${context.policyDocument.version_label} · 기준일 ${context.policyDocument.effective_date}`
+    : "파트너 정책·가이드 검색";
 
   if (parsed.knowledgeCategory) {
     hits = hits.filter((hit) => hit.category === parsed.knowledgeCategory);
@@ -603,16 +663,42 @@ function handleKnowledgeLookup(
     }
   }
 
-  const updatedAt = latestTimestamp(hits.map((hit) => hit.updated_at));
+  const isComparison = isPolicyVersionComparisonQuery(parsed.raw);
+  let comparisonNote = "";
+  if (
+    isComparison &&
+    context.previousPolicyDocument &&
+    context.previousPolicyChunks.length > 0
+  ) {
+    const previousRows = policyChunksToKnowledgeRows(
+      context.previousPolicyDocument,
+      context.previousPolicyChunks
+    );
+    const previousHits = searchPartnerKnowledge(parsed.raw, previousRows, 3);
+    if (previousHits.length > 0) {
+      comparisonNote = `\n\n[이전 버전: ${context.previousPolicyDocument.version_label} · 기준일 ${context.previousPolicyDocument.effective_date}]\n${formatPolicyKnowledgeAnswer(previousHits, context.previousPolicyDocument)}`;
+    }
+  }
+
+  const updatedAt = latestTimestamp([
+    context.policyDocument?.updated_at,
+    ...hits.map((hit) => hit.updated_at)
+  ]);
   const sources: SearchSource[] = [
-    { type: "partner_knowledge", label: "정책·가이드 DB", updatedAt },
+    {
+      type: "partner_knowledge",
+      label: context.policyDocument
+        ? `정책 ${context.policyDocument.version_label}`
+        : "정책·가이드 DB",
+      updatedAt
+    },
     { type: "partner", label: "partners" }
   ];
   const menuLinks: SearchMenuLink[] = [{ label: "파트너 정책", href: "/dashboard/policy" }];
 
   if (hits.length === 0) {
     return {
-      answer: OKE_NO_KNOWLEDGE,
+      answer: context.policyDocument ? OKE_POLICY_NOT_FOUND : OKE_NO_KNOWLEDGE,
       criteria,
       intent,
       empty: true,
@@ -638,7 +724,7 @@ function handleKnowledgeLookup(
   }));
 
   return {
-    answer: top.content.length > 280 ? `${top.content.slice(0, 280)}…` : top.content,
+    answer: `${formatPolicyKnowledgeAnswer(hits, context.policyDocument)}${comparisonNote}`,
     criteria,
     intent,
     empty: false,
@@ -652,7 +738,10 @@ function handleKnowledgeLookup(
     menuLinks,
     summaryCards: [
       { label: "근거", value: categoryLabel || top.category },
-      { label: "출처", value: top.source ?? "등록된 정책·가이드" },
+      {
+        label: "출처",
+        value: context.policyDocument?.version_label ?? top.source ?? "등록된 정책·가이드"
+      },
       { label: "관련 항목", value: `${hits.length}건` }
     ]
   };
@@ -1537,6 +1626,143 @@ function handleTrainingLookup(
   };
 }
 
+function handleTechPartnerTrainingLookup(
+  parsed: ParsedSearchQuery,
+  context: SearchContext
+): SearchResult {
+  const compact = parsed.raw.replace(/\s+/g, "");
+  const wantsNoExam = /미응시/.test(parsed.raw);
+  const wantsHighScore = /(점수|평균).*(높|상위)/.test(compact);
+
+  let rows = context.attendances.filter(
+    (row) =>
+      /기술파트너/.test(row.training_name) || row.training_type === "기술파트너 교육"
+  );
+
+  const partnerMatch = resolveCompany(
+    { ...parsed, requiresPartner: true, companyCandidate: extractCompanyCandidateFromQuery(parsed.raw, context.partners, null) },
+    context
+  );
+  if (partnerMatch.partner) {
+    rows = rows.filter((row) => row.partner_id === partnerMatch.partner!.id);
+  } else {
+    const mentioned = context.partners.find((partner) =>
+      parsed.raw.toLowerCase().includes(partner.company_name.toLowerCase())
+    );
+    if (mentioned) {
+      rows = rows.filter((row) => row.partner_id === mentioned.id);
+    }
+  }
+
+  if (wantsNoExam) {
+    rows = rows.filter(
+      (row) => row.exam_status === "미응시" || row.exam_status === "결과없음" || row.exam_status === "매칭검토"
+    );
+  }
+
+  if (wantsHighScore) {
+    rows = [...rows].sort((a, b) => (b.score ?? -1) - (a.score ?? -1));
+  }
+
+  const criteria = partnerMatch.partner
+    ? `${partnerMatch.partner.company_name} · 기술파트너 교육 결과`
+    : wantsNoExam
+      ? "기술파트너 교육 · 미응시/결과 없음"
+      : "2026년 상반기 기술파트너 교육 결과";
+  const title = "기술파트너 교육 결과";
+
+  if (rows.length === 0) {
+    return {
+      ...emptyListResult(parsed, {
+        intent: "tech_partner_training_lookup",
+        criteria,
+        title
+      }),
+      sources: [{ type: "training_attendance", label: "교육 참석 DB" }],
+      menuLinks: [
+        { label: "교육 현황", href: "/dashboard/trainings" },
+        { label: "기술파트너 교육 업로드", href: "/dashboard/trainings/tech-partner-upload" }
+      ]
+    };
+  }
+
+  const listResult: SearchListResult = {
+    title,
+    criteria,
+    totalCount: rows.length,
+    exportFilename: "tech-partner-training-results",
+    columns: [
+      { key: "company", label: "파트너사" },
+      { key: "name", label: "이름" },
+      { key: "exam", label: "응시" },
+      { key: "rank", label: "순위" },
+      { key: "total", label: "총점" },
+      { key: "converted", label: "환산" },
+      { key: "detail", label: "상세" }
+    ],
+    rows: rows.map((row) => ({
+      id: row.id,
+      href: `/dashboard/partners/${row.partner_id}?tab=trainings`,
+      values: {
+        company: row.partner_name,
+        name: row.attendee_name ?? "-",
+        exam: row.exam_status ?? (row.score != null ? "응시" : "미응시"),
+        rank: row.rank != null ? String(row.rank) : "-",
+        total: row.score != null ? String(row.score) : "-",
+        converted:
+          row.converted_score != null ? String(row.converted_score) : "-",
+        detail: "상세 보기"
+      }
+    }))
+  };
+
+  const avgScore =
+    rows.filter((r) => r.score != null).length > 0
+      ? Math.round(
+          (rows.reduce((sum, r) => sum + (r.score ?? 0), 0) /
+            rows.filter((r) => r.score != null).length) *
+            10
+        ) / 10
+      : null;
+
+  return {
+    answer: partnerMatch.partner
+      ? `${partnerMatch.partner.company_name} 기술파트너 교육 결과 ${rows.length}건입니다.`
+      : `기술파트너 교육 결과 ${rows.length}건입니다.`,
+    criteria,
+    intent: "tech_partner_training_lookup",
+    empty: false,
+    matchedPartner: partnerMatch.partner ? partnerLink(partnerMatch.partner) : null,
+    partners: Array.from(new Map(rows.map((r) => [r.partner_id, partnerLink({ id: r.partner_id, company_name: r.partner_name })])).values()),
+    contacts: [],
+    items: rows.slice(0, 10).map((row) => ({
+      id: row.id,
+      title: `${row.partner_name} · ${row.attendee_name ?? "-"}`,
+      subtitle: [
+        row.exam_status ?? (row.score != null ? "응시" : "미응시"),
+        row.score != null ? `총점 ${row.score}` : null,
+        row.converted_score != null ? `환산 ${row.converted_score}` : null
+      ]
+        .filter(Boolean)
+        .join(" · "),
+      href: `/dashboard/partners/${row.partner_id}?tab=trainings`
+    })),
+    sources: [{ type: "training_attendance", label: "교육 참석 DB" }],
+    matchStrategy: partnerMatch.strategy,
+    confidence: partnerMatch.confidence,
+    menuLinks: [
+      { label: "교육 현황", href: "/dashboard/trainings" },
+      { label: "기술파트너 교육 업로드", href: "/dashboard/trainings/tech-partner-upload" }
+    ],
+    summaryCards: [
+      { label: "조회 기준", value: criteria },
+      { label: "총 건수", value: `${rows.length}건` },
+      { label: "평균 총점", value: avgScore != null ? String(avgScore) : "-" }
+    ],
+    listResult
+  };
+}
+
 function handleTrainingGapLookup(
   parsed: ParsedSearchQuery,
   context: SearchContext
@@ -1728,8 +1954,8 @@ function handlePartnerProfile(
 export function runSearch(query: string, context: SearchContext): SearchResult {
   let parsed = parseSearchQuery(query, context.trainings);
 
-  // Intent-first: 조건·목록형 질문은 파트너명 매칭 없이 처리
-  if (parsed.intent === "partner_profile") {
+  // Intent-first: 조건·목록·정책 질문은 파트너명 매칭 없이 처리
+  if (parsed.intent === "partner_profile" || (parsed.requiresPartner && !parsed.companyCandidate?.trim())) {
     const listIntent = inferListIntentFromQuery(parsed.raw);
     if (listIntent) {
       parsed = {
@@ -1772,6 +1998,21 @@ export function runSearch(query: string, context: SearchContext): SearchResult {
       return handleMissingDocumentList(parsed, context);
     case "training_gap_lookup":
       return handleTrainingGapLookup(parsed, context);
+    case "tech_partner_training_lookup":
+      return handleTechPartnerTrainingLookup(parsed, context);
+    case "pipeline_lookup":
+      return {
+        intent: "pipeline_lookup",
+        answer: "파이프라인 데이터를 조회합니다.",
+        empty: true,
+        matchedPartner: null,
+        partners: [],
+        contacts: [],
+        items: [],
+        sources: [{ type: "partner_knowledge", label: "파트너 파이프라인 DB" }],
+        matchStrategy: "none",
+        menuLinks: [{ label: "실적/파이프라인", href: "/dashboard/performance" }]
+      };
     case "asset_lookup":
       return handleAssetLookup(parsed, context, match);
     case "document_lookup":
@@ -1788,5 +2029,17 @@ export function runSearch(query: string, context: SearchContext): SearchResult {
 
 export async function searchPartners(query: string): Promise<SearchResult> {
   const context = await fetchSearchContext();
+  if (isPipelineQuery(query)) {
+    const parsed = parseSearchQuery(query, context.trainings);
+    const candidate = parsed.companyCandidate?.trim() || stripNonPartnerTerms(parsed.raw);
+    const resolved = candidate
+      ? resolveCompanyName(candidate, context.partners)
+      : { partner: null, strategy: "none" as const, confidence: 0, candidates: [], queryUsed: null };
+    return handlePipelineLookup(
+      parsed,
+      resolved.partner?.id ?? null,
+      resolved.partner?.company_name ?? null
+    );
+  }
   return runSearch(query, context);
 }

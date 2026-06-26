@@ -1,4 +1,5 @@
 import { PARTNER_POLICY_SECTIONS } from "@/lib/policy/partner-policy";
+import type { PartnerPolicyChunk, PartnerPolicyDocument } from "@/types/partner-policy";
 
 export type PartnerKnowledgeRow = {
   id: string;
@@ -14,7 +15,47 @@ export type PartnerKnowledgeRow = {
 
 export type KnowledgeSearchHit = PartnerKnowledgeRow & {
   score: number;
+  slide_number?: number | null;
 };
+
+const CATEGORY_TO_KNOWLEDGE: Record<string, string> = {
+  Overview: "정책",
+  "Partner Type": "등급",
+  "Profit Program": "정책",
+  "Technical Program": "교육",
+  "Support Program": "정책",
+  "Contract Process": "계약",
+  "Deal Registration": "운영기준",
+  "KPI / Goal": "운영기준",
+  Appendix: "FAQ",
+  기타: "기타"
+};
+
+export function policyChunksToKnowledgeRows(
+  document: PartnerPolicyDocument,
+  chunks: PartnerPolicyChunk[]
+): PartnerKnowledgeRow[] {
+  return chunks.map((chunk, index) => ({
+    id: `policy-chunk-${chunk.id}`,
+    category: CATEGORY_TO_KNOWLEDGE[chunk.category ?? ""] ?? "정책",
+    title: chunk.section_title ?? `슬라이드 ${chunk.slide_number ?? index + 1}`,
+    content: chunk.slide_number
+      ? `[슬라이드 ${chunk.slide_number}] ${chunk.content}`
+      : chunk.content,
+    keywords: [
+      ...(chunk.keywords ?? []),
+      document.version_label,
+      document.policy_title,
+      chunk.category ?? ""
+    ]
+      .filter(Boolean)
+      .join(","),
+    source: `${document.version_label} · ${document.source_file_name}`,
+    sort_order: (chunk.slide_number ?? index) * 10,
+    is_active: true,
+    updated_at: document.updated_at
+  }));
+}
 
 /** DB 미적용·빈 테이블 시 정적 fallback */
 export function getDefaultKnowledgeRows(): PartnerKnowledgeRow[] {
@@ -118,13 +159,32 @@ export function searchPartnerKnowledge(
       }
 
       if (/정책|policy/.test(haystack) && row.category === "정책") score += 25;
-      if (/승급|등급|플래티넘|platinum|골드|gold/.test(haystack) && row.category === "등급") {
-        score += 35;
+      if (/승급|등급|플래티넘|platinum|골드|gold|실버|silver|partner\s*type|파트너\s*유형|파트너\s*등급/.test(haystack) && row.category === "등급") {
+        score += 80;
+      }
+      if (/승급|등급|platinum|gold|silver|partner\s*type/.test(haystack) && row.category !== "등급" && /영업|deal|등록/.test(`${title} ${content}`)) {
+        score -= 70;
+      }
+      if (/영업기회|deal\s*registration|등록\s*절차/.test(haystack) && /영업|deal|등록/.test(`${title} ${content}`)) {
+        score += 80;
+      }
+      if (/수익|profit|incentive|promotion|base\s*profit/.test(haystack) && /profit|수익|incentive|promotion/i.test(`${title} ${content} ${keywords}`)) {
+        score += 45;
+      }
+      if (/교육|certification|인증|level\s*[12]|기술파트너/.test(haystack) && row.category === "교육") {
+        score += 40;
+      }
+      if (/계약\s*절차|contract\s*process/.test(haystack) && row.category === "계약") {
+        score += 45;
+      }
+      if (/kpi|목표|goal/.test(haystack) && row.category === "운영기준") {
+        score += 40;
       }
       if (/교육|수강|참석/.test(haystack) && row.category === "교육") score += 35;
       if (/계약|서류|신청/.test(haystack) && row.category === "계약") score += 30;
       if (/담당자|계약담당/.test(haystack) && row.title.includes("담당자")) score += 40;
       if (/faq|가이드/.test(haystack) && row.category === "FAQ") score += 30;
+      if (/슬라이드\s*\d+/.test(row.content) && /슬라이드|근거/.test(haystack)) score += 10;
 
       return { ...row, score };
     })

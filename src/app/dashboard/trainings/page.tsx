@@ -1,7 +1,6 @@
 ﻿import Link from "next/link";
 import { PageHeader } from "@/components/layout/page-header";
 import { EmptyState } from "@/components/common/empty-state";
-import { CsvDownloadButton } from "@/components/common/csv-download-button";
 import { TrainingAttendeesTable } from "@/components/trainings/training-attendees-table";
 import { TrainingRecruitmentPanel } from "@/components/trainings/training-recruitment-panel";
 import { TrainingTabs } from "@/components/trainings/training-tabs";
@@ -168,6 +167,8 @@ export default async function TrainingsPage({
     비고: row.note ?? ""
   }));
 
+  const techTrainings = trainings.filter((t) => /기술파트너/.test(t.training_name));
+
   return (
     <>
       <PageHeader
@@ -178,14 +179,50 @@ export default async function TrainingsPage({
             : "정기교육 월별 요약과 참석자 이력을 조회합니다."
         }
         action={
-          tab === "attendees" ? (
-            <CsvDownloadButton
-              rows={attendeeExportRows}
-              filenamePrefix="training-attendees"
-            />
-          ) : null
+          <Link
+            href="/dashboard/trainings/tech-partner-upload"
+            className="ui-btn-secondary text-sm"
+          >
+            기술파트너 교육 업로드
+          </Link>
         }
       />
+
+      {techTrainings.length > 0 && tab === "summary" ? (
+        <section className="mb-6 rounded-xl border border-blue-100 bg-blue-50/50 p-4">
+          <h2 className="text-sm font-bold text-slate-900">기술파트너 교육</h2>
+          <div className="mt-3 space-y-2">
+            {techTrainings.map((training) => {
+              const agg = filteredAttendanceAgg.filter((row) => row.training_id === training.id);
+              const examTaken = allAttendees.filter(
+                (row) =>
+                  row.training_id === training.id &&
+                  row.evaluation_result === "응시"
+              ).length;
+              return (
+                <div
+                  key={training.id}
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-white bg-white px-4 py-3 text-sm"
+                >
+                  <div>
+                    <p className="font-semibold text-slate-900">{training.training_name}</p>
+                    <p className="text-xs text-slate-500">
+                      {training.start_date} ~ {training.end_date} · 참석 {agg.length}건 · 응시{" "}
+                      {examTaken}건
+                    </p>
+                  </div>
+                  <Link
+                    href={`/dashboard/trainings?tab=attendees&training=${training.id}`}
+                    className="text-xs font-semibold text-okestro-600 hover:underline"
+                  >
+                    상세 보기
+                  </Link>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      ) : null}
 
       {fetchError && tab !== "recruitment" ? (
         <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
@@ -213,6 +250,7 @@ export default async function TrainingsPage({
           trainingOptions={trainingOptions}
           params={params}
           error={attendanceDetailError?.message ?? null}
+          csvRows={attendeeExportRows}
         />
       ) : (
         <TrainingRecruitmentPanel
@@ -321,7 +359,8 @@ function AttendeesSection({
   monthOptions,
   trainingOptions,
   params,
-  error
+  error,
+  csvRows
 }: {
   rows: AttendeeDetailRow[];
   totalCount: number;
@@ -329,6 +368,7 @@ function AttendeesSection({
   trainingOptions: Array<{ value: string; label: string }>;
   params: SearchParams;
   error: string | null;
+  csvRows: Array<Record<string, string | number>>;
 }) {
   return (
     <>
@@ -384,7 +424,7 @@ function AttendeesSection({
           description="검색 조건을 변경하거나 정기교육 참석자 업로드 후 다시 확인해 주세요."
         />
       ) : (
-        <TrainingAttendeesTable rows={rows} />
+        <TrainingAttendeesTable rows={rows} csvRows={csvRows} />
       )}
     </>
   );

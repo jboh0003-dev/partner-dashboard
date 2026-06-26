@@ -47,7 +47,12 @@ export const MAX_DOCUMENT_FILE_SIZE = 50 * 1024 * 1024;
 
 export type DocumentMatchSource = "folder" | "filename" | "partner_no" | "fuzzy" | "manual";
 
-export type DocumentReviewStatus = "auto_matched" | "needs_review" | "skipped";
+export type DocumentReviewStatus =
+  | "auto_matched"
+  | "needs_review"
+  | "skipped"
+  | "manually_confirmed"
+  | "excluded";
 
 export type DocumentMatchStatus = "matched" | "needs_review" | "unmatched";
 
@@ -85,7 +90,9 @@ export const MATCH_SOURCE_LABEL: Record<DocumentMatchSource, string> = {
 export const REVIEW_STATUS_LABEL: Record<DocumentReviewStatus, string> = {
   auto_matched: "자동매칭",
   needs_review: "확인필요",
-  skipped: "스킵"
+  skipped: "스킵",
+  manually_confirmed: "수동확인",
+  excluded: "제외"
 };
 
 export function isAllowedDocumentExtension(ext: string): boolean {

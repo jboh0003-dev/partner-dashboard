@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { markDocumentRepresentative } from "@/lib/data/document-duplicates";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export type SavePartnerDocumentRematchInput = {
@@ -35,7 +36,7 @@ export async function savePartnerDocumentRematch(input: SavePartnerDocumentRemat
 
   const { data: document, error: documentError } = await supabase
     .from("partner_documents")
-    .select("id, partner_id, deleted_at, is_duplicate")
+    .select("id, partner_id, deleted_at, is_duplicate, review_status")
     .eq("id", input.documentId)
     .single();
 
@@ -44,6 +45,8 @@ export async function savePartnerDocumentRematch(input: SavePartnerDocumentRemat
   }
 
   const previousPartnerId = String(document.partner_id);
+  const now = new Date().toISOString();
+  const preserveManualConfirm = document.review_status === "manually_confirmed";
 
   const { error } = await supabase
     .from("partner_documents")
@@ -58,11 +61,12 @@ export async function savePartnerDocumentRematch(input: SavePartnerDocumentRemat
       match_method: "manual",
       match_confidence: 100,
       match_source: "manual",
-      review_status: "auto_matched",
+      review_status: preserveManualConfirm ? "manually_confirmed" : "manually_confirmed",
+      review_resolved_at: now,
       partner_name_raw: partner.company_name,
       is_active: true,
       ...(document.is_duplicate ? {} : { duplicate_reason: null }),
-      updated_at: new Date().toISOString()
+      updated_at: now
     })
     .eq("id", input.documentId);
 
@@ -77,6 +81,88 @@ export async function savePartnerDocumentRematch(input: SavePartnerDocumentRemat
   }
 
   return { ok: true as const, partnerName: partner.company_name };
+}
+
+export async function confirmDocumentNormal(documentId: string) {
+  const supabase = createAdminClient();
+  const now = new Date().toISOString();
+
+  const { data: document, error: fetchError } = await supabase
+    .from("partner_documents")
+    .select("id, partner_id, deleted_at")
+    .eq("id", documentId)
+    .single();
+
+  if (fetchError || !document || document.deleted_at) {
+    return { ok: false as const, message: "문서를 찾을 수 없습니다." };
+  }
+
+  const { error } = await supabase
+    .from("partner_documents")
+    .update({
+      match_status: "matched",
+      review_status: "manually_confirmed",
+      review_resolved_at: now,
+      is_active: true,
+      updated_at: now
+    })
+    .eq("id", documentId);
+
+  if (error) {
+    return { ok: false as const, message: error.message };
+  }
+
+  revalidatePath("/dashboard/documents");
+  revalidatePath(`/dashboard/partners/${document.partner_id}`);
+
+  return { ok: true as const };
+}
+
+export async function excludeDocumentFromReview(documentId: string) {
+  const supabase = createAdminClient();
+  const now = new Date().toISOString();
+
+  const { data: document, error: fetchError } = await supabase
+    .from("partner_documents")
+    .select("id, partner_id, deleted_at")
+    .eq("id", documentId)
+    .single();
+
+  if (fetchError || !document || document.deleted_at) {
+    return { ok: false as const, message: "문서를 찾을 수 없습니다." };
+  }
+
+  const { error } = await supabase
+    .from("partner_documents")
+    .update({
+      review_status: "excluded",
+      review_resolved_at: now,
+      is_active: false,
+      updated_at: now
+    })
+    .eq("id", documentId);
+
+  if (error) {
+    return { ok: false as const, message: error.message };
+  }
+
+  revalidatePath("/dashboard/documents");
+  revalidatePath(`/dashboard/partners/${document.partner_id}`);
+
+  return { ok: true as const };
+}
+
+export async function designateDocumentRepresentative(documentId: string) {
+  try {
+    await markDocumentRepresentative(documentId);
+    revalidatePath("/dashboard/documents");
+    return { ok: true as const };
+  } catch (error) {
+    return {
+      ok: false as const,
+      message: error instanceof Error ? error.message : "대표 지정에 실패했습니다."
+    };
+  }
 }
 
 /** @deprecated savePartnerDocumentRematch 사용 */

@@ -20,6 +20,12 @@ type ClientSortableTableProps<T> = {
   defaultDir?: SortDir;
   minWidth?: string;
   rowKey: (row: T) => string;
+  selectable?: boolean;
+  selectedIds?: Set<string>;
+  onToggleRow?: (id: string) => void;
+  onToggleAll?: () => void;
+  allSelected?: boolean;
+  someSelected?: boolean;
 };
 
 export function ClientSortableTable<T>({
@@ -28,7 +34,13 @@ export function ClientSortableTable<T>({
   defaultSortKey,
   defaultDir = "asc",
   minWidth = "960px",
-  rowKey
+  rowKey,
+  selectable = false,
+  selectedIds,
+  onToggleRow,
+  onToggleAll,
+  allSelected = false,
+  someSelected = false
 }: ClientSortableTableProps<T>) {
   const [sortKey, setSortKey] = useState(defaultSortKey);
   const [dir, setDir] = useState<SortDir>(defaultDir);
@@ -51,9 +63,26 @@ export function ClientSortableTable<T>({
   return (
     <div className="ui-table-shell">
       <div className="w-full overflow-x-auto">
-        <table className="w-full divide-y divide-slate-100" style={{ minWidth }}>
+        <table
+          className="w-full divide-y divide-slate-100 select-none"
+          style={{ minWidth }}
+        >
           <thead className="ui-table-head sticky top-0 z-[1]">
             <tr>
+              {selectable ? (
+                <th className="w-10 px-3 py-3 text-left">
+                  <input
+                    type="checkbox"
+                    checked={allSelected}
+                    ref={(input) => {
+                      if (input) input.indeterminate = someSelected;
+                    }}
+                    onChange={() => onToggleAll?.()}
+                    aria-label="현재 필터 결과 전체 선택"
+                    className="h-4 w-4 rounded border-slate-300"
+                  />
+                </th>
+              ) : null}
               {columns.map((column) => {
                 const isActive = sortKey === column.key;
                 return (
@@ -91,8 +120,21 @@ export function ClientSortableTable<T>({
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-50 bg-white">
-            {sortedRows.map((row) => (
-              <tr key={rowKey(row)} className="ui-table-row">
+            {sortedRows.map((row) => {
+              const id = rowKey(row);
+              return (
+              <tr key={id} className="ui-table-row">
+                {selectable ? (
+                  <td className="px-3 py-3 align-top">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds?.has(id) ?? false}
+                      onChange={() => onToggleRow?.(id)}
+                      aria-label="행 선택"
+                      className="h-4 w-4 rounded border-slate-300"
+                    />
+                  </td>
+                ) : null}
                 {columns.map((column) => (
                   <td
                     key={column.key}
@@ -110,7 +152,8 @@ export function ClientSortableTable<T>({
                   </td>
                 ))}
               </tr>
-            ))}
+            );
+            })}
           </tbody>
         </table>
       </div>

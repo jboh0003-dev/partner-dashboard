@@ -34,6 +34,7 @@ export type PartnerDocument = {
   archived_reason: string | null;
   match_source: string | null;
   review_status: string | null;
+  review_resolved_at: string | null;
   extracted_partner_name: string | null;
   match_confidence: number | null;
   match_status: string | null;

@@ -7,6 +7,7 @@ import {
   getRealPartnerIdSet
 } from "@/lib/partners/sample-filter";
 import type { PartnerKnowledgeRow } from "@/lib/search/knowledge";
+import type { PartnerPolicyChunk, PartnerPolicyDocument } from "@/types/partner-policy";
 import type { PartnerAsset } from "@/types/asset";
 import type { PartnerDocument } from "@/types/document";
 import {
@@ -36,6 +37,9 @@ export type SearchAttendanceRow = TrainingAttendance & {
   training_year: number | null;
   training_month: number | null;
   training_type: string | null;
+  converted_score?: number | null;
+  rank?: number | null;
+  exam_status?: string | null;
 };
 
 export type SearchContext = {
@@ -47,6 +51,10 @@ export type SearchContext = {
   attendances: SearchAttendanceRow[];
   trainings: Training[];
   knowledge: PartnerKnowledgeRow[];
+  policyDocument: PartnerPolicyDocument | null;
+  policyChunks: PartnerPolicyChunk[];
+  previousPolicyDocument: PartnerPolicyDocument | null;
+  previousPolicyChunks: PartnerPolicyChunk[];
   notes: PartnerNote[];
   events: PartnerEventRecord[];
   eventDocuments: PartnerEventDocument[];
@@ -66,6 +74,7 @@ export async function fetchSearchContext(): Promise<SearchContext> {
     { data: attendancesData },
     { data: trainingsData },
     { data: knowledgeData },
+    { data: policyDocumentData },
     { data: notesData },
     { data: eventsData },
     { data: eventDocsData }
@@ -97,6 +106,14 @@ export async function fetchSearchContext(): Promise<SearchContext> {
       .select("*")
       .eq("is_active", true)
       .order("sort_order", { ascending: true }),
+    supabase
+      .from("partner_policy_documents")
+      .select("*")
+      .eq("is_current", true)
+      .eq("status", "active")
+      .order("effective_date", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
     supabase.from("partner_notes").select("*").order("created_at", { ascending: false }),
     supabase
       .from("partner_events")
@@ -107,6 +124,43 @@ export async function fetchSearchContext(): Promise<SearchContext> {
       .select("*")
       .order("uploaded_at", { ascending: false })
   ]);
+
+  const policyDocument = policyDocumentData
+    ? (policyDocumentData as PartnerPolicyDocument)
+    : null;
+
+  let policyChunks: PartnerPolicyChunk[] = [];
+  let previousPolicyDocument: PartnerPolicyDocument | null = null;
+  let previousPolicyChunks: PartnerPolicyChunk[] = [];
+
+  if (policyDocument?.id) {
+    const { data: chunksData } = await supabase
+      .from("partner_policy_chunks")
+      .select("*")
+      .eq("policy_document_id", policyDocument.id)
+      .order("slide_number", { ascending: true });
+    policyChunks = (chunksData ?? []) as PartnerPolicyChunk[];
+
+    const { data: previousDocData } = await supabase
+      .from("partner_policy_documents")
+      .select("*")
+      .eq("status", "active")
+      .eq("is_current", false)
+      .order("effective_date", { ascending: false })
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (previousDocData) {
+      previousPolicyDocument = previousDocData as PartnerPolicyDocument;
+      const { data: prevChunksData } = await supabase
+        .from("partner_policy_chunks")
+        .select("*")
+        .eq("policy_document_id", previousPolicyDocument.id)
+        .order("slide_number", { ascending: true });
+      previousPolicyChunks = (prevChunksData ?? []) as PartnerPolicyChunk[];
+    }
+  }
 
   return {
     partners: filterSamplePartners((partnersData ?? []) as Partner[]),
@@ -120,6 +174,10 @@ export async function fetchSearchContext(): Promise<SearchContext> {
     attendances: filterRowsByPartnerName(mapAttendances(attendancesData ?? [])),
     trainings: (trainingsData ?? []) as Training[],
     knowledge: (knowledgeData ?? []) as PartnerKnowledgeRow[],
+    policyDocument,
+    policyChunks,
+    previousPolicyDocument,
+    previousPolicyChunks,
     notes: filterRowsByPartnerId(
       (notesData ?? []) as PartnerNote[],
       getRealPartnerIdSet((partnersData ?? []) as Partner[])

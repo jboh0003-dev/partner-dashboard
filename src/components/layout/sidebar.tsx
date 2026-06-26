@@ -15,6 +15,7 @@ import {
   MonitorUp,
   ScrollText,
   Sparkles,
+  TrendingUp,
   Upload,
   Users
 } from "lucide-react";
@@ -39,6 +40,7 @@ const NAV_GROUPS: NavGroup[] = [
     title: "Partner",
     items: [
       { href: "/dashboard/partners", label: "파트너사", icon: Building2 },
+      { href: "/dashboard/performance", label: "실적/파이프라인", icon: TrendingUp },
       { href: "/dashboard/contacts", label: "인력·담당자", icon: Users },
       { href: "/dashboard/documents", label: "문서 관리", icon: FileText },
       { href: "/dashboard/policy", label: "파트너 정책", icon: ScrollText }
@@ -59,7 +61,12 @@ const NAV_GROUPS: NavGroup[] = [
   },
   {
     title: "Admin",
-    items: [{ href: "/dashboard/upload", label: "데이터 업로드", icon: Upload }]
+    items: [
+      { href: "/dashboard/upload", label: "데이터 업로드", icon: Upload },
+      { href: "/dashboard/performance/upload", label: "실적/파이프라인 업로드", icon: TrendingUp },
+      { href: "/dashboard/policy/upload", label: "파트너 정책 업로드", icon: ScrollText },
+      { href: "/dashboard/trainings/tech-partner-upload", label: "기술파트너 교육 업로드", icon: GraduationCap }
+    ]
   }
 ];
 

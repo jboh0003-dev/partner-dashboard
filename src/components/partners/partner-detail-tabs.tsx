@@ -1,21 +1,26 @@
 ﻿"use client";
 
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   Building2,
   CalendarDays,
+  ChevronDown,
+  ChevronRight,
   FileText,
   FlaskConical,
   GraduationCap,
   Info,
   MonitorUp,
-  StickyNote
+  StickyNote,
+  TrendingUp
 } from "lucide-react";
 import { EmptyState } from "@/components/common/empty-state";
-import { ContactAssignmentBadge } from "@/components/contacts/contact-assignment-badge";
+import { ContactTagsBadges } from "@/components/contacts/contact-tags-badges";
+import { mergePartnerOrganizationContacts } from "@/lib/contacts/organization-merge";
 import { DOCUMENT_TYPE_LABEL, POC_RESULT_STATUS_LABEL } from "@/lib/constants";
 import { PartnerDocumentsTab } from "@/components/partners/partner-documents-tab";
+import { PartnerPerformanceTab } from "@/components/partners/partner-performance-tab";
 import { formatAssetUpdatedAt } from "@/lib/assets/display";
 import { formatAssetNodeDisplayName } from "@/lib/assets/partner-detail-assets";
 import { pickPartnerAssetStatus } from "@/lib/assets/node-utils";
@@ -25,7 +30,8 @@ import { formatDate } from "@/lib/utils";
 import type {
   PartnerDetailBundle,
   PartnerEventHistoryItem,
-  PartnerTrainingHistoryItem
+  PartnerTrainingHistoryItem,
+  PartnerTrainingSessionGroup
 } from "@/types/partner-detail";
 import type { PartnerTrainingMonthly } from "@/types/partner";
 import type { PartnerAsset } from "@/types/asset";
@@ -40,6 +46,7 @@ type TabKey =
   | "pocs"
   | "assets"
   | "documents"
+  | "performance"
   | "notes";
 
 type PartnerDetailTabsProps = {
@@ -56,6 +63,7 @@ const TAB_KEYS: TabKey[] = [
   "pocs",
   "assets",
   "documents",
+  "performance",
   "notes"
 ];
 
@@ -67,6 +75,7 @@ const TABS: Array<{ key: TabKey; label: string; icon: typeof Info }> = [
   { key: "pocs", label: "PoC 이력", icon: FlaskConical },
   { key: "assets", label: "장비/리소스", icon: MonitorUp },
   { key: "documents", label: "문서", icon: FileText },
+  { key: "performance", label: "실적/파이프라인", icon: TrendingUp },
   { key: "notes", label: "메모/히스토리", icon: StickyNote }
 ];
 
@@ -80,11 +89,13 @@ export function PartnerDetailTabs({
     contacts,
     notes,
     trainings,
+    trainingSessions,
     monthlyTrainings,
     events,
     pocs,
     assets,
-    documents
+    documents,
+    performance
   } = bundle;
   const [active, setActive] = useState<TabKey>(() => parseInitialTab(initialTab));
 
@@ -92,14 +103,21 @@ export function PartnerDetailTabs({
     setActive(parseInitialTab(initialTab));
   }, [initialTab]);
 
+  const organizationMerge = useMemo(
+    () => mergePartnerOrganizationContacts(contacts),
+    [contacts]
+  );
+
   const counts: Record<TabKey, number> = {
     basic: 0,
-    organization: contacts.length,
+    organization: organizationMerge.merged.length,
     trainings: trainings.length + monthlyTrainings.length,
     events: events.length,
     pocs: pocs.length,
     assets: assets.length,
     documents: documents.length,
+    performance:
+      performance.win_forecast_count + performance.new_reg_count + performance.revenue_count,
     notes: notes.length
   };
 
@@ -139,6 +157,7 @@ export function PartnerDetailTabs({
         {active === "organization" ? <OrganizationTab contacts={contacts} /> : null}
         {active === "trainings" ? (
           <TrainingsTab
+            sessions={trainingSessions}
             trainings={trainings}
             monthly={monthlyTrainings}
           />
@@ -149,6 +168,7 @@ export function PartnerDetailTabs({
         {active === "documents" ? (
           <PartnerDocumentsTab documents={documents} />
         ) : null}
+        {active === "performance" ? <PartnerPerformanceTab performance={performance} /> : null}
         {active === "notes" ? (
           <NotesTab
             partnerId={partner.id}
@@ -190,22 +210,31 @@ function BasicInfoTab({ partner }: { partner: PartnerDetailBundle["partner"] }) 
 }
 
 function OrganizationTab({ contacts }: { contacts: PartnerDetailBundle["contacts"] }) {
+  const { merged, raw_count } = useMemo(
+    () => mergePartnerOrganizationContacts(contacts),
+    [contacts]
+  );
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+
   if (contacts.length === 0) {
     return (
       <EmptyState
         title="등록된 담당자가 없습니다."
-        description="파트너사의 영업·엔지니어·계약담당자 정보를 등록하면 이 탭에 표시됩니다."
+        description="파트너사의 영업·엔지니어·계약담당자·교육 참석자 정보를 등록하면 이 탭에 표시됩니다."
       />
     );
   }
 
-  const hasContractContact = contacts.some((contact) => contact.is_contract_contact);
-  const sortedContacts = [...contacts].sort((left, right) => {
-    if (left.is_contract_contact !== right.is_contract_contact) {
-      return left.is_contract_contact ? -1 : 1;
-    }
-    return left.name.localeCompare(right.name, "ko-KR");
-  });
+  const hasContractContact = merged.some((contact) => contact.is_contract_contact);
+
+  function toggleExpanded(id: string) {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
 
   return (
     <div className="space-y-3">
@@ -214,38 +243,97 @@ function OrganizationTab({ contacts }: { contacts: PartnerDetailBundle["contacts
           계약담당자가 아직 지정되지 않았습니다. 영업 시 연락할 담당자를 확인해 주세요.
         </div>
       ) : null}
+      <p className="text-xs text-slate-500">
+        원본 {raw_count}건 · 병합 표시 {merged.length}명
+      </p>
       <div className="overflow-hidden rounded-xl border border-slate-200">
         <table className="min-w-full divide-y divide-slate-200">
           <thead className="bg-slate-50">
             <tr>
-              <Th>담당구분</Th>
+              <th className="w-8 px-2 py-2.5" aria-label="상세" />
+              <Th align="left">담당구분</Th>
               <Th>이름</Th>
               <Th>부서/직급</Th>
               <Th>연락처</Th>
               <Th>이메일</Th>
+              <Th>출처/태그</Th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {sortedContacts.map((contact) => (
-              <tr key={contact.id} className="hover:bg-slate-50">
-                <td className="px-4 py-2.5 text-sm">
-                  <ContactAssignmentBadge
-                    contact={{
-                      role_type: contact.role_type,
-                      role_raw: contact.role_raw,
-                      is_contract_contact: contact.is_contract_contact
-                    }}
-                  />
-                </td>
-                <td className="px-4 py-2.5 text-sm font-medium text-slate-900">{contact.name}</td>
-                <td className="px-4 py-2.5 text-sm">
-                  {[contact.department, contact.position].filter(Boolean).join(" / ") ||
-                    "-"}
-                </td>
-                <td className="px-4 py-2.5 text-sm text-slate-700">{contact.phone ?? "-"}</td>
-                <td className="px-4 py-2.5 text-sm text-slate-700">{contact.email ?? "-"}</td>
-              </tr>
-            ))}
+            {merged.map((contact) => {
+              const expanded = expandedIds.has(contact.id);
+              const hasDetails =
+                contact.alternate_phones.length > 0 ||
+                contact.alternate_emails.length > 0 ||
+                contact.sources.length > 0 ||
+                contact.phone_email_swapped;
+
+              return (
+                <Fragment key={contact.id}>
+                  <tr key={contact.id} className="hover:bg-slate-50">
+                    <td className="px-2 py-2.5">
+                      {hasDetails ? (
+                        <button
+                          type="button"
+                          onClick={() => toggleExpanded(contact.id)}
+                          className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                          aria-label={expanded ? "상세 접기" : "상세 펼치기"}
+                        >
+                          {expanded ? (
+                            <ChevronDown className="h-4 w-4" />
+                          ) : (
+                            <ChevronRight className="h-4 w-4" />
+                          )}
+                        </button>
+                      ) : null}
+                    </td>
+                    <td className="px-4 py-2.5 text-sm">
+                      <div className="flex flex-wrap items-center gap-1">
+                        <ContactTagsBadges tags={contact.tags} />
+                        {contact.has_multiple_sources ? (
+                          <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700 ring-1 ring-amber-200">
+                            복수 출처
+                          </span>
+                        ) : null}
+                      </div>
+                    </td>
+                    <td className="px-4 py-2.5 text-sm font-medium text-slate-900">{contact.name}</td>
+                    <td className="px-4 py-2.5 text-sm">
+                      {[contact.department, contact.position].filter(Boolean).join(" / ") ||
+                        "-"}
+                    </td>
+                    <td className="px-4 py-2.5 text-sm text-slate-700">{contact.phone ?? "-"}</td>
+                    <td className="px-4 py-2.5 text-sm text-slate-700">{contact.email ?? "-"}</td>
+                    <td className="px-4 py-2.5 text-xs text-slate-500">
+                      {contact.sources.length > 0 ? contact.sources.join(", ") : "-"}
+                    </td>
+                  </tr>
+                  {expanded && hasDetails ? (
+                    <tr key={`${contact.id}-detail`} className="bg-slate-50/80">
+                      <td colSpan={7} className="px-4 py-3 text-xs text-slate-600">
+                        <div className="space-y-1">
+                          {contact.phone_email_swapped ? (
+                            <p className="text-amber-700">연락처/이메일 뒤바뀜 후보 — 화면 표시에서 보정됨</p>
+                          ) : null}
+                          {contact.alternate_phones.length > 0 ? (
+                            <p>보조 연락처: {contact.alternate_phones.join(", ")}</p>
+                          ) : null}
+                          {contact.alternate_emails.length > 0 ? (
+                            <p>보조 이메일: {contact.alternate_emails.join(", ")}</p>
+                          ) : null}
+                          {contact.sources.length > 0 ? (
+                            <p>데이터 출처: {contact.sources.join(", ")}</p>
+                          ) : null}
+                          {contact.member_ids.length > 1 ? (
+                            <p>병합된 원본 row: {contact.member_ids.length}건</p>
+                          ) : null}
+                        </div>
+                      </td>
+                    </tr>
+                  ) : null}
+                </Fragment>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -257,13 +345,15 @@ function OrganizationTab({ contacts }: { contacts: PartnerDetailBundle["contacts
  * 교육 이력 탭
  */
 function TrainingsTab({
+  sessions,
   trainings,
   monthly
 }: {
+  sessions: PartnerTrainingSessionGroup[];
   trainings: PartnerTrainingHistoryItem[];
   monthly: PartnerTrainingMonthly[];
 }) {
-  if (trainings.length === 0 && monthly.length === 0) {
+  if (sessions.length === 0 && trainings.length === 0 && monthly.length === 0) {
     return (
       <EmptyState
         title="등록된 교육 이력이 없습니다."
@@ -272,12 +362,110 @@ function TrainingsTab({
     );
   }
 
+  const techSessions = sessions.filter((s) => s.is_tech_partner);
+  const legacyTrainings = trainings.filter(
+    (t) => !techSessions.some((s) => s.training_id === t.training_id)
+  );
+
   return (
     <div className="space-y-6">
-      {trainings.length > 0 ? (
+      {techSessions.map((session) => (
+        <div key={session.training_id} className="rounded-xl border border-slate-200 bg-white p-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h3 className="text-sm font-bold text-slate-900">{session.training_name}</h3>
+              <p className="mt-1 text-xs text-slate-500">
+                {session.training_type ?? "기술파트너 교육"} · {formatPeriod(session.start_date, session.end_date)}
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2 text-xs">
+              <span className="rounded-full bg-slate-100 px-2 py-1">참석 {session.attendee_count}명</span>
+              <span className="rounded-full bg-blue-50 px-2 py-1 text-blue-700">
+                응시 {session.exam_taken_count}명
+              </span>
+              {session.avg_total_score != null ? (
+                <span className="rounded-full bg-emerald-50 px-2 py-1 text-emerald-700">
+                  평균 총점 {session.avg_total_score}
+                </span>
+              ) : null}
+              {session.avg_converted_score != null ? (
+                <span className="rounded-full bg-emerald-50 px-2 py-1 text-emerald-700">
+                  평균 환산 {session.avg_converted_score}
+                </span>
+              ) : null}
+            </div>
+          </div>
+
+          <div className="mt-4 overflow-x-auto rounded-lg border border-slate-100">
+            <table className="min-w-full text-sm">
+              <thead className="bg-slate-50 text-xs font-semibold text-slate-500">
+                <tr>
+                  <th className="px-3 py-2 text-left">이름</th>
+                  <th className="px-3 py-2 text-left">직급</th>
+                  <th className="px-3 py-2 text-right">출석</th>
+                  <th className="px-3 py-2 text-right">결석</th>
+                  <th className="px-3 py-2 text-right">부분</th>
+                  <th className="px-3 py-2 text-center">응시</th>
+                  <th className="px-3 py-2 text-right">순위</th>
+                  <th className="px-3 py-2 text-right">총점</th>
+                  <th className="px-3 py-2 text-right">환산</th>
+                  <th className="px-3 py-2 text-right">솔루션</th>
+                  <th className="px-3 py-2 text-right">심화</th>
+                  <th className="px-3 py-2 text-right">운영</th>
+                  <th className="px-3 py-2 text-right">TS</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {session.participants.map((p) => {
+                  const extra = p.extra_json ?? {};
+                  return (
+                    <tr key={p.id}>
+                      <td className="px-3 py-2 font-medium">
+                        <div>{p.attendee_name ?? "-"}</div>
+                        {typeof extra.attendance_scope === "string" ? (
+                          <div className="text-[11px] font-normal text-slate-500">
+                            참석 {extra.attendance_scope}
+                          </div>
+                        ) : null}
+                        {typeof extra.manual_correction_note === "string" ? (
+                          <div className="text-[11px] font-normal text-amber-700">
+                            {extra.manual_correction_note}
+                          </div>
+                        ) : null}
+                      </td>
+                      <td className="px-3 py-2">{p.attendee_position ?? "-"}</td>
+                      <td className="px-3 py-2 text-right">{p.attendance_days ?? "-"}</td>
+                      <td className="px-3 py-2 text-right">{p.absent_days ?? "-"}</td>
+                      <td className="px-3 py-2 text-right">{p.partial_days ?? "-"}</td>
+                      <td className="px-3 py-2 text-center">{p.exam_status ?? "-"}</td>
+                      <td className="px-3 py-2 text-right">{p.rank ?? "-"}</td>
+                      <td className="px-3 py-2 text-right">{p.score ?? "-"}</td>
+                      <td className="px-3 py-2 text-right">{p.converted_score ?? "-"}</td>
+                      <td className="px-3 py-2 text-right">
+                        {formatExtraScore(extra, "solution_understanding_score")}
+                      </td>
+                      <td className="px-3 py-2 text-right">
+                        {formatExtraScore(extra, "advanced_basic_score")}
+                      </td>
+                      <td className="px-3 py-2 text-right">
+                        {formatExtraScore(extra, "operation_score")}
+                      </td>
+                      <td className="px-3 py-2 text-right">
+                        {formatExtraScore(extra, "troubleshooting_score")}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ))}
+
+      {legacyTrainings.length > 0 ? (
         <div>
           <h3 className="mb-2 text-sm font-bold text-slate-900">
-            정기교육 참석 ({trainings.length})
+            정기교육 참석 ({legacyTrainings.length})
           </h3>
           <div className="overflow-hidden rounded-xl border border-slate-200">
             <table className="min-w-full divide-y divide-slate-200">
@@ -292,7 +480,7 @@ function TrainingsTab({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {trainings.map((t) => (
+                {legacyTrainings.map((t) => (
                   <tr key={t.id} className="hover:bg-slate-50">
                     <td className="px-4 py-2.5 text-sm font-medium text-slate-900">
                       {t.training_name}
@@ -646,6 +834,12 @@ function AttendMark({ attended }: { attended: boolean }) {
       X
     </span>
   );
+}
+
+function formatExtraScore(extra: Record<string, unknown>, key: string): string {
+  const value = extra[key];
+  if (value == null || value === "") return "-";
+  return String(value);
 }
 
 function formatPeriod(start: string | null, end: string | null): string {

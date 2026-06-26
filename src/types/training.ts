@@ -12,6 +12,9 @@ export type Training = {
   end_date: string | null;
   source_file: string | null;
   memo: string | null;
+  description: string | null;
+  exam_date: string | null;
+  metadata: Record<string, unknown> | null;
   created_at: string;
 };
 
@@ -33,5 +36,17 @@ export type TrainingAttendance = {
   evaluation_result: string | null;
   note: string | null;
   evaluation_memo: string | null;
+  contact_id: string | null;
+  rank: number | null;
+  converted_score: number | null;
+  exam_status: string | null;
+  attendance_days: number | null;
+  partial_days: number | null;
+  absent_days: number | null;
+  attendance_rate: number | null;
+  group_name: string | null;
+  match_status: string | null;
+  review_reason: string | null;
+  extra_json: Record<string, unknown> | null;
   created_at: string;
 };

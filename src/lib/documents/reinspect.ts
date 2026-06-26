@@ -1,4 +1,5 @@
 import { buildAutoDisplayName } from "@/lib/documents/display";
+import { shouldSkipReinspect } from "@/lib/documents/review-status";
 import {
   evaluateExistingDocumentMatch,
   matchDocumentPartner
@@ -6,6 +7,15 @@ import {
 import { extractFolderPartnerHintFromPath } from "@/lib/documents/folder-parser";
 import { parseFilenameMetadata, findPartnerNamesMentionedInFilename } from "@/lib/documents/filename-parser";
 import type { DocumentMatchMethod } from "@/lib/documents/constants";
+
+function extractPeriodYearFromText(...values: Array<string | null | undefined>): number | null {
+  for (const value of values) {
+    if (!value?.trim()) continue;
+    const match = value.match(/(20\d{2})\s*년?/);
+    if (match) return Number(match[1]);
+  }
+  return null;
+}
 
 export type ReinspectPartnerRow = {
   id: string;
@@ -29,6 +39,8 @@ export type ReinspectDocumentRow = {
   partner_name_raw: string | null;
   match_method: string | null;
   match_confidence: number | null;
+  review_status: string | null;
+  period_year: number | null;
 };
 
 export type ReinspectUpdatePayload = {
@@ -48,7 +60,11 @@ export type ReinspectUpdatePayload = {
 export function buildDocumentReinspectUpdate(
   doc: ReinspectDocumentRow,
   partners: ReinspectPartnerRow[]
-): ReinspectUpdatePayload {
+): ReinspectUpdatePayload | null {
+  if (shouldSkipReinspect(doc.review_status)) {
+    return null;
+  }
+
   const originalFilename = doc.original_filename ?? doc.file_name;
   const sourceFolder = doc.source_folder ?? "";
   const relativePath = doc.source_file ?? originalFilename;
@@ -73,13 +89,18 @@ export function buildDocumentReinspectUpdate(
     matchStatus = "matched";
     matchConfidence = doc.match_confidence ?? 100;
     matchMethod = doc.match_method as DocumentMatchMethod;
-    reviewStatus = "auto_matched";
+    reviewStatus = doc.review_status === "needs_review" ? "needs_review" : "auto_matched";
   } else {
     const evaluation = evaluateExistingDocumentMatch({
       extractedPartnerName: extractedName,
       partnerCompanyName,
       matchConfidence: doc.match_confidence,
-      matchMethod: doc.match_method
+      matchMethod: doc.match_method,
+      documentType: parsed.document_type ?? doc.document_type,
+      contractDate: parsed.contract_date ?? doc.contract_date,
+      periodYear:
+        extractPeriodYearFromText(originalFilename, relativePath, doc.source_folder) ??
+        doc.period_year
     });
     matchStatus = evaluation.match_status;
     matchConfidence = evaluation.match_confidence;

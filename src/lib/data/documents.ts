@@ -2,9 +2,13 @@ import { createClient } from "@/lib/supabase/server";
 import {
   getDocumentDisplayFileName,
   getDocumentTypeShortLabel,
-  hasPartnerNameMismatch,
   resolveMatchStatus
 } from "@/lib/documents/display";
+import {
+  countAsActiveNeedsReview,
+  isExcludedReview,
+  shouldAppearInNeedsReviewFilter
+} from "@/lib/documents/review-status";
 import { isSamplePartnerName } from "@/lib/partners/sample-filter";
 import type { DocumentMatchStatus } from "@/lib/documents/constants";
 import type { PartnerDocumentWithPartner } from "@/types/document";
@@ -49,7 +53,7 @@ export async function fetchDocumentList(filters: DocumentListFilters = {}) {
   }
 
   if (filters.status && filters.status !== "all") {
-    query = query.eq("match_status", filters.status);
+    // match_status는 mapDocumentRow 이후 effective status로 재필터
   }
 
   const visibility = filters.visibility ?? "active";
@@ -60,13 +64,32 @@ export async function fetchDocumentList(filters: DocumentListFilters = {}) {
   } else if (visibility === "duplicate_candidate") {
     query = query.eq("duplicate_reason", "near_duplicate_candidate");
   } else if (visibility === "needs_review") {
-    query = query.or("duplicate_reason.eq.near_duplicate_candidate,match_status.eq.needs_review");
+    query = query
+      .eq("is_active", true)
+      .eq("is_duplicate", false)
+      .not("review_status", "in", "(manually_confirmed,excluded)")
+      .or("duplicate_reason.eq.near_duplicate_candidate,match_status.eq.needs_review,review_status.eq.needs_review");
   }
 
   const { data, error } = await query;
   let rows: PartnerDocumentWithPartner[] = (data ?? [])
     .map((row) => mapDocumentRow(row))
-    .filter((row) => !isSamplePartnerName(row.partner_name));
+    .filter((row) => !isSamplePartnerName(row.partner_name))
+    .filter((row) => visibility !== "active" || !isExcludedReview(row.review_status));
+
+  if (filters.status && filters.status !== "all") {
+    rows = rows.filter((row) => {
+      const effective = resolveMatchStatus(row);
+      if (filters.status === "matched") return effective === "matched";
+      if (filters.status === "needs_review") return shouldAppearInNeedsReviewFilter(row);
+      if (filters.status === "unmatched") return effective === "unmatched";
+      return true;
+    });
+  }
+
+  if (visibility === "needs_review") {
+    rows = rows.filter((row) => shouldAppearInNeedsReviewFilter(row));
+  }
 
   const q = filters.q?.trim().toLowerCase();
   if (q) {
@@ -106,7 +129,29 @@ export async function fetchPartnerOptionsForDocuments() {
   })).filter((row) => !isSamplePartnerName(row.company_name));
 }
 
+export async function countDocumentsNeedingReview() {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("partner_documents")
+    .select(
+      "id, partner_id, match_status, review_status, is_active, is_duplicate, duplicate_reason, document_type, extracted_partner_name, summary, contract_date, period_year, partners!inner(company_name)"
+    )
+    .is("deleted_at", null)
+    .eq("is_active", true)
+    .eq("is_duplicate", false)
+    .not("review_status", "in", "(manually_confirmed,excluded)");
+
+  return (data ?? [])
+    .map((row) => mapDocumentRow(row))
+    .filter((row) => !isSamplePartnerName(row.partner_name))
+    .filter((row) => countAsActiveNeedsReview(row)).length;
+}
+
+/** @deprecated countDocumentsNeedingReview 사용 */
 export async function countDocumentsByStatus(status: DocumentMatchStatus) {
+  if (status === "needs_review") {
+    return countDocumentsNeedingReview();
+  }
   const supabase = await createClient();
   const { count } = await supabase
     .from("partner_documents")
@@ -157,6 +202,7 @@ function mapDocumentRow(row: Record<string, unknown>): PartnerDocumentWithPartne
     archived_reason: (doc.archived_reason as string | null) ?? null,
     match_source: (doc.match_source as string | null) ?? null,
     review_status: (doc.review_status as string | null) ?? null,
+    review_resolved_at: (doc.review_resolved_at as string | null) ?? null,
     extracted_partner_name: (doc.extracted_partner_name as string | null) ?? null,
     match_confidence: (doc.match_confidence as number | null) ?? null,
     match_status:
@@ -172,20 +218,7 @@ function mapDocumentRow(row: Record<string, unknown>): PartnerDocumentWithPartne
     partner_name: partner?.company_name ?? "(미상)"
   };
 
-  if (
-    !mapped.match_status ||
-    mapped.match_status === "matched"
-  ) {
-    if (
-      hasPartnerNameMismatch({
-        partner_name: mapped.partner_name,
-        extracted_partner_name: mapped.extracted_partner_name,
-        match_status: mapped.match_status
-      })
-    ) {
-      mapped.match_status = "needs_review";
-    }
-  }
+  mapped.match_status = resolveMatchStatus(mapped);
 
   return mapped;
 }

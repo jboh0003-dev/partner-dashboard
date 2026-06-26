@@ -12,6 +12,8 @@ export const SEARCH_INTENT_LABEL: Record<SearchIntent, string> = {
   event_lookup: "행사 자료",
   general_knowledge_lookup: "정책·가이드",
   training_gap_lookup: "교육 미수강 파트너",
+  tech_partner_training_lookup: "기술파트너 교육 결과",
+  pipeline_lookup: "파트너 실적/파이프라인",
   partner_profile: "파트너 프로필",
   asset_lookup: "파트너 장비",
   document_lookup: "파트너 문서",
@@ -27,6 +29,8 @@ const LIST_INTENTS_WITHOUT_PARTNER = new Set<SearchIntent>([
   "missing_document_lookup",
   "asset_partner_list",
   "training_gap_lookup",
+  "tech_partner_training_lookup",
+  "pipeline_lookup",
   "policy_lookup",
   "event_lookup",
   "general_knowledge_lookup"

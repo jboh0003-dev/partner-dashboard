@@ -2,12 +2,17 @@
 
 import Link from "next/link";
 import {
-  ClientSortableTable,
   type SortableColumn
 } from "@/components/common/client-sortable-table";
+import { CopyableDataTable } from "@/components/common/copyable-data-table";
 import { TableName, TableText } from "@/components/common/table-cells";
 import { ContactAssignmentBadge } from "@/components/contacts/contact-assignment-badge";
 import { getContactAssignmentLabel } from "@/lib/contacts/display";
+import {
+  CONTACT_SELECTED_ROW_TSV,
+  contactRowToCopyable
+} from "@/lib/clipboard/row-mappers";
+import type { CsvRow } from "@/lib/csv";
 
 export type ContactTableRow = {
   id: string;
@@ -108,15 +113,25 @@ const columns: SortableColumn<ContactTableRow>[] = [
   }
 ];
 
-export function ContactsTable({ rows }: { rows: ContactTableRow[] }) {
+export function ContactsTable({
+  rows,
+  csvRows
+}: {
+  rows: ContactTableRow[];
+  csvRows?: CsvRow[];
+}) {
   return (
-    <ClientSortableTable
+    <CopyableDataTable
       rows={rows}
       columns={columns}
       defaultSortKey="company_name"
       defaultDir="asc"
       minWidth="1050px"
       rowKey={(row) => row.id}
+      toCopyableRow={contactRowToCopyable}
+      selectedRowTsv={CONTACT_SELECTED_ROW_TSV}
+      csvRows={csvRows}
+      csvFilenamePrefix="partner-contacts"
     />
   );
 }

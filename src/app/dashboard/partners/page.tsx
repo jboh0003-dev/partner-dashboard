@@ -2,7 +2,6 @@ import Link from "next/link";
 import { PageHeader } from "@/components/layout/page-header";
 import { PartnerTable } from "@/components/partners/partner-table";
 import { EmptyState } from "@/components/common/empty-state";
-import { CsvDownloadButton } from "@/components/common/csv-download-button";
 import { createClient } from "@/lib/supabase/server";
 import { filterSamplePartners } from "@/lib/partners/sample-filter";
 import {
@@ -55,15 +54,12 @@ export default async function PartnersPage({
         title="파트너 DB"
         description="파트너사 기본 정보와 주담당자 연락처를 빠르게 확인합니다."
         action={
-          <div className="flex items-center gap-2">
-            <CsvDownloadButton rows={exportRows} filenamePrefix="partners" />
-            <Link
-              href="/dashboard/partners/new"
-              className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700"
-            >
-              파트너 등록
-            </Link>
-          </div>
+          <Link
+            href="/dashboard/partners/new"
+            className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700"
+          >
+            파트너 등록
+          </Link>
         }
       />
 
@@ -103,7 +99,7 @@ export default async function PartnersPage({
           description="파트너를 직접 등록하거나 업로드 화면에서 데이터를 먼저 반영하세요."
         />
       ) : (
-        <PartnerTable rows={rows} />
+        <PartnerTable rows={rows} csvRows={exportRows} />
       )}
     </>
   );

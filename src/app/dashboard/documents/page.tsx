@@ -10,7 +10,7 @@ import {
   resolveMatchStatus
 } from "@/lib/documents/display";
 import {
-  countDocumentsByStatus,
+  countDocumentsNeedingReview,
   fetchDocumentList,
   fetchDocumentTypeOptions,
   fetchPartnerOptionsForDocuments
@@ -43,7 +43,7 @@ export default async function DocumentsPage({
     }),
     fetchDocumentTypeOptions(),
     fetchPartnerOptionsForDocuments(),
-    countDocumentsByStatus("needs_review")
+    countDocumentsNeedingReview()
   ]);
 
   const exportRows = rows.map((row) => ({
@@ -112,9 +112,9 @@ export default async function DocumentsPage({
           <option value="duplicate_candidate">중복 후보</option>
           <option value="needs_review">확인 필요</option>
         </select>
-        <select name="status" defaultValue={params.status ?? "all"} className="ui-select w-40 shrink-0">
+        <select name="status" defaultValue={params.status ?? "all"} className="ui-select w-44 shrink-0">
           <option value="all">전체 상태</option>
-          <option value="matched">정상</option>
+          <option value="matched">정상·수동확인</option>
           <option value="needs_review">확인 필요</option>
           <option value="unmatched">미연결</option>
         </select>

@@ -4,6 +4,11 @@ import {
   type DocumentMatchStatus
 } from "@/lib/documents/constants";
 import {
+  isExcludedReview,
+  isManuallyConfirmedReview,
+  resolveEffectiveMatchStatus
+} from "@/lib/documents/review-status";
+import {
   DOCUMENT_TYPE_DEFAULT_FILE_NAME,
   DOCUMENT_TYPE_SHORT_LABEL
 } from "@/lib/documents/display-constants";
@@ -100,13 +105,18 @@ export function namesAreConsistent(
 export function resolveMatchStatus(input: {
   match_status?: string | null;
   review_status?: string | null;
+  is_duplicate?: boolean | null;
+  is_active?: boolean | null;
+  duplicate_reason?: string | null;
+  archived_reason?: string | null;
+  document_type?: string | null;
+  partner_name?: string;
+  extracted_partner_name?: string | null;
+  summary?: string | null;
+  contract_date?: string | null;
+  period_year?: number | null;
 }): DocumentMatchStatus {
-  if (input.match_status === "matched") return "matched";
-  if (input.match_status === "needs_review") return "needs_review";
-  if (input.match_status === "unmatched") return "unmatched";
-  if (input.review_status === "needs_review") return "needs_review";
-  if (input.review_status === "skipped") return "unmatched";
-  return "matched";
+  return resolveEffectiveMatchStatus(input);
 }
 
 export function getMatchStatusLabel(status: DocumentMatchStatus): string {
@@ -117,7 +127,11 @@ export function hasPartnerNameMismatch(input: {
   partner_name: string;
   extracted_partner_name?: string | null;
   match_status?: string | null;
+  review_status?: string | null;
 }): boolean {
+  if (isManuallyConfirmedReview(input.review_status) || isExcludedReview(input.review_status)) {
+    return false;
+  }
   if (input.match_status === "needs_review") return true;
   if (!input.extracted_partner_name?.trim()) return false;
   return !namesAreConsistent(input.extracted_partner_name, input.partner_name);

@@ -1,15 +1,18 @@
 "use client";
 
-import {
-  ClientSortableTable,
-  type SortableColumn
-} from "@/components/common/client-sortable-table";
+import { type SortableColumn } from "@/components/common/client-sortable-table";
+import { CopyableDataTable } from "@/components/common/copyable-data-table";
 import { TableName, TableText } from "@/components/common/table-cells";
 import { formatTrainingTypeLabel } from "@/lib/training/constants";
 import {
   formatAttendanceStatus,
   formatTrainingYearMonth
 } from "@/lib/training-display";
+import {
+  TRAINING_ATTENDEE_SELECTED_ROW_TSV,
+  trainingAttendeeRowToCopyable
+} from "@/lib/clipboard/row-mappers";
+import type { CsvRow } from "@/lib/csv";
 
 export type TrainingAttendeeRow = {
   id: string;
@@ -148,15 +151,25 @@ const columns: SortableColumn<TrainingAttendeeRow>[] = [
   }
 ];
 
-export function TrainingAttendeesTable({ rows }: { rows: TrainingAttendeeRow[] }) {
+export function TrainingAttendeesTable({
+  rows,
+  csvRows
+}: {
+  rows: TrainingAttendeeRow[];
+  csvRows?: CsvRow[];
+}) {
   return (
-    <ClientSortableTable
+    <CopyableDataTable
       rows={rows}
       columns={columns}
       defaultSortKey="training_year_month"
       defaultDir="desc"
       minWidth="1680px"
       rowKey={(row) => row.id}
+      toCopyableRow={trainingAttendeeRowToCopyable}
+      selectedRowTsv={TRAINING_ATTENDEE_SELECTED_ROW_TSV}
+      csvRows={csvRows}
+      csvFilenamePrefix="training-attendees"
     />
   );
 }

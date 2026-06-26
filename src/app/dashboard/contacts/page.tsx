@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { ContactsTable, type ContactTableRow } from "@/components/contacts/contacts-table";
 import { EmptyState } from "@/components/common/empty-state";
-import { CsvDownloadButton } from "@/components/common/csv-download-button";
 import { PageHeader } from "@/components/layout/page-header";
 import { getContactAssignmentLabel } from "@/lib/contacts/display";
 import { createClient } from "@/lib/supabase/server";
@@ -110,7 +109,6 @@ export default async function ContactsPage({
       <PageHeader
         title="인력/담당자 현황"
         description="파트너사별 담당자와 계약담당자를 한눈에 확인합니다."
-        action={<CsvDownloadButton rows={exportRows} filenamePrefix="partner-contacts" />}
       />
 
       {partnerId && filterLabel ? (
@@ -180,7 +178,7 @@ export default async function ContactsPage({
           }
         />
       ) : (
-        <ContactsTable rows={tableRows} />
+        <ContactsTable rows={tableRows} csvRows={exportRows} />
       )}
     </>
   );

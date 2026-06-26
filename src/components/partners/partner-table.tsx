@@ -1,18 +1,22 @@
 "use client";
 
 import Link from "next/link";
-import {
-  ClientSortableTable,
-  type SortableColumn
-} from "@/components/common/client-sortable-table";
+import { type SortableColumn } from "@/components/common/client-sortable-table";
+import { CopyableDataTable } from "@/components/common/copyable-data-table";
 import { TableText } from "@/components/common/table-cells";
 import { PARTNER_GRADE_LABEL } from "@/lib/constants";
 import { formatPartnerNo } from "@/lib/partners/partner-no";
 import type { PartnerListRow } from "@/lib/partners/list";
 import { formatDate } from "@/lib/utils";
+import {
+  PARTNER_SELECTED_ROW_TSV,
+  partnerRowToCopyable
+} from "@/lib/clipboard/row-mappers";
+import type { CsvRow } from "@/lib/csv";
 
 type PartnerTableProps = {
   rows: PartnerListRow[];
+  csvRows?: CsvRow[];
 };
 
 const columns: SortableColumn<PartnerListRow>[] = [
@@ -92,15 +96,19 @@ const columns: SortableColumn<PartnerListRow>[] = [
   }
 ];
 
-export function PartnerTable({ rows }: PartnerTableProps) {
+export function PartnerTable({ rows, csvRows }: PartnerTableProps) {
   return (
-    <ClientSortableTable
+    <CopyableDataTable
       rows={rows}
       columns={columns}
       defaultSortKey="external_no"
       defaultDir="asc"
       minWidth="1200px"
       rowKey={(row) => row.partner.id}
+      toCopyableRow={partnerRowToCopyable}
+      selectedRowTsv={PARTNER_SELECTED_ROW_TSV}
+      csvRows={csvRows}
+      csvFilenamePrefix="partners"
     />
   );
 }

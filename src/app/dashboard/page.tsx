@@ -3,7 +3,9 @@ import { PageHero } from "@/components/layout/page-hero";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { GradeDistributionChart, VerticalBarChart } from "@/components/dashboard/bar-chart";
 import { LineChart } from "@/components/dashboard/line-chart";
+import { ExecutivePerformanceSection } from "@/components/performance/executive-performance-section";
 import { fetchDashboardStats } from "@/lib/data/dashboard";
+import { fetchExecutivePerformanceStats } from "@/lib/data/partner-performance";
 import { formatDate } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -13,7 +15,10 @@ const CHART_SECTION_CLASS = "flex min-h-[320px] flex-col";
 const CHART_BODY_CLASS = "flex min-h-0 flex-1 flex-col";
 
 export default async function DashboardPage() {
-  const stats = await fetchDashboardStats();
+  const [stats, performanceStats] = await Promise.all([
+    fetchDashboardStats(),
+    fetchExecutivePerformanceStats()
+  ]);
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth() + 1;
   const hasCumulativeData = stats.cumulativePartners.some((point) => point.value > 0);
@@ -87,7 +92,9 @@ export default async function DashboardPage() {
         </ChartCard>
       </section>
 
-      <section className="mt-4 grid grid-cols-1 items-stretch gap-4 xl:grid-cols-3">
+      <ExecutivePerformanceSection stats={performanceStats} />
+
+      <section className="mt-5 grid grid-cols-1 items-stretch gap-4 xl:grid-cols-3">
         <ChartCard
           title="월별 신규 파트너 계약"
           className={`xl:col-span-2 ${CHART_SECTION_CLASS}`}

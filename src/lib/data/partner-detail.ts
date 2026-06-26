@@ -1,4 +1,5 @@
 import { preparePartnerDetailAssets } from "@/lib/assets/partner-detail-assets";
+import { fetchPartnerPerformanceBundle } from "@/lib/data/partner-performance";
 import { createClient } from "@/lib/supabase/server";
 import { isSamplePartner } from "@/lib/partners/sample-filter";
 import type { PartnerAsset } from "@/types/asset";
@@ -13,7 +14,8 @@ import type {
 import type {
   PartnerDetailBundle,
   PartnerEventHistoryItem,
-  PartnerTrainingHistoryItem
+  PartnerTrainingHistoryItem,
+  PartnerTrainingSessionGroup
 } from "@/types/partner-detail";
 import type { Training, TrainingAttendance } from "@/types/training";
 import type { PartnerEvent, EventAttendance } from "@/types/event";
@@ -28,17 +30,36 @@ type TrainingAttendanceJoined = Pick<
   | "attendee_position"
   | "attended"
   | "score"
+  | "converted_score"
+  | "rank"
+  | "exam_status"
+  | "attendance_days"
+  | "partial_days"
+  | "absent_days"
   | "evaluation_result"
+  | "extra_json"
 > & {
   training:
     | Pick<
         Training,
-        "training_name" | "training_type" | "product_name" | "start_date" | "end_date"
+        | "training_name"
+        | "training_type"
+        | "product_name"
+        | "start_date"
+        | "end_date"
+        | "description"
+        | "metadata"
       >
     | Array<
         Pick<
           Training,
-          "training_name" | "training_type" | "product_name" | "start_date" | "end_date"
+          | "training_name"
+          | "training_type"
+          | "product_name"
+          | "start_date"
+          | "end_date"
+          | "description"
+          | "metadata"
         >
       >
     | null;
@@ -73,7 +94,8 @@ export async function fetchPartnerDetailBundle(
     { data: assetRows },
     { data: documentRows },
     { data: monthlyRows },
-    linkedEventsResult
+    linkedEventsResult,
+    performanceBundle
   ] = await Promise.all([
     supabase.from("partners").select("*").eq("id", partnerId).single(),
     supabase
@@ -89,7 +111,7 @@ export async function fetchPartnerDetailBundle(
     supabase
       .from("training_attendance")
       .select(
-        "id, training_id, attendee_name, attendee_department, attendee_position, attended, score, evaluation_result, training:trainings (training_name, training_type, product_name, start_date, end_date)"
+        "id, training_id, attendee_name, attendee_department, attendee_position, attended, score, converted_score, rank, exam_status, attendance_days, partial_days, absent_days, evaluation_result, extra_json, training:trainings (training_name, training_type, product_name, start_date, end_date, description, metadata)"
       )
       .eq("partner_id", partnerId)
       .order("created_at", { ascending: false }),
@@ -124,7 +146,8 @@ export async function fetchPartnerDetailBundle(
       .eq("partner_id", partnerId)
       .order("training_year", { ascending: false })
       .order("training_month", { ascending: false }),
-    fetchPartnerLinkedEvents(partnerId)
+    fetchPartnerLinkedEvents(partnerId),
+    fetchPartnerPerformanceBundle(partnerId)
   ]);
 
   if (!partner || isSamplePartner(partner as Partner)) return null;
@@ -156,18 +179,22 @@ export async function fetchPartnerDetailBundle(
       }))
   ];
 
+  const trainings = flattenTrainingHistory(
+    (trainingRows ?? []) as unknown as TrainingAttendanceJoined[]
+  );
+
   return {
     partner: partner as Partner,
     contacts: (contacts ?? []) as PartnerContact[],
     notes: (notes ?? []) as PartnerNote[],
-    trainings: flattenTrainingHistory(
-      (trainingRows ?? []) as unknown as TrainingAttendanceJoined[]
-    ),
+    trainings,
+    trainingSessions: groupTrainingSessions(trainings),
     monthlyTrainings: (monthlyRows ?? []) as PartnerTrainingMonthly[],
     events: mergedEvents,
     pocs: (pocRows ?? []) as PartnerPoc[],
     assets: preparePartnerDetailAssets((assetRows ?? []) as PartnerAsset[]),
-    documents: (documentRows ?? []) as PartnerDocument[]
+    documents: (documentRows ?? []) as PartnerDocument[],
+    performance: performanceBundle
   };
 }
 
@@ -189,9 +216,67 @@ function flattenTrainingHistory(
       attendee_position: r.attendee_position ?? null,
       attended: r.attended,
       score: r.score ?? null,
-      evaluation_result: r.evaluation_result ?? null
+      converted_score: r.converted_score ?? null,
+      rank: r.rank ?? null,
+      exam_status: r.exam_status ?? null,
+      attendance_days: r.attendance_days ?? null,
+      partial_days: r.partial_days ?? null,
+      absent_days: r.absent_days ?? null,
+      evaluation_result: r.evaluation_result ?? null,
+      extra_json: (r.extra_json as Record<string, unknown> | null) ?? null
     };
   });
+}
+
+function groupTrainingSessions(
+  rows: PartnerTrainingHistoryItem[]
+): PartnerTrainingSessionGroup[] {
+  const map = new Map<string, PartnerTrainingSessionGroup>();
+
+  for (const row of rows) {
+    const existing = map.get(row.training_id);
+    if (!existing) {
+      map.set(row.training_id, {
+        training_id: row.training_id,
+        training_name: row.training_name,
+        training_type: row.training_type,
+        start_date: row.start_date,
+        end_date: row.end_date,
+        description: null,
+        is_tech_partner: /기술파트너/.test(row.training_name) || row.training_type === "기술파트너 교육",
+        participants: [row],
+        attendee_count: 1,
+        exam_taken_count: row.exam_status === "응시" ? 1 : 0,
+        avg_total_score: null,
+        avg_converted_score: null
+      });
+      continue;
+    }
+    existing.participants.push(row);
+    existing.attendee_count += 1;
+    if (row.exam_status === "응시") existing.exam_taken_count += 1;
+  }
+
+  for (const session of map.values()) {
+    const scores = session.participants
+      .map((p) => p.score)
+      .filter((v): v is number => v != null);
+    const converted = session.participants
+      .map((p) => p.converted_score)
+      .filter((v): v is number => v != null);
+    if (scores.length > 0) {
+      session.avg_total_score =
+        Math.round((scores.reduce((a, b) => a + b, 0) / scores.length) * 10) / 10;
+    }
+    if (converted.length > 0) {
+      session.avg_converted_score =
+        Math.round((converted.reduce((a, b) => a + b, 0) / converted.length) * 10) / 10;
+    }
+  }
+
+  return Array.from(map.values()).sort((a, b) =>
+    (b.start_date ?? "").localeCompare(a.start_date ?? "")
+  );
 }
 
 function flattenEventHistory(rows: EventAttendanceJoined[]): PartnerEventHistoryItem[] {

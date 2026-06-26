@@ -1,5 +1,12 @@
 import { hasPartnerNameMismatch, resolveMatchStatus } from "@/lib/documents/display";
 import { PARTNER_DOCUMENT_TAB_TYPE_LABEL } from "@/lib/documents/partner-tab-display";
+import {
+  formatReferenceNote,
+  isYearLenientDocumentType,
+  isYearRelatedSummary,
+  shouldIgnoreNameMismatchForReview
+} from "@/lib/documents/review-rules";
+import { isManuallyConfirmedReview } from "@/lib/documents/review-status";
 
 /** 문서 재매칭 모달 문서 구분 옵션 */
 export const REMATCH_DOCUMENT_TYPE_OPTIONS = [
@@ -29,22 +36,38 @@ export function getDocumentReviewReason(doc: DocumentRematchSource): string {
   const reasons: string[] = [];
   const status = resolveMatchStatus({
     match_status: doc.match_status,
-    review_status: doc.review_status
+    review_status: doc.review_status,
+    document_type: doc.document_type,
+    partner_name: doc.partner_name,
+    extracted_partner_name: doc.extracted_partner_name,
+    summary: doc.summary
   });
+
+  if (isManuallyConfirmedReview(doc.review_status)) {
+    return "수동 확인 완료";
+  }
 
   if (doc.duplicate_reason === "near_duplicate_candidate") {
     reasons.push("유사 중복 문서 후보");
   }
 
-  if (
+  const nameMismatch =
     hasPartnerNameMismatch({
       partner_name: doc.partner_name,
       extracted_partner_name: doc.extracted_partner_name,
-      match_status: doc.match_status
-    }) &&
-    doc.extracted_partner_name?.trim()
+      match_status: doc.match_status,
+      review_status: doc.review_status
+    }) && doc.extracted_partner_name?.trim();
+
+  if (
+    nameMismatch &&
+    !shouldIgnoreNameMismatchForReview({
+      document_type: doc.document_type,
+      extracted_partner_name: doc.extracted_partner_name,
+      summary: doc.summary
+    })
   ) {
-    reasons.push(`파트너사명 불일치 (파일명 추출: ${doc.extracted_partner_name.trim()})`);
+    reasons.push(`파트너사명 불일치 (파일명 추출: ${doc.extracted_partner_name!.trim()})`);
   }
 
   if (!doc.document_type?.trim()) {
@@ -59,7 +82,13 @@ export function getDocumentReviewReason(doc: DocumentRematchSource): string {
 
   const summary = doc.summary?.trim();
   if (summary && summary.length <= 120) {
-    reasons.push(summary);
+    if (doc.document_type === "credit_rating" && isYearRelatedSummary(summary)) {
+      reasons.push(formatReferenceNote(summary));
+    } else if (!isYearLenientDocumentType(doc.document_type) || !isYearRelatedSummary(summary)) {
+      reasons.push(summary);
+    } else {
+      reasons.push(formatReferenceNote(summary));
+    }
   }
 
   return reasons.length > 0 ? reasons.join(" · ") : "-";

@@ -12,7 +12,7 @@ export async function POST() {
         supabase
           .from("partner_documents")
           .select(
-            "id, partner_id, original_filename, file_name, source_folder, source_file, document_type, display_name, contract_date, grade_from_file, partner_no, partner_name_raw, match_method, match_confidence, partners!inner(company_name)"
+            "id, partner_id, original_filename, file_name, source_folder, source_file, document_type, display_name, contract_date, grade_from_file, partner_no, partner_name_raw, match_method, match_confidence, review_status, period_year, partners!inner(company_name)"
           )
           .is("deleted_at", null),
         supabase.from("partners").select("id, company_name, external_no")
@@ -29,6 +29,7 @@ export async function POST() {
       })) ?? [];
 
     let updated = 0;
+    let skipped = 0;
     let needsReview = 0;
 
     for (const row of documents ?? []) {
@@ -51,10 +52,17 @@ export async function POST() {
           partner_no: (row.partner_no as string | null) ?? null,
           partner_name_raw: (row.partner_name_raw as string | null) ?? null,
           match_method: (row.match_method as string | null) ?? null,
-          match_confidence: (row.match_confidence as number | null) ?? null
+          match_confidence: (row.match_confidence as number | null) ?? null,
+          review_status: (row.review_status as string | null) ?? null,
+          period_year: (row.period_year as number | null) ?? null
         },
         partnerRows
       );
+
+      if (!payload) {
+        skipped += 1;
+        continue;
+      }
 
       const { error } = await supabase
         .from("partner_documents")
@@ -85,6 +93,7 @@ export async function POST() {
     return NextResponse.json({
       ok: true,
       updated,
+      skipped,
       needs_review: needsReview
     });
   } catch (error) {

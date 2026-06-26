@@ -1,0 +1,117 @@
+export type PartnerPerformanceSnapshot = {
+  id: string;
+  snapshot_date: string;
+  snapshot_label: string;
+  source_file_name: string;
+  total_pipeline_amount_million: number | null;
+  total_pipeline_count: number | null;
+  partner_pipeline_amount_million: number | null;
+  partner_pipeline_count: number | null;
+  new_total_pipeline_amount_million: number | null;
+  new_total_pipeline_count: number | null;
+  new_partner_pipeline_amount_million: number | null;
+  new_partner_pipeline_count: number | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type PartnerPipelineOpportunity = {
+  id: string;
+  snapshot_id: string;
+  snapshot_date: string;
+  project_code: string;
+  customer_name: string | null;
+  project_name: string | null;
+  project_registered_year: string | null;
+  sales_owner: string | null;
+  division: string | null;
+  company: string | null;
+  org_path: string | null;
+  expected_win_year: string | null;
+  expected_win_quarter: string | null;
+  expected_win_month: string | null;
+  importance: string | null;
+  rfp_reflection: string | null;
+  win_probability_label: string | null;
+  win_probability_value: number | null;
+  win_status: string | null;
+  execution_status: string | null;
+  participation_type: string | null;
+  contract_owner: string | null;
+  expected_contract_partner: string | null;
+  is_partner_deal: boolean;
+  partner_grade: string | null;
+  partner_name: string | null;
+  matched_partner_id: string | null;
+  is_product_revenue: boolean;
+  contract_type: string | null;
+  product_amount_million: number | null;
+  service_amount_million: number | null;
+  maintenance_amount_million: number | null;
+  total_amount_million: number | null;
+  product_contrabass: number | null;
+  product_contrabass_hci: number | null;
+  product_contrabass_legato: number | null;
+  product_viola: number | null;
+  product_cmp: number | null;
+  product_trombone: number | null;
+  product_trumpet: number | null;
+  product_symphony_ai: number | null;
+  product_tuba: number | null;
+  product_gaidsp: number | null;
+  raw_json: Record<string, unknown> | null;
+};
+
+export type PartnerRevenueRecord = {
+  id: string;
+  revenue_year: number;
+  partner_name: string;
+  matched_partner_id: string | null;
+  partner_grade: string | null;
+  sales_owner: string | null;
+  project_code: string | null;
+  customer_name: string | null;
+  project_name: string | null;
+  revenue_date: string | null;
+  product_revenue_million: number | null;
+  project_count: number | null;
+  source_sheet: string | null;
+  source_file_name: string | null;
+};
+
+export type PipelinePartnerAggregate = {
+  partner_name: string;
+  matched_partner_id: string | null;
+  partner_grade: string | null;
+  amount_million: number;
+  project_count: number;
+  top_customers: string[];
+  top_projects: string[];
+};
+
+export type ExecutivePerformanceStats = {
+  latest_snapshot: PartnerPerformanceSnapshot | null;
+  previous_snapshot: PartnerPerformanceSnapshot | null;
+  snapshot_trend: Array<{
+    snapshot_label: string;
+    snapshot_date: string;
+    partner_pipeline_amount_million: number;
+    partner_pipeline_count: number;
+    new_partner_pipeline_amount_million: number;
+    new_partner_pipeline_count: number;
+  }>;
+  win_forecast_top10: PipelinePartnerAggregate[];
+  new_reg_top10: PipelinePartnerAggregate[];
+  revenue_top10: Array<{
+    partner_name: string;
+    matched_partner_id: string | null;
+    partner_grade: string | null;
+    product_revenue_million: number;
+    project_count: number;
+  }>;
+  win_probability_breakdown: Array<{ label: string; amount_million: number; count: number }>;
+  division_breakdown: Array<{ label: string; amount_million: number; count: number }>;
+  grade_breakdown: Array<{ label: string; amount_million: number; count: number }>;
+  review_count: number;
+  unmatched_partner_count: number;
+};
