@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { POLICY_ALLOWED_EXTENSIONS } from "@/lib/policy/constants";
 import { getPolicyFileType, parsePptxBuffer } from "@/lib/policy/parse-pptx";
+import { validatePolicyParse } from "@/lib/policy/validate-parse";
 
 export async function POST(request: Request) {
   try {
@@ -27,12 +28,14 @@ export async function POST(request: Request) {
         slides: [],
         total_slides: 0,
         total_chunks: 0,
+        validation: null,
         warning: "현재 PPTX 텍스트 추출만 지원합니다. PDF/DOCX는 저장만 가능합니다."
       });
     }
 
     const buffer = await file.arrayBuffer();
     const parsed = await parsePptxBuffer(buffer);
+    const validation = validatePolicyParse(parsed.slides);
 
     return NextResponse.json({
       ok: true,
@@ -41,6 +44,7 @@ export async function POST(request: Request) {
       file_size: file.size,
       total_slides: parsed.total_slides,
       total_chunks: parsed.total_chunks,
+      validation,
       slides: parsed.slides.map((slide) => ({
         slide_number: slide.slide_number,
         title: slide.title,

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Loader2, UploadCloud } from "lucide-react";
-import type { PolicyAnalyzeSlide } from "@/types/partner-policy";
+import type { PolicyAnalyzeSlide, PolicyParseValidation } from "@/types/partner-policy";
 
 type SlideDetail = {
   slide_number: number;
@@ -26,6 +26,7 @@ export function PolicyUploadPanel() {
     slide_details: SlideDetail[];
     total_slides: number;
     total_chunks: number;
+    validation: PolicyParseValidation | null;
     warning?: string;
   } | null>(null);
   const [loading, setLoading] = useState(false);
@@ -61,6 +62,7 @@ export function PolicyUploadPanel() {
         slide_details: json.slide_details ?? [],
         total_slides: json.total_slides,
         total_chunks: json.total_chunks,
+        validation: json.validation ?? null,
         warning: json.warning
       });
       if (!versionLabel && file.name.includes("260623")) {
@@ -82,6 +84,14 @@ export function PolicyUploadPanel() {
     }
     if (!policyTitle.trim() || !versionLabel.trim() || !effectiveDate.trim()) {
       setError("정책명, 버전명, 기준일을 입력해 주세요.");
+      return;
+    }
+
+    if (analysis.validation && !analysis.validation.can_save) {
+      setError(
+        analysis.validation.block_reason ??
+          "PPTX 텍스트 추출 결과가 비정상입니다. XML 태그가 포함되어 있어 정책 지식으로 저장할 수 없습니다."
+      );
       return;
     }
 
@@ -198,7 +208,12 @@ export function PolicyUploadPanel() {
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
             분석
           </button>
-          <button type="button" onClick={() => void handleSave()} disabled={saving || !analysis} className="ui-btn-primary inline-flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => void handleSave()}
+            disabled={saving || !analysis || (analysis.validation != null && !analysis.validation.can_save)}
+            className="ui-btn-primary inline-flex items-center gap-2"
+          >
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <UploadCloud className="h-4 w-4" />}
             저장
           </button>
@@ -210,12 +225,13 @@ export function PolicyUploadPanel() {
 
       {analysis ? (
         <>
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
             {[
-              ["슬라이드", `${analysis.total_slides}개`],
-              ["chunk", `${analysis.total_chunks}개`],
-              ["카테고리", `${categorySummary.length}개`],
-              ["상태", analysis.warning ?? "분석 완료"]
+              ["전체 슬라이드", `${analysis.validation?.total_slides ?? analysis.total_slides}개`],
+              ["텍스트 추출 성공", `${analysis.validation?.text_extracted_slides ?? analysis.total_slides}개`],
+              ["chunk", `${analysis.validation?.total_chunks ?? analysis.total_chunks}개`],
+              ["XML 태그 감지", `${analysis.validation?.xml_tag_chunks ?? 0}개`],
+              ["카테고리 분류", `${analysis.validation?.categorized_slides ?? categorySummary.length}개`]
             ].map(([label, value]) => (
               <div key={label} className="rounded-xl border border-slate-200 bg-white p-4">
                 <p className="text-xs text-slate-500">{label}</p>
@@ -223,6 +239,22 @@ export function PolicyUploadPanel() {
               </div>
             ))}
           </div>
+
+          {analysis.validation ? (
+            <div
+              className={[
+                "rounded-xl border px-4 py-3 text-sm",
+                analysis.validation.can_save
+                  ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+                  : "border-red-200 bg-red-50 text-red-900"
+              ].join(" ")}
+            >
+              {analysis.validation.can_save
+                ? "텍스트 추출 검증 통과 — 저장 가능합니다."
+                : analysis.validation.block_reason ??
+                  "PPTX 텍스트 추출 결과가 비정상입니다. XML 태그가 포함되어 있어 정책 지식으로 저장할 수 없습니다."}
+            </div>
+          ) : null}
 
           {analysis.warning ? (
             <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">

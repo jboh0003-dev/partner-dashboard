@@ -71,6 +71,8 @@ function testSearchLogic() {
         "[슬라이드 5] Platinum 파트너는 Sales/Technical Support 역할을 수행하며, 기술자격 Level 2, PoC 장비 상시 보유, 영업인력 2명, 기술인력 2명, 매출 목표 10억 기준이 적용됩니다.",
       keywords: ["Platinum", "등급", "파트너"],
       raw_json: null,
+      is_active: true,
+      parse_status: "active",
       created_at: new Date().toISOString()
     },
     {
@@ -84,6 +86,8 @@ function testSearchLogic() {
         "[슬라이드 18] 영업기회 등록은 파트너 포털에서 Deal Registration 메뉴를 통해 진행하며, 고객사·예상 매출·제품 정보를 입력 후 승인을 받습니다.",
       keywords: ["영업기회", "Deal Registration"],
       raw_json: null,
+      is_active: true,
+      parse_status: "active",
       created_at: new Date().toISOString()
     }
   ];

@@ -1,14 +1,22 @@
 import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { requireAdmin } from "@/lib/auth/require-admin";
 import { PARTNER_DOCUMENTS_BUCKET } from "@/lib/documents/constants";
 import {
+  computeFileHash,
+  findCanonicalDocumentForType,
+  purgeSupersededDocumentsForType,
+  removeDocumentStorage,
+  usesCanonicalTypeStorage
+} from "@/lib/documents/document-lifecycle";
+import {
   isSafeStorageObjectKey,
+  resolveCanonicalUploadStoragePath,
   resolveUploadStoragePath
 } from "@/lib/documents/storage-path";
+import { isMultiDocumentAllowed } from "@/lib/documents/duplicate-detection";
 import { resolveSaveAction } from "@/lib/imports/partner-documents";
-import { DUPLICATE_REASON } from "@/lib/documents/duplicate-detection";
-import { hideDocumentAsDuplicate } from "@/lib/data/document-duplicates";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { DocumentMatchSource, DocumentReviewStatus } from "@/lib/documents/constants";
 
@@ -68,9 +76,15 @@ type ExistingDocumentRow = {
   id: string;
   storage_path: string | null;
   file_path: string | null;
+  file_hash?: string | null;
 };
 
 export async function POST(request: Request) {
+  const auth = await requireAdmin();
+  if (!auth.ok) {
+    return NextResponse.json({ ok: false, message: auth.message }, { status: auth.status });
+  }
+
   const supabase = createAdminClient();
   let importJobId: string | null = null;
 
@@ -135,30 +149,47 @@ export async function POST(request: Request) {
       }
 
       const partnerId = row.matched_partner_id!;
+      const useCanonical = usesCanonicalTypeStorage(row.document_type, row.original_filename);
       const existingDocument = await findExistingDocument(
         supabase,
         partnerId,
         row.document_type,
         row.original_filename,
-        row.matched_document_id
+        row.matched_document_id,
+        useCanonical
       );
       const documentId = existingDocument?.id ?? row.matched_document_id;
       const resolvedSaveAction: "create" | "update" =
-        row.save_as_new_version
-          ? "create"
-          : saveAction === "update" || documentId
-            ? "update"
-            : "create";
+        useCanonical || saveAction === "update" || documentId ? "update" : "create";
 
       const previousStoragePath = pickSafePreviousPath(existingDocument);
-      const storagePath = resolveUploadStoragePath(
-        partnerId,
-        row.document_type,
-        row.file_ext,
-        row.original_filename,
-        existingDocument?.storage_path,
-        existingDocument?.file_path
-      );
+
+      const buffer = Buffer.from(await file.arrayBuffer());
+      const fileHash = computeFileHash(buffer);
+
+      if (existingDocument?.file_hash === fileHash) {
+        skippedCount += 1;
+        continue;
+      }
+
+      const storagePath = useCanonical
+        ? resolveCanonicalUploadStoragePath(
+            partnerId,
+            row.document_type,
+            row.file_ext,
+            row.original_filename,
+            existingDocument?.storage_path,
+            existingDocument?.file_path,
+            true
+          )
+        : resolveUploadStoragePath(
+            partnerId,
+            row.document_type,
+            row.file_ext,
+            row.original_filename,
+            existingDocument?.storage_path,
+            existingDocument?.file_path
+          );
 
       if (!isSafeStorageObjectKey(storagePath)) {
         skippedCount += 1;
@@ -171,7 +202,6 @@ export async function POST(request: Request) {
         continue;
       }
 
-      const buffer = Buffer.from(await file.arrayBuffer());
       const uploadError = await uploadDocumentFile(supabase, storagePath, buffer, file.type);
       if (uploadError) {
         skippedCount += 1;
@@ -185,9 +215,10 @@ export async function POST(request: Request) {
       }
       storageSuccessCount += 1;
 
-      const payload = buildDocumentPayload(row, partnerId, storagePath, batchName);
+      const payload = buildDocumentPayload(row, partnerId, storagePath, batchName, fileHash);
+      let savedDocumentId = documentId;
 
-      if (resolvedSaveAction === "update" && documentId && !row.save_as_new_version) {
+      if (resolvedSaveAction === "update" && documentId) {
         const { error } = await supabase
           .from("partner_documents")
           .update(payload)
@@ -205,7 +236,14 @@ export async function POST(request: Request) {
         }
 
         if (previousStoragePath && previousStoragePath !== storagePath) {
-          await removeStorageObject(supabase, previousStoragePath);
+          const removed = await removeDocumentStorage(supabase, previousStoragePath);
+          if (!removed.ok) {
+            console.error("[document-upload] old storage delete failed", {
+              documentId,
+              path: previousStoragePath,
+              error: removed.error
+            });
+          }
         }
 
         updatedCount += 1;
@@ -218,13 +256,14 @@ export async function POST(request: Request) {
           .single();
 
         if (error) {
-          if (error.code === "23505" && !row.save_as_new_version) {
+          if (error.code === "23505") {
             const duplicate = await findExistingDocument(
               supabase,
               partnerId,
               row.document_type,
               row.original_filename,
-              null
+              null,
+              useCanonical
             );
             if (duplicate?.id) {
               const { error: updateError } = await supabase
@@ -241,6 +280,7 @@ export async function POST(request: Request) {
                 });
                 continue;
               }
+              savedDocumentId = duplicate.id;
               updatedCount += 1;
               dbSuccessCount += 1;
             } else {
@@ -264,16 +304,26 @@ export async function POST(request: Request) {
             continue;
           }
         } else {
+          savedDocumentId = inserted?.id as string;
           createdCount += 1;
           dbSuccessCount += 1;
+        }
+      }
 
-          if (row.save_as_new_version && row.matched_document_id && inserted?.id) {
-            await hideDocumentAsDuplicate(
-              row.matched_document_id,
-              inserted.id as string,
-              "새 버전 업로드에 따른 이전 문서 숨김"
-            );
-          }
+      if (useCanonical && savedDocumentId && !isMultiDocumentAllowed(row)) {
+        const purged = await purgeSupersededDocumentsForType(
+          supabase,
+          partnerId,
+          row.document_type,
+          savedDocumentId
+        );
+        if (purged.errors.length > 0) {
+          console.error("[document-upload] purge superseded", {
+            partnerId,
+            documentType: row.document_type,
+            keepId: savedDocumentId,
+            errors: purged.errors
+          });
         }
       }
 
@@ -364,21 +414,35 @@ async function findExistingDocument(
   partnerId: string,
   documentType: string,
   originalFilename: string,
-  matchedDocumentId: string | null
+  matchedDocumentId: string | null,
+  useCanonical: boolean
 ): Promise<ExistingDocumentRow | null> {
   if (matchedDocumentId) {
     const { data } = await supabase
       .from("partner_documents")
-      .select("id, storage_path, file_path")
+      .select("id, storage_path, file_path, file_hash")
       .eq("id", matchedDocumentId)
       .is("deleted_at", null)
       .maybeSingle();
     if (data) return data as ExistingDocumentRow;
   }
 
+  if (useCanonical) {
+    const canonical = await findCanonicalDocumentForType(supabase, partnerId, documentType);
+    if (canonical) {
+      return {
+        id: canonical.id,
+        storage_path: canonical.storage_path,
+        file_path: canonical.file_path,
+        file_hash: canonical.file_hash ?? null
+      };
+    }
+    return null;
+  }
+
   const { data } = await supabase
     .from("partner_documents")
-    .select("id, storage_path, file_path")
+    .select("id, storage_path, file_path, file_hash")
     .eq("partner_id", partnerId)
     .eq("document_type", documentType)
     .eq("original_filename", originalFilename)
@@ -397,14 +461,6 @@ function pickSafePreviousPath(existing: ExistingDocumentRow | null): string | nu
     return candidate;
   }
   return null;
-}
-
-async function removeStorageObject(
-  supabase: ReturnType<typeof createAdminClient>,
-  storagePath: string
-) {
-  if (!isSafeStorageObjectKey(storagePath)) return;
-  await supabase.storage.from(PARTNER_DOCUMENTS_BUCKET).remove([storagePath]);
 }
 
 async function uploadDocumentFile(
@@ -429,7 +485,8 @@ function buildDocumentPayload(
   row: ParsedRow,
   partnerId: string,
   storagePath: string,
-  batchName: string
+  batchName: string,
+  fileHash: string
 ) {
   const displayName = row.display_name.trim() || row.original_filename;
   const reviewStatus: DocumentReviewStatus =
@@ -448,6 +505,7 @@ function buildDocumentPayload(
     storage_path: storagePath,
     file_ext: row.file_ext,
     file_size: row.file_size,
+    file_hash: fileHash,
     source_folder: row.source_folder,
     source_file: row.source_file,
     received_date: row.received_date,
@@ -457,13 +515,13 @@ function buildDocumentPayload(
     period_year: row.period_year,
     period_quarter: row.period_quarter,
     period_month: row.period_month,
-    is_primary: row.is_primary,
+    is_primary: true,
     priority_score: row.priority_score,
     is_active: true,
     is_duplicate: false,
     duplicate_of: null,
-    duplicate_reason: row.save_as_new_version ? DUPLICATE_REASON.new_version : null,
-    representative: row.is_primary,
+    duplicate_reason: null,
+    representative: true,
     upload_batch_id: batchName,
     match_source: row.match_source as DocumentMatchSource | null,
     match_status: row.match_status,

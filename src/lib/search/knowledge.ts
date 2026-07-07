@@ -159,8 +159,17 @@ export function searchPartnerKnowledge(
       }
 
       if (/정책|policy/.test(haystack) && row.category === "정책") score += 25;
-      if (/승급|등급|플래티넘|platinum|골드|gold|실버|silver|partner\s*type|파트너\s*유형|파트너\s*등급/.test(haystack) && row.category === "등급") {
-        score += 80;
+      if (/승급|등급|platinum|gold|silver|service|partner\s*type|파트너\s*유형|파트너\s*등급|var\b/i.test(haystack) && row.category === "등급") {
+        score += 90;
+      }
+      if (/등급|platinum|gold|silver|service|파트너\s*등급/i.test(haystack) && /구분[\s\S]*platinum[\s\S]*gold[\s\S]*silver[\s\S]*service/i.test(content)) {
+        score += 160;
+      }
+      if (/strategic/i.test(`${title} ${content}`) && /등급|platinum|gold|silver|service/i.test(haystack)) {
+        score -= 120;
+      }
+      if (/영업기회|deal\s*report|deal\s*registration|등록\s*절차|conflict|영업우선권/i.test(haystack) && /deal\s*report|영업기회\s*등록|conflict|영업우선권/i.test(`${title} ${content}`)) {
+        score += 120;
       }
       if (/승급|등급|platinum|gold|silver|partner\s*type/.test(haystack) && row.category !== "등급" && /영업|deal|등록/.test(`${title} ${content}`)) {
         score -= 70;

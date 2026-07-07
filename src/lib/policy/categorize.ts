@@ -3,35 +3,92 @@ import type { PolicyCategoryKey } from "@/lib/policy/constants";
 const RULES: Array<{ category: PolicyCategoryKey; patterns: RegExp[] }> = [
   {
     category: "Overview",
-    patterns: [/okestro\s*partnership/i, /overview/i, /파트너\s*정책/i, /partner\s*program/i]
+    patterns: [/okestro\s*partnership/i, /\boverview\b/i, /파트너\s*정책/i, /partner\s*program/i, /contents/i]
   },
   {
     category: "Partner Type",
-    patterns: [/partner\s*type/i, /var\b/i, /platinum/i, /gold/i, /silver/i, /strategic/i, /파트너\s*등급/i, /파트너\s*유형/i]
+    patterns: [
+      /partner\s*type/i,
+      /\bvar\b/i,
+      /\bplatinum\b/i,
+      /\bgold\b/i,
+      /\bsilver\b/i,
+      /\bservice\b/i,
+      /파트너\s*등급/i,
+      /파트너\s*유형/i,
+      /역할/i,
+      /mdf/i
+    ]
   },
   {
     category: "Profit Program",
-    patterns: [/profit\s*program/i, /base\s*profit/i, /promotion/i, /target\s*incentive/i, /수익/i, /인센티브/i]
+    patterns: [
+      /profit\s*program/i,
+      /base\s*profit/i,
+      /\bpromotion\b/i,
+      /target\s*incentive/i,
+      /technical\s*support\s*fee/i,
+      /수익/i,
+      /인센티브/i,
+      /케어팩|care\s*pack/i
+    ]
   },
   {
     category: "Technical Program",
-    patterns: [/technical/i, /certification/i, /level\s*[12]/i, /기술파트너/i, /기술\s*자격/i, /poc/i]
+    patterns: [
+      /technical\s*certification/i,
+      /technical\s*program/i,
+      /level\s*1/i,
+      /level\s*2/i,
+      /기술파트너/i,
+      /기술\s*자격/i,
+      /\bpoc\b/i,
+      /구축/i,
+      /마이그레이션/i,
+      /\bma\b/i,
+      /care\s*pack/i
+    ]
   },
   {
     category: "Support Program",
-    patterns: [/support\s*fee/i, /ma\s*\/?\s*care/i, /academy/i, /seminar/i, /cx\s*arena/i, /지원/i, /유지보수/i]
+    patterns: [
+      /\bacademy\b/i,
+      /customer\s*seminar/i,
+      /cx\s*arena/i,
+      /partner\s*certification/i,
+      /지원\s*프로그램/i,
+      /유지보수\s*정책/i
+    ]
   },
   {
     category: "Contract Process",
-    patterns: [/contract/i, /계약\s*절차/i, /파트너\s*계약/i, /인증서/i]
+    patterns: [
+      /contract\s*process/i,
+      /파트너\s*계약\s*절차/i,
+      /계약\s*절차/i,
+      /신청\s*서류/i,
+      /계약\s*서류/i,
+      /계약\s*제한/i,
+      /사업자등록/i,
+      /회사소개서/i,
+      /통장사본/i,
+      /신용평가/i
+    ]
   },
   {
     category: "Deal Registration",
-    patterns: [/deal\s*registration/i, /영업기회/i, /등록\s*절차/i]
+    patterns: [
+      /deal\s*registration/i,
+      /deal\s*report/i,
+      /영업기회/i,
+      /영업우선권/i,
+      /conflict/i,
+      /등록\s*절차/i
+    ]
   },
   {
     category: "KPI / Goal",
-    patterns: [/\bkpi\b/i, /goal/i, /목표/i, /2026년\s*파트너/i]
+    patterns: [/\bkpi\b/i, /\bgoal\b/i, /목표/i, /2026년\s*파트너/i, /파트너\s*매출/i, /사업기회/i]
   },
   {
     category: "Appendix",
@@ -40,7 +97,12 @@ const RULES: Array<{ category: PolicyCategoryKey; patterns: RegExp[] }> = [
 ];
 
 export function categorizePolicySlide(title: string, body: string): PolicyCategoryKey {
-  const haystack = `${title}\n${body}`.slice(0, 2000);
+  const haystack = `${title}\n${body}`.slice(0, 4000);
+
+  if (/구분[\s\S]{0,80}platinum[\s\S]{0,80}gold[\s\S]{0,80}silver[\s\S]{0,80}service/i.test(haystack)) {
+    return "Partner Type";
+  }
+
   for (const rule of RULES) {
     if (rule.patterns.some((pattern) => pattern.test(haystack))) {
       return rule.category;

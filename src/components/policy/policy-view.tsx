@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { ChevronDown, ChevronRight, Download, History } from "lucide-react";
 import { POLICY_UI_CATEGORIES } from "@/lib/policy/constants";
+import { isBadParseContent } from "@/lib/policy/xml-text";
 import type { PartnerPolicyChunk, PartnerPolicyDocument } from "@/types/partner-policy";
 
 type PolicyViewProps = {
@@ -22,6 +23,8 @@ export function PolicyView({ current, versions, chunks, fallbackMode = false }: 
   const filteredChunks = useMemo(() => {
     const q = query.trim().toLowerCase();
     return chunks.filter((chunk) => {
+      if (chunk.is_active === false || chunk.parse_status === "bad_parse") return false;
+      if (isBadParseContent(chunk.content)) return false;
       if (category !== "all" && chunk.category !== category) return false;
       if (!q) return true;
       const haystack = `${chunk.section_title ?? ""} ${chunk.content} ${(chunk.keywords ?? []).join(" ")}`.toLowerCase();
@@ -172,6 +175,15 @@ export function PolicyView({ current, versions, chunks, fallbackMode = false }: 
       </div>
 
       <div className="space-y-3">
+        {filteredChunks.length === 0 ? (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            최신 정책 문서는 등록되어 있으나 표시 가능한 텍스트 chunk가 없습니다.{" "}
+            <Link href="/dashboard/policy/upload" className="font-semibold underline">
+              정책 재업로드 또는 재처리
+            </Link>
+            가 필요합니다.
+          </div>
+        ) : null}
         {POLICY_UI_CATEGORIES.map((item) => {
           const list = grouped.get(item.key) ?? [];
           if (list.length === 0) return null;

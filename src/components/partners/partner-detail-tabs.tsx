@@ -20,6 +20,10 @@ import { ContactTagsBadges } from "@/components/contacts/contact-tags-badges";
 import { mergePartnerOrganizationContacts } from "@/lib/contacts/organization-merge";
 import { DOCUMENT_TYPE_LABEL, POC_RESULT_STATUS_LABEL } from "@/lib/constants";
 import { PartnerDocumentsTab } from "@/components/partners/partner-documents-tab";
+import {
+  countVisiblePartnerDocuments,
+  countVisibleTrainingItems
+} from "@/lib/documents/partner-tab-counts";
 import { PartnerPerformanceTab } from "@/components/partners/partner-performance-tab";
 import { formatAssetUpdatedAt } from "@/lib/assets/display";
 import { formatAssetNodeDisplayName } from "@/lib/assets/partner-detail-assets";
@@ -53,6 +57,7 @@ type PartnerDetailTabsProps = {
   bundle: PartnerDetailBundle;
   addNoteAction: (formData: FormData) => Promise<void>;
   initialTab?: string;
+  isAdmin?: boolean;
 };
 
 const TAB_KEYS: TabKey[] = [
@@ -82,7 +87,8 @@ const TABS: Array<{ key: TabKey; label: string; icon: typeof Info }> = [
 export function PartnerDetailTabs({
   bundle,
   addNoteAction,
-  initialTab
+  initialTab,
+  isAdmin = false
 }: PartnerDetailTabsProps) {
   const {
     partner,
@@ -108,18 +114,34 @@ export function PartnerDetailTabs({
     [contacts]
   );
 
-  const counts: Record<TabKey, number> = {
-    basic: 0,
-    organization: organizationMerge.merged.length,
-    trainings: trainings.length + monthlyTrainings.length,
-    events: events.length,
-    pocs: pocs.length,
-    assets: assets.length,
-    documents: documents.length,
-    performance:
-      performance.win_forecast_count + performance.new_reg_count + performance.revenue_count,
-    notes: notes.length
-  };
+  const counts: Record<TabKey, number> = useMemo(
+    () => ({
+      basic: 0,
+      organization: organizationMerge.merged.length,
+      trainings: countVisibleTrainingItems(trainingSessions, trainings, monthlyTrainings),
+      events: events.length,
+      pocs: pocs.length,
+      assets: assets.length,
+      documents: countVisiblePartnerDocuments(documents),
+      performance:
+        performance.win_forecast_count + performance.new_reg_count + performance.revenue_count,
+      notes: notes.length
+    }),
+    [
+      organizationMerge.merged.length,
+      trainingSessions,
+      trainings,
+      monthlyTrainings,
+      events.length,
+      pocs.length,
+      assets.length,
+      documents,
+      performance.win_forecast_count,
+      performance.new_reg_count,
+      performance.revenue_count,
+      notes.length
+    ]
+  );
 
   return (
     <section className="ui-card overflow-hidden">
@@ -166,7 +188,7 @@ export function PartnerDetailTabs({
         {active === "pocs" ? <PocsTab pocs={pocs} /> : null}
         {active === "assets" ? <AssetsTab assets={assets} /> : null}
         {active === "documents" ? (
-          <PartnerDocumentsTab documents={documents} />
+          <PartnerDocumentsTab documents={documents} isAdmin={isAdmin} />
         ) : null}
         {active === "performance" ? <PartnerPerformanceTab performance={performance} /> : null}
         {active === "notes" ? (

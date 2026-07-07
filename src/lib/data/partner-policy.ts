@@ -1,6 +1,6 @@
-import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { PARTNER_POLICY_BUCKET } from "@/lib/policy/constants";
+import { isBadParseContent } from "@/lib/policy/xml-text";
 import type { PartnerPolicyChunk, PartnerPolicyDocument } from "@/types/partner-policy";
 
 function mapDocument(row: Record<string, unknown>): PartnerPolicyDocument {
@@ -34,18 +34,31 @@ function mapChunk(row: Record<string, unknown>): PartnerPolicyChunk {
     content: String(row.content),
     keywords: Array.isArray(row.keywords) ? (row.keywords as string[]) : null,
     raw_json: (row.raw_json as Record<string, unknown> | null) ?? null,
+    is_active: row.is_active !== false,
+    parse_status: row.parse_status ? String(row.parse_status) : "active",
     created_at: String(row.created_at)
   };
 }
 
+export function filterUsablePolicyChunks(chunks: PartnerPolicyChunk[]): PartnerPolicyChunk[] {
+  return chunks.filter(
+    (chunk) => chunk.is_active !== false && chunk.parse_status !== "bad_parse" && !isBadParseContent(chunk.content)
+  );
+}
+
+function policyClient() {
+  return createAdminClient();
+}
+
 export async function fetchCurrentPolicyDocument(): Promise<PartnerPolicyDocument | null> {
-  const supabase = await createClient();
+  const supabase = policyClient();
   const { data } = await supabase
     .from("partner_policy_documents")
     .select("*")
     .eq("is_current", true)
     .eq("status", "active")
     .order("effective_date", { ascending: false })
+    .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
 
@@ -53,7 +66,7 @@ export async function fetchCurrentPolicyDocument(): Promise<PartnerPolicyDocumen
 }
 
 export async function fetchPolicyDocumentVersions(): Promise<PartnerPolicyDocument[]> {
-  const supabase = await createClient();
+  const supabase = policyClient();
   const { data } = await supabase
     .from("partner_policy_documents")
     .select("*")
@@ -64,36 +77,40 @@ export async function fetchPolicyDocumentVersions(): Promise<PartnerPolicyDocume
   return (data ?? []).map((row) => mapDocument(row as Record<string, unknown>));
 }
 
-export async function fetchPolicyChunks(documentId: string): Promise<PartnerPolicyChunk[]> {
-  const supabase = await createClient();
-  const { data } = await supabase
+export async function fetchPolicyChunks(documentId: string, activeOnly = true): Promise<PartnerPolicyChunk[]> {
+  const supabase = policyClient();
+  const { data, error } = await supabase
     .from("partner_policy_chunks")
     .select("*")
     .eq("policy_document_id", documentId)
     .order("slide_number", { ascending: true });
 
-  return (data ?? []).map((row) => mapChunk(row as Record<string, unknown>));
+  if (error) throw error;
+
+  let chunks = (data ?? []).map((row) => mapChunk(row as Record<string, unknown>));
+  if (activeOnly) {
+    chunks = chunks.filter((chunk) => chunk.is_active !== false && chunk.parse_status !== "bad_parse");
+    chunks = filterUsablePolicyChunks(chunks);
+  }
+  return chunks;
 }
 
 export async function fetchPolicyBundle(documentId?: string) {
+  const versions = await fetchPolicyDocumentVersions();
   const current = documentId
-    ? (await fetchPolicyDocumentVersions()).find((doc) => doc.id === documentId) ?? null
-    : await fetchCurrentPolicyDocument();
+    ? versions.find((doc) => doc.id === documentId) ?? null
+    : versions.find((doc) => doc.is_current) ?? (await fetchCurrentPolicyDocument());
 
   if (!current) {
-    return { current: null, versions: await fetchPolicyDocumentVersions(), chunks: [] as PartnerPolicyChunk[] };
+    return { current: null, versions, chunks: [] as PartnerPolicyChunk[] };
   }
 
-  const [versions, chunks] = await Promise.all([
-    fetchPolicyDocumentVersions(),
-    fetchPolicyChunks(current.id)
-  ]);
-
+  const chunks = await fetchPolicyChunks(current.id, true);
   return { current, versions, chunks };
 }
 
 export async function createPolicyDownloadUrl(storagePath: string): Promise<string | null> {
-  const supabase = createAdminClient();
+  const supabase = policyClient();
   const { data, error } = await supabase.storage
     .from(PARTNER_POLICY_BUCKET)
     .createSignedUrl(storagePath, 60 * 30);
@@ -108,6 +125,6 @@ export async function fetchCurrentPolicyChunksForSearch(): Promise<{
 }> {
   const current = await fetchCurrentPolicyDocument();
   if (!current) return { document: null, chunks: [] };
-  const chunks = await fetchPolicyChunks(current.id);
+  const chunks = await fetchPolicyChunks(current.id, true);
   return { document: current, chunks };
 }

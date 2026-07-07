@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/layout/page-header";
 import { PartnerDetailTabs } from "@/components/partners/partner-detail-tabs";
+import { getViewerRole } from "@/lib/auth/require-admin";
 import { fetchPartnerDetailBundle } from "@/lib/data/partner-detail";
 import { PARTNER_GRADE_LABEL } from "@/lib/constants";
 import { formatPartnerNo } from "@/lib/partners/partner-no";
@@ -17,6 +18,7 @@ export default async function PartnerDetailPage({
   const { id } = await params;
   const { tab } = await searchParams;
   const bundle = await fetchPartnerDetailBundle(id);
+  const isAdmin = (await getViewerRole()) === "admin";
 
   if (!bundle) {
     notFound();
@@ -48,7 +50,12 @@ export default async function PartnerDetailPage({
         <SummaryCard label={fourthCardLabel} value={fourthCardValue} />
       </section>
 
-      <PartnerDetailTabs bundle={bundle} addNoteAction={addPartnerNote} initialTab={tab} />
+      <PartnerDetailTabs
+        bundle={bundle}
+        addNoteAction={addPartnerNote}
+        initialTab={tab}
+        isAdmin={isAdmin}
+      />
     </>
   );
 }

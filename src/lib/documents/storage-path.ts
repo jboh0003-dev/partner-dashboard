@@ -63,6 +63,60 @@ export function buildDeterministicStoragePath(
   return `${safePartnerId}/${safeDocumentType}/${objectId}.${ext}`;
 }
 
+export function buildCanonicalTypeStoragePath(
+  partnerId: string,
+  documentType: string,
+  fileExt: string
+): string {
+  const safePartnerId = sanitizePartnerIdSegment(partnerId);
+  const safeDocumentType = sanitizeDocumentTypeSegment(documentType);
+  const ext = sanitizeFileExt(fileExt);
+  const digest = createHash("sha256")
+    .update(`${safePartnerId}\0${safeDocumentType}\0canonical`, "utf8")
+    .digest("hex");
+  const objectId = [
+    digest.slice(0, 8),
+    digest.slice(8, 12),
+    digest.slice(12, 16),
+    digest.slice(16, 20),
+    digest.slice(20, 32)
+  ].join("-");
+
+  return `${safePartnerId}/${safeDocumentType}/${objectId}.${ext}`;
+}
+
+export function resolveCanonicalUploadStoragePath(
+  partnerId: string,
+  documentType: string,
+  fileExt: string,
+  originalFilename: string,
+  existingStoragePath?: string | null,
+  existingFilePath?: string | null,
+  useCanonical = true
+): string {
+  if (!useCanonical) {
+    return resolveUploadStoragePath(
+      partnerId,
+      documentType,
+      fileExt,
+      originalFilename,
+      existingStoragePath,
+      existingFilePath
+    );
+  }
+
+  const existing = existingStoragePath ?? existingFilePath ?? null;
+  if (existing && isSafeStorageObjectKey(existing)) {
+    const existingExt = existing.split(".").pop()?.toLowerCase();
+    const nextExt = sanitizeFileExt(fileExt);
+    if (!existingExt || existingExt === nextExt) {
+      return existing;
+    }
+  }
+
+  return buildCanonicalTypeStoragePath(partnerId, documentType, fileExt);
+}
+
 export function resolveUploadStoragePath(
   partnerId: string,
   documentType: string,

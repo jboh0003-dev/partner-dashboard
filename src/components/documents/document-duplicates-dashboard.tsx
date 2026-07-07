@@ -2,10 +2,32 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { getDocumentTypeShortLabel } from "@/lib/documents/display";
 import { DUPLICATE_REASON, type DuplicateGroup } from "@/lib/documents/duplicate-detection";
 import { formatDate } from "@/lib/utils";
+
+type CleanupSummary = {
+  duplicate_partner_count: number;
+  duplicate_document_count: number;
+  delete_file_count: number;
+  estimated_bytes: number;
+};
+
+type CleanupPlanItem = {
+  partner_id: string;
+  partner_name: string;
+  document_type: string;
+  keep_id: string;
+  keep_filename: string;
+  remove: Array<{
+    id: string;
+    filename: string;
+    storage_path: string | null;
+    file_size: number | null;
+    created_at: string;
+  }>;
+};
 
 type DuplicateDashboardProps = {
   initialGroups: DuplicateGroup[];
@@ -18,12 +40,21 @@ type DuplicateDashboardProps = {
   };
 };
 
+function formatBytes(bytes: number): string {
+  if (bytes <= 0) return "0 B";
+  const units = ["B", "KB", "MB", "GB"];
+  const index = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
+  const value = bytes / 1024 ** index;
+  return `${value.toFixed(index === 0 ? 0 : 1)} ${units[index]}`;
+}
+
 export function DocumentDuplicatesDashboard({
   initialGroups,
   initialSummary
 }: DuplicateDashboardProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const [cleanupPending, startCleanupTransition] = useTransition();
   const [scanSummary, setScanSummary] = useState<{
     exact_hidden: number;
     near_candidates: number;
@@ -31,7 +62,22 @@ export function DocumentDuplicatesDashboard({
     groups: number;
     scanned: number;
   } | null>(null);
+  const [cleanupSummary, setCleanupSummary] = useState<CleanupSummary | null>(null);
+  const [cleanupPlan, setCleanupPlan] = useState<CleanupPlanItem[]>([]);
+  const [cleanupResult, setCleanupResult] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    void loadCleanupPreview();
+  }, []);
+
+  async function loadCleanupPreview() {
+    const response = await fetch("/api/admin/documents/cleanup");
+    const json = await response.json();
+    if (!response.ok || !json.ok) return;
+    setCleanupSummary(json.summary as CleanupSummary);
+    setCleanupPlan((json.plan as CleanupPlanItem[]) ?? []);
+  }
 
   function runScan() {
     startTransition(async () => {
@@ -66,8 +112,128 @@ export function DocumentDuplicatesDashboard({
     router.refresh();
   }
 
+  function exportCleanupPlan() {
+    window.open("/api/admin/documents/cleanup?export=json", "_blank");
+  }
+
+  function runHardCleanup() {
+    if (!cleanupSummary || cleanupSummary.duplicate_document_count === 0) {
+      setMessage("정리할 중복 문서가 없습니다.");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      [
+        "중복 문서를 영구 삭제합니다.",
+        `- 중복 파트너: ${cleanupSummary.duplicate_partner_count}개`,
+        `- 삭제 문서: ${cleanupSummary.duplicate_document_count}건`,
+        `- 삭제 파일: ${cleanupSummary.delete_file_count}개`,
+        `- 예상 절감: ${formatBytes(cleanupSummary.estimated_bytes)}`,
+        "",
+        "DB row와 Storage 파일이 함께 삭제됩니다. 계속하시겠습니까?"
+      ].join("\n")
+    );
+    if (!confirmed) return;
+
+    startCleanupTransition(async () => {
+      setMessage(null);
+      setCleanupResult(null);
+      const response = await fetch("/api/admin/documents/cleanup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirm: true })
+      });
+      const json = await response.json();
+      if (!response.ok || !json.ok) {
+        setMessage(json.message ?? json.result?.errors?.join(" / ") ?? "중복 정리 실패");
+        return;
+      }
+      setCleanupResult(
+        `삭제 완료: 문서 ${json.result.deleted_document_count}건, Storage ${json.result.deleted_storage_count}개`
+      );
+      await loadCleanupPreview();
+      router.refresh();
+    });
+  }
+
   return (
     <div className="space-y-6">
+      <section className="rounded-xl border border-rose-200 bg-rose-50/60 px-4 py-4">
+        <p className="text-sm font-semibold text-rose-900">중복 문서 정리 (Storage + DB 삭제)</p>
+        <p className="mt-1 text-xs leading-relaxed text-rose-800">
+          partner_id + document_type 기준으로 최신본 1개만 남기고 나머지 중복 문서 row와 Storage
+          파일을 삭제합니다. 실행 전 미리보기를 확인하세요.
+        </p>
+
+        {cleanupSummary ? (
+          <div className="mt-4 grid gap-2 text-xs sm:grid-cols-2 lg:grid-cols-4">
+            <SummaryInline label="중복 파트너" value={cleanupSummary.duplicate_partner_count} />
+            <SummaryInline label="삭제 예정 문서" value={cleanupSummary.duplicate_document_count} />
+            <SummaryInline label="삭제 예정 파일" value={cleanupSummary.delete_file_count} />
+            <SummaryInline
+              label="예상 절감 용량"
+              value={formatBytes(cleanupSummary.estimated_bytes)}
+              raw
+            />
+          </div>
+        ) : null}
+
+        <div className="mt-4 flex flex-wrap gap-2">
+          <button
+            type="button"
+            disabled={cleanupPending}
+            onClick={() => void loadCleanupPreview()}
+            className="rounded-xl border border-rose-300 bg-white px-4 py-2 text-sm font-semibold text-rose-800 hover:bg-rose-100 disabled:opacity-50"
+          >
+            미리보기 새로고침
+          </button>
+          <button
+            type="button"
+            onClick={exportCleanupPlan}
+            className="rounded-xl border border-rose-300 bg-white px-4 py-2 text-sm font-semibold text-rose-800 hover:bg-rose-100"
+          >
+            삭제 대상 Export (JSON)
+          </button>
+          <button
+            type="button"
+            disabled={cleanupPending || !cleanupSummary || cleanupSummary.duplicate_document_count === 0}
+            onClick={runHardCleanup}
+            className="rounded-xl bg-rose-700 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-800 disabled:opacity-50"
+          >
+            {cleanupPending ? "정리 실행 중..." : "정리 실행"}
+          </button>
+        </div>
+
+        {cleanupResult ? (
+          <p className="mt-3 text-sm font-medium text-emerald-800">{cleanupResult}</p>
+        ) : null}
+
+        {cleanupPlan.length > 0 ? (
+          <div className="mt-4 max-h-64 overflow-y-auto rounded-lg border border-rose-200 bg-white">
+            <table className="min-w-full text-xs">
+              <thead className="bg-rose-50 text-left text-slate-600">
+                <tr>
+                  <th className="px-3 py-2">파트너</th>
+                  <th className="px-3 py-2">문서 구분</th>
+                  <th className="px-3 py-2">유지</th>
+                  <th className="px-3 py-2">삭제 예정</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {cleanupPlan.map((item) => (
+                  <tr key={`${item.partner_id}:${item.document_type}`}>
+                    <td className="px-3 py-2">{item.partner_name}</td>
+                    <td className="px-3 py-2">{getDocumentTypeShortLabel(item.document_type)}</td>
+                    <td className="px-3 py-2">{item.keep_filename}</td>
+                    <td className="px-3 py-2 text-rose-700">{item.remove.length}건</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : null}
+      </section>
+
       <div className="rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-700">
         <p className="font-semibold text-slate-900">관리자용 문서 중복 정리</p>
         <p className="mt-1 text-xs leading-relaxed text-slate-600">
@@ -226,6 +392,25 @@ function DuplicateGroupCard({
             </div>
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+function SummaryInline({
+  label,
+  value,
+  raw = false
+}: {
+  label: string;
+  value: number | string;
+  raw?: boolean;
+}) {
+  return (
+    <div className="rounded-lg border border-rose-200 bg-white px-3 py-2">
+      <div className="text-[10px] font-semibold uppercase tracking-wide text-rose-700">{label}</div>
+      <div className="mt-1 text-sm font-bold text-rose-950">
+        {raw ? value : typeof value === "number" ? value.toLocaleString("ko-KR") : value}
       </div>
     </div>
   );

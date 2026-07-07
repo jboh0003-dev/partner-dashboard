@@ -26,6 +26,8 @@ export type PartnerPolicyChunk = {
   content: string;
   keywords: string[] | null;
   raw_json: Record<string, unknown> | null;
+  is_active: boolean;
+  parse_status: string;
   created_at: string;
 };
 
@@ -36,4 +38,14 @@ export type PolicyAnalyzeSlide = {
   category: string;
   keywords: string[];
   chunk_count: number;
+};
+
+export type PolicyParseValidation = {
+  total_slides: number;
+  text_extracted_slides: number;
+  total_chunks: number;
+  xml_tag_chunks: number;
+  categorized_slides: number;
+  can_save: boolean;
+  block_reason: string | null;
 };

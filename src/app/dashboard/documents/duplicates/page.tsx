@@ -12,7 +12,7 @@ export default async function DocumentDuplicatesPage() {
     <>
       <PageHeader
         title="문서 중복 정리"
-        description="파트너 문서의 완전 중복·준중복을 검사하고 대표 문서를 지정합니다. Storage와 DB row는 삭제하지 않습니다."
+        description="파트너 문서의 완전 중복·준중복을 검사하고, Storage/DB 중복 정리를 실행합니다."
       />
       <DocumentDuplicatesDashboard initialGroups={groups} initialSummary={summary} />
     </>

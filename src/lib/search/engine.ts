@@ -23,6 +23,7 @@ import {
 import { searchPartnerEvents, wantsEventAllFiles } from "@/lib/search/event-search";
 import { EVENT_DOCUMENT_TYPE_LABEL } from "@/lib/events/event-document-types";
 import { OKE_NO_KNOWLEDGE, OKE_POLICY_NOT_FOUND } from "@/lib/search/oke-branding";
+import { isBadParseContent } from "@/lib/policy/xml-text";
 import type {
   ParsedSearchQuery,
   SearchContactItem,
@@ -304,11 +305,42 @@ function knowledgeRows(
     context.knowledge.length > 0 ? context.knowledge : getDefaultKnowledgeRows();
 
   if (options?.policyOnly) {
-    return policyRows.length > 0 ? policyRows : legacyRows;
+    if (context.policyDocument) return policyRows;
+    return legacyRows;
   }
 
   if (policyRows.length > 0) return [...policyRows, ...legacyRows];
   return legacyRows;
+}
+
+function policyChunksMentionGrade(content: string): boolean {
+  return /\b(platinum|gold|silver|service)\b/i.test(content);
+}
+
+function isVarGradeTableContent(content: string): boolean {
+  return /구분[\s\S]*platinum[\s\S]*gold[\s\S]*silver[\s\S]*service/i.test(content);
+}
+
+function filterPolicyHitsForQuery(
+  query: string,
+  hits: KnowledgeSearchHit[],
+  context: SearchContext
+): KnowledgeSearchHit[] {
+  const haystack = query.toLowerCase();
+  const isGradeQuery = /등급|platinum|gold|silver|service|파트너\s*유형|partner\s*type/i.test(haystack);
+
+  let filtered = hits.filter((hit) => !isBadParseContent(stripSlidePrefix(hit.content)));
+
+  if (context.policyDocument && isGradeQuery) {
+    filtered = filtered.filter((hit) => !/\bstrategic\b/i.test(stripSlidePrefix(hit.content)));
+    const tableHits = filtered.filter((hit) => isVarGradeTableContent(stripSlidePrefix(hit.content)));
+    if (tableHits.length > 0) return tableHits;
+    filtered = filtered.filter(
+      (hit) => policyChunksMentionGrade(hit.content) || hit.category === "등급"
+    );
+  }
+
+  return filtered;
 }
 
 function isPolicyVersionComparisonQuery(query: string): boolean {
@@ -651,7 +683,7 @@ function handleKnowledgeLookup(
   intent: "policy_lookup"
 ): SearchResult {
   const rows = knowledgeRows(context, { policyOnly: true });
-  let hits = searchPartnerKnowledge(parsed.raw, rows, 5);
+  let hits = filterPolicyHitsForQuery(parsed.raw, searchPartnerKnowledge(parsed.raw, rows, 8), context);
   const criteria = context.policyDocument
     ? `${context.policyDocument.version_label} · 기준일 ${context.policyDocument.effective_date}`
     : "파트너 정책·가이드 검색";
@@ -659,7 +691,7 @@ function handleKnowledgeLookup(
   if (parsed.knowledgeCategory) {
     hits = hits.filter((hit) => hit.category === parsed.knowledgeCategory);
     if (hits.length === 0) {
-      hits = searchPartnerKnowledge(parsed.raw, rows, 5);
+      hits = filterPolicyHitsForQuery(parsed.raw, searchPartnerKnowledge(parsed.raw, rows, 8), context);
     }
   }
 

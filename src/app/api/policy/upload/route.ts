@@ -4,6 +4,8 @@ import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { PARTNER_POLICY_BUCKET } from "@/lib/policy/constants";
 import { getPolicyFileType, parsePptxBuffer } from "@/lib/policy/parse-pptx";
+import { validatePolicyParse } from "@/lib/policy/validate-parse";
+import { isBadParseContent } from "@/lib/policy/xml-text";
 import {
   buildPolicyStoragePath,
   ensurePartnerPolicyBucket,
@@ -109,25 +111,33 @@ export async function POST(request: Request) {
     }
 
     let slideDetails = metadata.slide_details ?? [];
-    if (slideDetails.length === 0 && (fileType === "pptx" || fileType === "ppt")) {
+    if (fileType === "pptx" || fileType === "ppt") {
       const parsed = await parsePptxBuffer(fileBuffer);
+      const validation = validatePolicyParse(parsed.slides);
+      if (!validation.can_save) {
+        throw new Error(validation.block_reason ?? "PPTX 텍스트 추출 결과가 비정상입니다.");
+      }
       slideDetails = parsed.slides;
     }
 
     const chunkRows = slideDetails.flatMap((slide) =>
-      slide.chunks.map((chunk) => ({
-        policy_document_id: documentId,
-        section_title: chunk.section_title,
-        category: slide.category,
-        slide_number: slide.slide_number,
-        page_number: null,
-        content: chunk.content,
-        keywords: chunk.keywords,
-        raw_json: {
-          slide_title: slide.title,
-          slide_body: slide.body
-        }
-      }))
+      slide.chunks
+        .filter((chunk) => !isBadParseContent(chunk.content))
+        .map((chunk) => ({
+          policy_document_id: documentId,
+          section_title: chunk.section_title,
+          category: slide.category,
+          slide_number: slide.slide_number,
+          page_number: null,
+          content: chunk.content,
+          keywords: chunk.keywords,
+          is_active: true,
+          parse_status: "active",
+          raw_json: {
+            slide_title: slide.title,
+            slide_body: slide.body
+          }
+        }))
     );
 
     if (chunkRows.length > 0) {

@@ -17,6 +17,7 @@ export type DocumentDuplicateRow = {
   duplicate_reason?: string | null;
   representative?: boolean | null;
   is_primary?: boolean | null;
+  priority_score?: number | null;
 };
 
 export type DuplicateClassification = "exact" | "near" | "excluded" | "none";

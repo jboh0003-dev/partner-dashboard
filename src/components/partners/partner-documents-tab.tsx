@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import {
   DocumentDownloadButton,
   DocumentFileNameLink,
@@ -16,6 +17,7 @@ import type { PartnerDocument } from "@/types/document";
 
 type PartnerDocumentsTabProps = {
   documents: PartnerDocument[];
+  isAdmin?: boolean;
 };
 
 function toDuplicateRow(doc: PartnerDocument) {
@@ -35,7 +37,10 @@ function toDuplicateRow(doc: PartnerDocument) {
   };
 }
 
-export function PartnerDocumentsTab({ documents }: PartnerDocumentsTabProps) {
+export function PartnerDocumentsTab({
+  documents,
+  isAdmin = false
+}: PartnerDocumentsTabProps) {
   const visibleDocuments = useMemo(() => {
     const active = documents.filter((doc) => !doc.deleted_at && isVisibleDocument(doc));
     const groups = groupDocumentsForPartnerTab(active.map(toDuplicateRow));
@@ -85,7 +90,7 @@ export function PartnerDocumentsTab({ documents }: PartnerDocumentsTabProps) {
 
         <div className="divide-y divide-slate-100">
           {visibleDocuments.map((document) => (
-            <DocumentRow key={document.id} document={document} />
+            <DocumentRow key={document.id} document={document} isAdmin={isAdmin} />
           ))}
         </div>
       </div>
@@ -93,7 +98,18 @@ export function PartnerDocumentsTab({ documents }: PartnerDocumentsTabProps) {
   );
 }
 
-function DocumentRow({ document }: { document: PartnerDocument }) {
+function DocumentRow({
+  document,
+  isAdmin
+}: {
+  document: PartnerDocument;
+  isAdmin: boolean;
+}) {
+  const router = useRouter();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isPending, startTransition] = useTransition();
+  const [message, setMessage] = useState<string | null>(null);
+
   const documentSource = {
     document_type: document.document_type,
     display_name: document.display_name,
@@ -102,6 +118,65 @@ function DocumentRow({ document }: { document: PartnerDocument }) {
     file_ext: document.file_ext
   };
 
+  const displayName =
+    document.display_name ?? document.file_name ?? document.original_filename ?? "문서";
+
+  function refresh() {
+    router.refresh();
+  }
+
+  function handleDelete() {
+    const confirmed = window.confirm(
+      `「${displayName}」 문서를 삭제하시겠습니까?\n\nDB 레코드와 Storage 파일이 함께 삭제됩니다.`
+    );
+    if (!confirmed) return;
+
+    startTransition(async () => {
+      setMessage(null);
+      const response = await fetch(`/api/partners/documents/${document.id}`, {
+        method: "DELETE"
+      });
+      const json = (await response.json().catch(() => null)) as { ok?: boolean; message?: string } | null;
+      if (!response.ok || !json?.ok) {
+        setMessage(json?.message ?? "삭제에 실패했습니다.");
+        return;
+      }
+      refresh();
+    });
+  }
+
+  function handleReplaceClick() {
+    fileInputRef.current?.click();
+  }
+
+  function handleReplaceFile(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    const confirmed = window.confirm(
+      `「${displayName}」 문서를 새 파일로 교체하시겠습니까?\n\n기존 Storage 파일은 삭제됩니다.`
+    );
+    if (!confirmed) return;
+
+    startTransition(async () => {
+      setMessage(null);
+      const formData = new FormData();
+      formData.set("file", file);
+
+      const response = await fetch(`/api/partners/documents/${document.id}/replace`, {
+        method: "POST",
+        body: formData
+      });
+      const json = (await response.json().catch(() => null)) as { ok?: boolean; message?: string } | null;
+      if (!response.ok || !json?.ok) {
+        setMessage(json?.message ?? "교체에 실패했습니다.");
+        return;
+      }
+      refresh();
+    });
+  }
+
   return (
     <div className="grid grid-cols-1 gap-3 px-4 py-3 md:grid-cols-[8.5rem_1fr_7rem_7rem_auto] md:items-center">
       <div className="text-sm font-medium text-slate-700">
@@ -109,6 +184,7 @@ function DocumentRow({ document }: { document: PartnerDocument }) {
       </div>
       <div className="text-sm">
         <DocumentFileNameLink documentId={document.id} document={documentSource} />
+        {message ? <p className="mt-1 text-xs text-rose-600">{message}</p> : null}
       </div>
       <div className="text-sm tabular-nums text-slate-700">
         {document.contract_date ? formatDate(document.contract_date) : "-"}
@@ -117,6 +193,32 @@ function DocumentRow({ document }: { document: PartnerDocument }) {
       <div className="flex flex-wrap items-center gap-2 text-sm">
         <DocumentPreviewButton documentId={document.id} document={documentSource} />
         <DocumentDownloadButton documentId={document.id} document={documentSource} />
+        {isAdmin ? (
+          <>
+            <input
+              ref={fileInputRef}
+              type="file"
+              className="hidden"
+              onChange={handleReplaceFile}
+            />
+            <button
+              type="button"
+              disabled={isPending}
+              onClick={handleReplaceClick}
+              className="rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-800 hover:bg-blue-100 disabled:opacity-50"
+            >
+              교체
+            </button>
+            <button
+              type="button"
+              disabled={isPending}
+              onClick={handleDelete}
+              className="rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-800 hover:bg-rose-100 disabled:opacity-50"
+            >
+              삭제
+            </button>
+          </>
+        ) : null}
       </div>
     </div>
   );

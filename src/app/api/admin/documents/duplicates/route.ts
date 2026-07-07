@@ -1,11 +1,17 @@
 import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/auth/require-admin";
 import {
   fetchDuplicateGroupsForAdmin,
   scanAndApplyDuplicateRules
 } from "@/lib/data/document-duplicates";
 
 export async function GET() {
+  const auth = await requireAdmin();
+  if (!auth.ok) {
+    return NextResponse.json({ ok: false, message: auth.message }, { status: auth.status });
+  }
+
   try {
     const payload = await fetchDuplicateGroupsForAdmin();
     return NextResponse.json({ ok: true, ...payload });
@@ -21,6 +27,11 @@ export async function GET() {
 }
 
 export async function POST() {
+  const auth = await requireAdmin();
+  if (!auth.ok) {
+    return NextResponse.json({ ok: false, message: auth.message }, { status: auth.status });
+  }
+
   try {
     const summary = await scanAndApplyDuplicateRules();
     revalidatePath("/dashboard/documents");

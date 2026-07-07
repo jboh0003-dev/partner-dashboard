@@ -1,6 +1,11 @@
 import { createClient } from "@/lib/supabase/server";
 import { CONTACT_ROLE_LABEL } from "@/lib/constants";
 import {
+  fetchCurrentPolicyChunksForSearch,
+  fetchPolicyChunks
+} from "@/lib/data/partner-policy";
+import { createAdminClient } from "@/lib/supabase/admin";
+import {
   filterRowsByPartnerId,
   filterRowsByPartnerName,
   filterSamplePartners,
@@ -74,7 +79,6 @@ export async function fetchSearchContext(): Promise<SearchContext> {
     { data: attendancesData },
     { data: trainingsData },
     { data: knowledgeData },
-    { data: policyDocumentData },
     { data: notesData },
     { data: eventsData },
     { data: eventDocsData }
@@ -106,14 +110,6 @@ export async function fetchSearchContext(): Promise<SearchContext> {
       .select("*")
       .eq("is_active", true)
       .order("sort_order", { ascending: true }),
-    supabase
-      .from("partner_policy_documents")
-      .select("*")
-      .eq("is_current", true)
-      .eq("status", "active")
-      .order("effective_date", { ascending: false })
-      .limit(1)
-      .maybeSingle(),
     supabase.from("partner_notes").select("*").order("created_at", { ascending: false }),
     supabase
       .from("partner_events")
@@ -125,23 +121,14 @@ export async function fetchSearchContext(): Promise<SearchContext> {
       .order("uploaded_at", { ascending: false })
   ]);
 
-  const policyDocument = policyDocumentData
-    ? (policyDocumentData as PartnerPolicyDocument)
-    : null;
+  const { document: policyDocument, chunks: policyChunks } = await fetchCurrentPolicyChunksForSearch();
 
-  let policyChunks: PartnerPolicyChunk[] = [];
   let previousPolicyDocument: PartnerPolicyDocument | null = null;
   let previousPolicyChunks: PartnerPolicyChunk[] = [];
 
   if (policyDocument?.id) {
-    const { data: chunksData } = await supabase
-      .from("partner_policy_chunks")
-      .select("*")
-      .eq("policy_document_id", policyDocument.id)
-      .order("slide_number", { ascending: true });
-    policyChunks = (chunksData ?? []) as PartnerPolicyChunk[];
-
-    const { data: previousDocData } = await supabase
+    const admin = createAdminClient();
+    const { data: previousDocData } = await admin
       .from("partner_policy_documents")
       .select("*")
       .eq("status", "active")
@@ -153,12 +140,7 @@ export async function fetchSearchContext(): Promise<SearchContext> {
 
     if (previousDocData) {
       previousPolicyDocument = previousDocData as PartnerPolicyDocument;
-      const { data: prevChunksData } = await supabase
-        .from("partner_policy_chunks")
-        .select("*")
-        .eq("policy_document_id", previousPolicyDocument.id)
-        .order("slide_number", { ascending: true });
-      previousPolicyChunks = (prevChunksData ?? []) as PartnerPolicyChunk[];
+      previousPolicyChunks = await fetchPolicyChunks(previousPolicyDocument.id, true);
     }
   }
 

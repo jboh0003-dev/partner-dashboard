@@ -24,6 +24,7 @@ import { matchDocumentPartner, type DocumentMatchResult } from "@/lib/documents/
 import { findPartnerNamesMentionedInFilename } from "@/lib/documents/filename-parser";
 import {
   findRegistrationDuplicate,
+  isMultiDocumentAllowed,
   isVisibleDocument,
   normalizeOriginalFilename
 } from "@/lib/documents/duplicate-detection";
@@ -45,6 +46,7 @@ export type PartnerDocumentDbRow = {
   file_path?: string | null;
   is_active?: boolean | null;
   is_duplicate?: boolean | null;
+  created_at?: string | null;
 };
 
 export type PartnerDocumentAnalysisItem = ParsedPartnerDocumentFile & {
@@ -86,6 +88,7 @@ export function analyzePartnerDocumentRows(
   existingDocuments: PartnerDocumentDbRow[]
 ): { items: PartnerDocumentAnalysisItem[]; summary: PartnerDocumentAnalysisSummary } {
   const existingMap = buildExistingMap(existingDocuments);
+  const canonicalTypeMap = buildCanonicalTypeMap(existingDocuments);
   const batchKeys = new Set<string>();
 
   const items: PartnerDocumentAnalysisItem[] = rows.map((row) => {
@@ -200,29 +203,25 @@ export function analyzePartnerDocumentRows(
 
     if (registeredDuplicate) {
       batchKeys.add(batchKey);
-      return withSuggestionFields(
-        buildAnalysisItem(
-          row,
-          extractedName,
-          {
-            partner: match.partner,
-            action: "review",
-            reason: "이미 등록된 문서입니다. 새 버전으로 저장하려면 옵션을 선택하세요.",
-            match_source: mapMethodToSource(match.match_method),
-            match_status: "matched",
-            match_method: match.match_method,
-            match_confidence: match.match_confidence,
-            review_status: "needs_review",
-            save_enabled: false,
-            matched_document_id: registeredDuplicate.id,
-            is_primary: false
-          },
-          { already_registered: true, save_as_new_version: false }
-        ),
-        suggestion,
-        "auto"
+      return skipItem(
+        row,
+        extractedName,
+        "스킵 / 사유: 동일 파일이 이미 등록되어 있습니다.",
+        match.partner,
+        mapMethodToSource(match.match_method),
+        match.match_method,
+        match.match_confidence
       );
     }
+
+    const allowsMultiple = isMultiDocumentAllowed({
+      document_type: row.document_type,
+      original_filename: row.original_filename,
+      display_name: row.display_name
+    });
+    const canonical = !allowsMultiple
+      ? canonicalTypeMap.get(`${match.partner.id}:${row.document_type}`)
+      : null;
 
     const legacyBatchKey = `${match.partner.id}:${row.document_type}:${row.original_filename}`;
     if (batchKeys.has(legacyBatchKey)) {
@@ -239,13 +238,14 @@ export function analyzePartnerDocumentRows(
     batchKeys.add(batchKey);
     batchKeys.add(legacyBatchKey);
 
-    const existing = existingMap.get(legacyBatchKey);
+    const filenameExisting = existingMap.get(legacyBatchKey);
+    const existing = canonical ?? filenameExisting;
 
     return withSuggestionFields(
       buildAnalysisItem(row, extractedName, {
         partner: match.partner,
         action: existing ? "update" : "create",
-        reason: existing ? "기존 문서 업데이트" : reason,
+        reason: existing ? "기존 문서를 최신본으로 교체합니다." : reason,
         match_source: mapMethodToSource(match.match_method),
         match_status: "matched",
         match_method: match.match_method,
@@ -253,7 +253,7 @@ export function analyzePartnerDocumentRows(
         review_status: "auto_matched",
         save_enabled: true,
         matched_document_id: existing?.id ?? null,
-        is_primary: false
+        is_primary: true
       }),
       suggestion,
       "auto"
@@ -443,6 +443,33 @@ function skipItem(
     }),
     null
   );
+}
+
+function buildCanonicalTypeMap(existingDocuments: PartnerDocumentDbRow[]) {
+  const map = new Map<string, PartnerDocumentDbRow>();
+  const buckets = new Map<string, PartnerDocumentDbRow[]>();
+
+  for (const doc of existingDocuments) {
+    if (!doc.document_type || !isVisibleDocument(doc)) continue;
+    if (isMultiDocumentAllowed({ document_type: doc.document_type, original_filename: doc.original_filename })) {
+      continue;
+    }
+    const key = `${doc.partner_id}:${doc.document_type}`;
+    const bucket = buckets.get(key) ?? [];
+    bucket.push(doc);
+    buckets.set(key, bucket);
+  }
+
+  for (const [key, docs] of buckets.entries()) {
+    const sorted = [...docs].sort((left, right) => {
+      const leftTime = new Date(left.created_at ?? 0).getTime();
+      const rightTime = new Date(right.created_at ?? 0).getTime();
+      return rightTime - leftTime;
+    });
+    if (sorted[0]) map.set(key, sorted[0]);
+  }
+
+  return map;
 }
 
 function buildExistingMap(existingDocuments: PartnerDocumentDbRow[]) {

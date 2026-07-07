@@ -51,7 +51,7 @@ export async function POST(request: Request) {
         supabase
           .from("partner_documents")
           .select(
-            "id, partner_id, document_type, original_filename, file_name, file_size, is_active, is_duplicate"
+            "id, partner_id, document_type, original_filename, file_name, file_size, storage_path, file_path, is_active, is_duplicate, created_at"
           )
           .is("deleted_at", null)
       ]);
