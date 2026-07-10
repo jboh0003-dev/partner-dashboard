@@ -1,6 +1,11 @@
 import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { deleteTempImportFile, writeImportLog } from "@/lib/imports/import-logs";
+import {
+  refreshPipelineCurrentSnapshot,
+  resolvePipelineSnapshotSaveTarget
+} from "@/lib/performance/snapshot-persistence";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isUnknownPartnerName } from "@/lib/partners/performance-match";
 
@@ -88,6 +93,8 @@ const SaveSchema = z.object({
   file_name: z.string(),
   snapshot_date: z.string(),
   snapshot_label: z.string(),
+  duplicate_mode: z.enum(["replace", "new_version"]).default("replace"),
+  storage_path: z.string().nullable().optional(),
   summary: z.object({
     total_pipeline_amount_million: z.number(),
     total_pipeline_count: z.number(),
@@ -130,48 +137,23 @@ export async function POST(request: Request) {
     }
     importJobId = String(importJob.id);
 
-    const { data: existingSnapshot } = await supabase
-      .from("partner_performance_snapshots")
-      .select("id")
-      .eq("snapshot_date", parsed.snapshot_date)
-      .eq("snapshot_label", parsed.snapshot_label)
-      .maybeSingle();
+    const { snapshotId, snapshotAction, version } = await resolvePipelineSnapshotSaveTarget(
+      supabase,
+      {
+        snapshot_date: parsed.snapshot_date,
+        snapshot_label: parsed.snapshot_label,
+        source_file_name: parsed.file_name,
+        duplicate_mode: parsed.duplicate_mode,
+        summary: parsed.summary
+      }
+    );
 
-    const snapshotPayload = {
-      snapshot_date: parsed.snapshot_date,
-      snapshot_label: parsed.snapshot_label,
-      source_file_name: parsed.file_name,
-      total_pipeline_amount_million: parsed.summary.total_pipeline_amount_million,
-      total_pipeline_count: parsed.summary.total_pipeline_count,
-      partner_pipeline_amount_million: parsed.summary.partner_pipeline_amount_million,
-      partner_pipeline_count: parsed.summary.partner_pipeline_count,
-      new_total_pipeline_amount_million: parsed.summary.new_total_pipeline_amount_million,
-      new_total_pipeline_count: parsed.summary.new_total_pipeline_count,
-      new_partner_pipeline_amount_million: parsed.summary.new_partner_pipeline_amount_million,
-      new_partner_pipeline_count: parsed.summary.new_partner_pipeline_count,
-      updated_at: new Date().toISOString()
-    };
-
-    let snapshotId: string;
-    let snapshotAction: "created" | "updated";
-
-    if (existingSnapshot?.id) {
-      const { error } = await supabase
-        .from("partner_performance_snapshots")
-        .update(snapshotPayload)
-        .eq("id", existingSnapshot.id);
-      if (error) throw new Error(error.message);
-      snapshotId = String(existingSnapshot.id);
-      snapshotAction = "updated";
-    } else {
-      const { data: created, error } = await supabase
-        .from("partner_performance_snapshots")
-        .insert(snapshotPayload)
-        .select("id")
-        .single();
-      if (error || !created) throw new Error(error?.message ?? "스냅샷 생성 실패");
-      snapshotId = String(created.id);
-      snapshotAction = "created";
+    if (snapshotAction === "replaced") {
+      const { error: deleteOppsError } = await supabase
+        .from("partner_pipeline_opportunities")
+        .delete()
+        .eq("snapshot_id", snapshotId);
+      if (deleteOppsError) throw new Error(deleteOppsError.message);
     }
 
     let created = 0;
@@ -232,24 +214,30 @@ export async function POST(request: Request) {
         updated_at: new Date().toISOString()
       };
 
-      const { data: existing } = await supabase
-        .from("partner_pipeline_opportunities")
-        .select("id")
-        .eq("snapshot_id", snapshotId)
-        .eq("project_code", row.project_code.trim())
-        .maybeSingle();
-
-      if (existing?.id) {
-        const { error } = await supabase
-          .from("partner_pipeline_opportunities")
-          .update(payload)
-          .eq("id", existing.id);
-        if (error) throw new Error(error.message);
-        updated += 1;
-      } else {
+      if (snapshotAction === "replaced") {
         const { error } = await supabase.from("partner_pipeline_opportunities").insert(payload);
         if (error) throw new Error(error.message);
         created += 1;
+      } else {
+        const { data: existing } = await supabase
+          .from("partner_pipeline_opportunities")
+          .select("id")
+          .eq("snapshot_id", snapshotId)
+          .eq("project_code", row.project_code.trim())
+          .maybeSingle();
+
+        if (existing?.id) {
+          const { error } = await supabase
+            .from("partner_pipeline_opportunities")
+            .update(payload)
+            .eq("id", existing.id);
+          if (error) throw new Error(error.message);
+          updated += 1;
+        } else {
+          const { error } = await supabase.from("partner_pipeline_opportunities").insert(payload);
+          if (error) throw new Error(error.message);
+          created += 1;
+        }
       }
 
       if (!row.matched_partner_id && !isUnknownPartnerName(row.raw_partner_name ?? row.partner_name)) {
@@ -263,49 +251,79 @@ export async function POST(request: Request) {
       }
     }
 
+    const currentSnapshotId = await refreshPipelineCurrentSnapshot(supabase);
+
     let revenueCreated = 0;
     let revenueReview = 0;
 
-    if ((parsed.revenue_rows ?? []).length > 0) {
+    if (
+      (parsed.revenue_rows ?? []).length > 0 &&
+      currentSnapshotId === snapshotId
+    ) {
       const { error: deleteError } = await supabase
         .from("partner_revenue_records")
         .delete()
         .eq("revenue_year", 2025);
       if (deleteError) throw new Error(deleteError.message);
-    }
 
-    for (const row of parsed.revenue_rows ?? []) {
-      const { error } = await supabase.from("partner_revenue_records").insert({
-        revenue_year: 2025,
-        partner_name: row.matched_partner_name ?? row.partner_name,
-        raw_partner_name: row.raw_partner_name ?? row.partner_name,
-        matched_partner_id: row.matched_partner_id ?? null,
-        match_status: resolveDbMatchStatus(row),
-        match_reason: row.match_reason ?? null,
-        partner_grade: row.partner_grade ?? null,
-        sales_owner: row.sales_owner ?? null,
-        project_code: row.project_code ?? null,
-        customer_name: row.customer_name ?? null,
-        project_name: row.project_name ?? null,
-        product_revenue_million: row.product_revenue_million,
-        project_count: row.project_count ?? null,
-        source_sheet: row.raw_json?.sheet_name ? String(row.raw_json.sheet_name) : null,
-        source_file_name: parsed.file_name,
-        raw_json: row.raw_json ?? null
-      });
-      if (error) throw new Error(error.message);
-      revenueCreated += 1;
-
-      if (!row.matched_partner_id && !isUnknownPartnerName(row.raw_partner_name ?? row.partner_name)) {
-        revenueReview += 1;
-        await supabase.from("import_review_queue").insert({
-          import_job_id: importJobId,
-          entity_type: "partner_revenue_record",
-          reason: row.match_reason ?? "파트너명 매칭 실패",
-          raw_data: row
+      for (const row of parsed.revenue_rows ?? []) {
+        const { error } = await supabase.from("partner_revenue_records").insert({
+          revenue_year: 2025,
+          partner_name: row.matched_partner_name ?? row.partner_name,
+          raw_partner_name: row.raw_partner_name ?? row.partner_name,
+          matched_partner_id: row.matched_partner_id ?? null,
+          match_status: resolveDbMatchStatus(row),
+          match_reason: row.match_reason ?? null,
+          partner_grade: row.partner_grade ?? null,
+          sales_owner: row.sales_owner ?? null,
+          project_code: row.project_code ?? null,
+          customer_name: row.customer_name ?? null,
+          project_name: row.project_name ?? null,
+          product_revenue_million: row.product_revenue_million,
+          project_count: row.project_count ?? null,
+          source_sheet: row.raw_json?.sheet_name ? String(row.raw_json.sheet_name) : null,
+          source_file_name: parsed.file_name,
+          raw_json: row.raw_json ?? null
         });
+        if (error) throw new Error(error.message);
+        revenueCreated += 1;
+
+        if (!row.matched_partner_id && !isUnknownPartnerName(row.raw_partner_name ?? row.partner_name)) {
+          revenueReview += 1;
+          await supabase.from("import_review_queue").insert({
+            import_job_id: importJobId,
+            entity_type: "partner_revenue_record",
+            reason: row.match_reason ?? "파트너명 매칭 실패",
+            raw_data: row
+          });
+        }
       }
     }
+
+    const storageDeleted = await deleteTempImportFile(supabase, parsed.storage_path ?? null);
+
+    await writeImportLog(supabase, {
+      import_type: "partner_pipeline_snapshot",
+      original_filename: parsed.file_name,
+      total_rows: parsed.inventory_rows.length,
+      success_count: created + revenueCreated,
+      failed_count: 0,
+      review_count: review + revenueReview,
+      merge_count: 0,
+      excluded_count: 0,
+      storage_file_deleted: storageDeleted,
+      storage_path: parsed.storage_path ?? null,
+      status: "success",
+      import_job_id: importJobId,
+      metadata: {
+        snapshot_id: snapshotId,
+        snapshot_action: snapshotAction,
+        snapshot_date: parsed.snapshot_date,
+        version,
+        duplicate_mode: parsed.duplicate_mode,
+        is_current: currentSnapshotId === snapshotId
+      }
+    });
 
     await supabase
       .from("import_jobs")
@@ -326,11 +344,14 @@ export async function POST(request: Request) {
       ok: true,
       snapshot_id: snapshotId,
       snapshot_action: snapshotAction,
+      snapshot_version: version,
+      is_current: currentSnapshotId === snapshotId,
       created,
       updated,
       review,
       revenue_created: revenueCreated,
-      revenue_review: revenueReview
+      revenue_review: revenueReview,
+      storage_deleted: storageDeleted
     });
   } catch (error) {
     if (importJobId) {

@@ -6,6 +6,7 @@ import {
   REVENUE_PIVOT_SHEET_PATTERN,
   WIN_FORECAST_SUMMARY_PATTERN
 } from "@/lib/performance/constants";
+import { resolvePipelineSnapshotDate } from "@/lib/performance/snapshot-date";
 import {
   isFlagO,
   isFy26,
@@ -611,11 +612,9 @@ export function parsePartnerPerformanceWorkbook(
   }
 
   if (!snapshot_date) {
-    const fileMatch = sourceFileName.match(/(\d{6})/);
-    if (fileMatch) {
-      snapshot_label = fileMatch[1]!;
-      snapshot_date = parseSnapshotLabelToDate(snapshot_label);
-    }
+    const resolved = resolvePipelineSnapshotDate(sourceFileName, { sheetLabel: snapshot_label });
+    snapshot_date = resolved.snapshot_date;
+    snapshot_label = resolved.snapshot_label;
   }
 
   return {

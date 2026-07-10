@@ -3,6 +3,8 @@ import * as XLSX from "xlsx";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { parsePartnerPerformanceWorkbook } from "@/lib/excel/parse-partner-performance";
 import { analyzePartnerPerformanceUpload } from "@/lib/imports/partner-performance";
+import { resolvePipelineSnapshotDate } from "@/lib/performance/snapshot-date";
+import { findExistingPipelineSnapshots } from "@/lib/performance/snapshot-persistence";
 
 export async function POST(request: Request) {
   try {
@@ -16,17 +18,24 @@ export async function POST(request: Request) {
     const workbook = XLSX.read(buffer, { type: "array", cellDates: true });
     const parsed = parsePartnerPerformanceWorkbook(workbook, file.name);
 
+    const resolved = resolvePipelineSnapshotDate(file.name, {
+      sheetLabel: parsed.snapshot_label
+    });
+    const snapshot_date = parsed.snapshot_date ?? resolved.snapshot_date;
+    const snapshot_label = parsed.snapshot_label ?? resolved.snapshot_label;
+
     const supabase = createAdminClient();
-    const [{ data: partners }, { data: aliases }] = await Promise.all([
+    const [{ data: partners }, { data: aliases }, existingSnapshots] = await Promise.all([
       supabase.from("partners").select("id, company_name, business_number").is("deleted_at", null),
-      supabase.from("partner_aliases").select("partner_id, alias_name, normalized_alias")
+      supabase.from("partner_aliases").select("partner_id, alias_name, normalized_alias"),
+      findExistingPipelineSnapshots(supabase, snapshot_date, file.name).catch(() => [])
     ]);
 
     const analysis = analyzePartnerPerformanceUpload({
       inventory_rows: parsed.inventory_rows,
       revenue_rows: parsed.revenue_rows,
-      snapshot_date: parsed.snapshot_date,
-      snapshot_label: parsed.snapshot_label,
+      snapshot_date,
+      snapshot_label,
       summary_validation: parsed.summary_validation,
       partners: (partners ?? []).map((p) => ({
         id: String(p.id),
@@ -47,6 +56,13 @@ export async function POST(request: Request) {
       file_name: file.name,
       inventory_sheet_name: parsed.inventory_sheet_name,
       summary_validation: parsed.summary_validation,
+      snapshot_meta: {
+        snapshot_date,
+        snapshot_label,
+        date_source: parsed.snapshot_date ? "sheet_or_filename" : resolved.source,
+        duplicate_exists: existingSnapshots.length > 0,
+        existing_versions: existingSnapshots.map((row) => row.version)
+      },
       ...analysis
     });
   } catch (error) {

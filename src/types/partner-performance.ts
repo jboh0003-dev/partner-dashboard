@@ -11,6 +11,10 @@ export type PartnerPerformanceSnapshot = {
   new_total_pipeline_count: number | null;
   new_partner_pipeline_amount_million: number | null;
   new_partner_pipeline_count: number | null;
+  is_current?: boolean;
+  uploaded_at?: string | null;
+  uploaded_by?: string | null;
+  version?: number;
   created_at: string;
   updated_at: string;
 };

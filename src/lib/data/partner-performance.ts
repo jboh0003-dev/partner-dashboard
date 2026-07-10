@@ -22,6 +22,10 @@ function mapSnapshot(row: Record<string, unknown>): PartnerPerformanceSnapshot {
     new_total_pipeline_count: Number(row.new_total_pipeline_count ?? 0),
     new_partner_pipeline_amount_million: Number(row.new_partner_pipeline_amount_million ?? 0),
     new_partner_pipeline_count: Number(row.new_partner_pipeline_count ?? 0),
+    is_current: row.is_current != null ? Boolean(row.is_current) : undefined,
+    uploaded_at: row.uploaded_at ? String(row.uploaded_at) : null,
+    uploaded_by: row.uploaded_by ? String(row.uploaded_by) : null,
+    version: row.version != null ? Number(row.version) : undefined,
     created_at: String(row.created_at),
     updated_at: String(row.updated_at)
   };
@@ -174,23 +178,53 @@ function isNewRegPipelineRow(row: PartnerPipelineOpportunity): boolean {
   );
 }
 
-export async function fetchLatestSnapshots(limit = 12): Promise<PartnerPerformanceSnapshot[]> {
+export async function fetchSnapshotTimeline(limit = 50): Promise<PartnerPerformanceSnapshot[]> {
   const supabase = createAdminClient();
   const { data } = await supabase
     .from("partner_performance_snapshots")
     .select("*")
-    .order("snapshot_date", { ascending: false })
-    .order("created_at", { ascending: false })
+    .order("snapshot_date", { ascending: true })
+    .order("uploaded_at", { ascending: true })
     .limit(limit);
-  const snapshots = (data ?? []).map((row) => mapSnapshot(row as Record<string, unknown>));
-  return snapshots.reverse();
+  return (data ?? []).map((row) => mapSnapshot(row as Record<string, unknown>));
+}
+
+export async function fetchCurrentSnapshot(): Promise<PartnerPerformanceSnapshot | null> {
+  const supabase = createAdminClient();
+
+  const { data: current } = await supabase
+    .from("partner_performance_snapshots")
+    .select("*")
+    .eq("is_current", true)
+    .maybeSingle();
+
+  if (current) {
+    return mapSnapshot(current as Record<string, unknown>);
+  }
+
+  const { data: latest } = await supabase
+    .from("partner_performance_snapshots")
+    .select("*")
+    .order("snapshot_date", { ascending: false })
+    .order("uploaded_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  return latest ? mapSnapshot(latest as Record<string, unknown>) : null;
+}
+
+/** @deprecated fetchSnapshotTimeline / fetchCurrentSnapshot 사용 권장 */
+export async function fetchLatestSnapshots(limit = 12): Promise<PartnerPerformanceSnapshot[]> {
+  return fetchSnapshotTimeline(limit);
 }
 
 export async function fetchExecutivePerformanceStats(): Promise<ExecutivePerformanceStats> {
   const supabase = createAdminClient();
-  const snapshots = await fetchLatestSnapshots(20);
-  const latest = snapshots.at(-1) ?? null;
-  const previous = snapshots.length > 1 ? snapshots.at(-2)! : null;
+  const timeline = await fetchSnapshotTimeline(50);
+  const latest = (await fetchCurrentSnapshot()) ?? timeline.at(-1) ?? null;
+  const latestIndex = latest ? timeline.findIndex((row) => row.id === latest.id) : -1;
+  const previous =
+    latestIndex > 0 ? timeline[latestIndex - 1]! : timeline.length > 1 ? timeline.at(-2)! : null;
 
   if (!latest) {
     return {
@@ -306,7 +340,7 @@ export async function fetchExecutivePerformanceStats(): Promise<ExecutivePerform
   return {
     latest_snapshot: latest,
     previous_snapshot: previous,
-    snapshot_trend: snapshots.map((snapshot) => ({
+    snapshot_trend: timeline.map((snapshot) => ({
       snapshot_label: snapshot.snapshot_label,
       snapshot_date: snapshot.snapshot_date,
       partner_pipeline_amount_million: snapshot.partner_pipeline_amount_million ?? 0,
@@ -337,8 +371,7 @@ export async function fetchExecutivePerformanceStats(): Promise<ExecutivePerform
 
 export async function fetchPartnerPerformanceBundle(partnerId: string) {
   const supabase = createAdminClient();
-  const snapshots = await fetchLatestSnapshots(1);
-  const latest = snapshots.at(-1);
+  const latest = await fetchCurrentSnapshot();
   if (!latest) {
     return {
       snapshot: null,
@@ -399,8 +432,8 @@ export async function fetchPerformanceOpportunities(snapshotId?: string) {
   const supabase = createAdminClient();
   let targetSnapshotId = snapshotId;
   if (!targetSnapshotId) {
-    const snapshots = await fetchLatestSnapshots(1);
-    targetSnapshotId = snapshots.at(-1)?.id;
+    const current = await fetchCurrentSnapshot();
+    targetSnapshotId = current?.id;
   }
   if (!targetSnapshotId) return { snapshot: null, opportunities: [] as PartnerPipelineOpportunity[] };
 

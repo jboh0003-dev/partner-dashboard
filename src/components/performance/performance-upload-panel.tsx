@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { FileSpreadsheet, Loader2, UploadCloud } from "lucide-react";
 import type { PartnerPerformanceAnalysisResult } from "@/lib/imports/partner-performance";
+import type { PipelineDuplicateMode } from "@/lib/performance/snapshot-persistence";
 import { formatCount, formatEok, formatMillion } from "@/lib/performance/format";
 import { HorizontalBarChart } from "@/components/dashboard/bar-chart";
 
@@ -18,11 +19,22 @@ type TabKey =
   | "review"
   | "raw";
 
+type SnapshotMeta = {
+  snapshot_date: string;
+  snapshot_label: string;
+  date_source: string;
+  duplicate_exists: boolean;
+  existing_versions: number[];
+};
+
 export function PerformanceUploadPanel() {
   const router = useRouter();
   const [file, setFile] = useState<File | null>(null);
   const [analysis, setAnalysis] = useState<PartnerPerformanceAnalysisResult | null>(null);
+  const [snapshotMeta, setSnapshotMeta] = useState<SnapshotMeta | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
+  const [storagePath, setStoragePath] = useState<string | null>(null);
+  const [duplicateMode, setDuplicateMode] = useState<PipelineDuplicateMode>("replace");
   const [tab, setTab] = useState<TabKey>("summary");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -34,6 +46,19 @@ export function PerformanceUploadPanel() {
     [analysis]
   );
 
+  async function uploadTempFile(selected: File): Promise<string | null> {
+    const formData = new FormData();
+    formData.set("file", selected);
+    formData.set("import_type", "partner_pipeline");
+    const response = await fetch("/api/import/temp-file", { method: "POST", body: formData });
+    const json = (await response.json().catch(() => null)) as {
+      ok?: boolean;
+      storage_path?: string;
+    } | null;
+    if (!response.ok || !json?.ok) return null;
+    return json.storage_path ?? null;
+  }
+
   async function handleAnalyze() {
     if (!file) {
       setError("엑셀 파일을 선택해 주세요.");
@@ -42,6 +67,7 @@ export function PerformanceUploadPanel() {
     setLoading(true);
     setError(null);
     setSaveMessage(null);
+    setStoragePath(null);
     try {
       const formData = new FormData();
       formData.append("file", file);
@@ -59,7 +85,11 @@ export function PerformanceUploadPanel() {
         new_reg_top10: json.new_reg_top10,
         revenue_top10: json.revenue_top10
       });
+      setSnapshotMeta(json.snapshot_meta as SnapshotMeta);
       setFileName(file.name);
+      setDuplicateMode(
+        (json.snapshot_meta as SnapshotMeta)?.duplicate_exists ? "replace" : "replace"
+      );
       setTab("summary");
     } catch (err) {
       setError(err instanceof Error ? err.message : "분석 실패");
@@ -69,7 +99,7 @@ export function PerformanceUploadPanel() {
   }
 
   async function handleSave() {
-    if (!analysis || !fileName) return;
+    if (!analysis || !fileName || !file) return;
     if (!analysis.summary.can_save) {
       setError(analysis.summary.save_blockers.join(" / "));
       return;
@@ -77,6 +107,12 @@ export function PerformanceUploadPanel() {
     setSaving(true);
     setError(null);
     try {
+      let path = storagePath;
+      if (!path) {
+        path = await uploadTempFile(file);
+        setStoragePath(path);
+      }
+
       const response = await fetch("/api/import/partners/performance", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -84,6 +120,8 @@ export function PerformanceUploadPanel() {
           file_name: fileName,
           snapshot_date: analysis.summary.snapshot_date,
           snapshot_label: analysis.summary.snapshot_label,
+          duplicate_mode: duplicateMode,
+          storage_path: path,
           summary: {
             total_pipeline_amount_million: analysis.summary.win_forecast_total_amount_million,
             total_pipeline_count: analysis.summary.win_forecast_total_count,
@@ -101,7 +139,8 @@ export function PerformanceUploadPanel() {
       const json = await response.json();
       if (!response.ok || !json.ok) throw new Error(json.message ?? "저장 실패");
       setSaveMessage(
-        `저장 완료 — 스냅샷 ${json.snapshot_action}, 생성 ${json.created}건, 업데이트 ${json.updated}건, 검토 ${json.review}건`
+        `저장 완료 — ${json.snapshot_action} (v${json.snapshot_version}), 생성 ${json.created}건, 업데이트 ${json.updated}건, 검토 ${json.review}건` +
+          (json.is_current ? " · 현재 대시보드 기준 스냅샷" : "")
       );
       router.push("/dashboard/performance");
       router.refresh();
@@ -117,7 +156,8 @@ export function PerformanceUploadPanel() {
       <div className="ui-card p-6">
         <h2 className="text-lg font-bold text-slate-900">파트너 실적/파이프라인 업로드</h2>
         <p className="mt-1 text-sm text-slate-600">
-          오케스트로 파트너 관리 엑셀의 인벤토리 rawdata를 분석해 파이프라인·매출 스냅샷을 저장합니다.
+          파이프라인은 월별 스냅샷으로 누적 저장됩니다. 과거 스냅샷은 삭제되지 않으며, 대시보드는
+          최신 기준일 스냅샷을 표시합니다.
         </p>
         <label className="mt-5 block rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4">
           <span className="text-sm font-semibold text-slate-800">실적/파이프라인 엑셀</span>
@@ -125,7 +165,12 @@ export function PerformanceUploadPanel() {
             type="file"
             accept=".xlsx,.xls"
             className="mt-2 block w-full text-sm"
-            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+            onChange={(e) => {
+              setFile(e.target.files?.[0] ?? null);
+              setAnalysis(null);
+              setSnapshotMeta(null);
+              setStoragePath(null);
+            }}
           />
         </label>
         <div className="mt-4 flex flex-wrap gap-2">
@@ -147,6 +192,35 @@ export function PerformanceUploadPanel() {
 
       {analysis ? (
         <>
+          {snapshotMeta?.duplicate_exists ? (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-950">
+              <p className="font-semibold">동일 기준일·파일명 스냅샷이 이미 있습니다.</p>
+              <p className="mt-1 text-xs text-amber-800">
+                기존 버전: v{snapshotMeta.existing_versions.join(", v")} · 기본값은 기존 스냅샷 교체입니다.
+              </p>
+              <div className="mt-3 flex flex-wrap gap-4">
+                <label className="inline-flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name="duplicate_mode"
+                    checked={duplicateMode === "replace"}
+                    onChange={() => setDuplicateMode("replace")}
+                  />
+                  기존 스냅샷 교체
+                </label>
+                <label className="inline-flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name="duplicate_mode"
+                    checked={duplicateMode === "new_version"}
+                    onChange={() => setDuplicateMode("new_version")}
+                  />
+                  새 버전으로 저장
+                </label>
+              </div>
+            </div>
+          ) : null}
+
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             {[
               ["스냅샷 기준일", analysis.summary.snapshot_date ?? "-"],
