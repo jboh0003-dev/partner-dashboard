@@ -36,6 +36,15 @@ export function normalizeCompanyName(value?: string | null): string | null {
   return normalized || null;
 }
 
+/** 파트너번호(external_no) 비교용 정규화 — 숫자는 선행 0 제거 */
+export function normalizePartnerNo(value?: string | null): string | null {
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  if (/^\d+$/.test(trimmed)) return String(Number(trimmed));
+  return trimmed.toLowerCase();
+}
+
 export function getPartnerMatchKey(
   row: PartnerMatchInput,
   strategy: PartnerMatchStrategy

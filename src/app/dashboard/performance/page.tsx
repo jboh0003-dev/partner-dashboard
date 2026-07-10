@@ -19,7 +19,11 @@ export default async function PerformancePage() {
         description="파트너 수주예상·신규등록 파이프라인과 매출 실적을 임원 보고용으로 조회합니다."
       />
       <ExecutivePerformanceSection stats={stats} />
-      <PerformanceDetailPanel snapshot={detail.snapshot} opportunities={detail.opportunities} />
+      <PerformanceDetailPanel
+        snapshot={detail.snapshot}
+        opportunities={detail.opportunities}
+        stats={stats}
+      />
     </>
   );
 }

@@ -18,6 +18,8 @@ const MasterRowSchema = z.object({
   external_no: z.string().nullable(),
   contract_start_date: z.string().nullable(),
   grade: z.string().nullable(),
+  grade_original: z.string().nullable(),
+  grade_change_raw: z.string().nullable(),
   grade_raw: z.string().nullable(),
   website: z.string().nullable(),
   ceo_name: z.string().nullable(),
@@ -38,7 +40,8 @@ const MasterRowSchema = z.object({
 
 const ImportPayloadSchema = z.object({
   file_name: z.string().min(1),
-  rows: z.array(MasterRowSchema)
+  rows: z.array(MasterRowSchema),
+  upload_mode: z.enum(["update", "full_sync"]).optional().default("update")
 });
 
 type ImportRow = z.infer<typeof MasterRowSchema>;
@@ -61,7 +64,7 @@ export async function POST(request: Request) {
     const { data: importJob, error: importJobError } = await supabase
       .from("import_jobs")
       .insert({
-        import_type: "partner_master",
+        import_type: "partner_master_upload",
         file_name: parsed.file_name,
         status: "processing",
         total_rows: parsed.rows.length,
@@ -79,31 +82,39 @@ export async function POST(request: Request) {
 
     importJobId = importJob.id as string;
 
-    const { data: partnerData, error: partnerError } = await supabase.from("partners").select(
-      [
-        "id",
-        "company_name",
-        "business_number",
-        "external_no",
-        "contract_start_date",
-        "grade",
-        "grade_raw",
-        "website",
-        "ceo_name",
-        "address",
-        "region_group",
-        "region",
-        "city",
-        "okestro_owner",
-        "sales_owner",
-        "contract_contact_name",
-        "contract_contact_phone",
-        "contract_contact_email",
-        "revenue_2023",
-        "employee_count",
-        "credit_rating"
-      ].join(", ")
-    );
+    const { data: partnerData, error: partnerError } = await supabase
+      .from("partners")
+      .select(
+        [
+          "id",
+          "company_name",
+          "business_number",
+          "external_no",
+          "contract_start_date",
+          "grade",
+          "grade_original",
+          "grade_change_raw",
+          "grade_raw",
+          "website",
+          "ceo_name",
+          "address",
+          "region_group",
+          "region",
+          "city",
+          "okestro_owner",
+          "sales_owner",
+          "contract_contact_name",
+          "contract_contact_phone",
+          "contract_contact_email",
+          "revenue_2023",
+          "employee_count",
+          "credit_rating",
+          "edited_via_dashboard_at",
+          "deleted_at",
+          "is_active"
+        ].join(", ")
+      )
+      .is("deleted_at", null);
 
     if (partnerError) {
       throw new Error(partnerError.message);
@@ -111,7 +122,8 @@ export async function POST(request: Request) {
 
     const analysis = analyzePartnerMasterRows(
       parsed.rows,
-      ((partnerData ?? []) as unknown) as PartnerMasterDbRow[]
+      ((partnerData ?? []) as unknown) as PartnerMasterDbRow[],
+      { uploadMode: parsed.upload_mode }
     );
     const analysisMap = new Map(analysis.items.map((item) => [item.row_number, item]));
 
@@ -140,7 +152,7 @@ export async function POST(request: Request) {
         reviewCount += 1;
         const { error } = await supabase.from("import_review_queue").insert({
           import_job_id: importJobId,
-          import_type: "partner_master",
+          import_type: "partner_master_upload",
           row_number: row.row_number,
           company_name: row.company_name,
           reason: item.reason,
@@ -238,7 +250,8 @@ export async function POST(request: Request) {
         updated: updatedCount,
         skipped: skippedCount,
         review: reviewCount,
-        errors: 0
+        errors: 0,
+        missing_from_excel: analysis.summary.missing_from_excel
       },
       results
     });
@@ -273,7 +286,13 @@ function buildPartnerPayload(row: ImportRow): Record<string, unknown> {
   if (row.external_no) payload.external_no = row.external_no;
   if (row.contract_start_date) payload.contract_start_date = row.contract_start_date;
   if (row.grade) payload.grade = row.grade;
-  if (row.grade_raw) payload.grade_raw = row.grade_raw;
+  if (row.grade_original) payload.grade_original = row.grade_original;
+  if (row.grade_change_raw) payload.grade_change_raw = row.grade_change_raw;
+  if (row.grade_change_raw ?? row.grade_original) {
+    payload.grade_raw = row.grade_change_raw ?? row.grade_original;
+  } else if (row.grade_raw) {
+    payload.grade_raw = row.grade_raw;
+  }
   if (row.business_number) payload.business_number = row.business_number;
   if (row.website) payload.website = row.website;
   if (row.ceo_name) payload.ceo_name = row.ceo_name;

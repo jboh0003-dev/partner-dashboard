@@ -4,7 +4,10 @@ import Link from "next/link";
 import { type SortableColumn } from "@/components/common/client-sortable-table";
 import { CopyableDataTable } from "@/components/common/copyable-data-table";
 import { TableText } from "@/components/common/table-cells";
-import { PARTNER_GRADE_LABEL } from "@/lib/constants";
+import {
+  getDisplayPartnerGrade,
+  getDisplayPartnerGradeLabel
+} from "@/lib/partners/grade";
 import { formatPartnerNo } from "@/lib/partners/partner-no";
 import type { PartnerListRow } from "@/lib/partners/list";
 import { formatDate } from "@/lib/utils";
@@ -39,7 +42,7 @@ const columns: SortableColumn<PartnerListRow>[] = [
       <Link
         href={`/dashboard/partners/${row.partner.id}`}
         title={row.partner.company_name}
-        className="block min-w-[11rem] max-w-[18rem] truncate whitespace-nowrap font-semibold text-blue-700 transition hover:text-blue-900 hover:underline"
+        className="block min-w-[11rem] max-w-[18rem] truncate whitespace-nowrap font-semibold text-blue-700 transition select-text hover:text-blue-900 hover:underline"
       >
         {row.partner.company_name}
       </Link>
@@ -49,9 +52,8 @@ const columns: SortableColumn<PartnerListRow>[] = [
     key: "grade",
     label: "등급",
     kind: "grade",
-    value: (row) => row.partner.grade,
-    render: (row) =>
-      PARTNER_GRADE_LABEL[row.partner.grade ?? "none"] ?? row.partner.grade ?? "-"
+    value: (row) => getDisplayPartnerGrade(row.partner),
+    render: (row) => getDisplayPartnerGradeLabel(row.partner)
   },
   {
     key: "contract_start_date",

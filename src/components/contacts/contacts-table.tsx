@@ -5,9 +5,10 @@ import {
   type SortableColumn
 } from "@/components/common/client-sortable-table";
 import { CopyableDataTable } from "@/components/common/copyable-data-table";
-import { TableName, TableText } from "@/components/common/table-cells";
+import { TableText, TABLE_LINK_NAME_CLASS } from "@/components/common/table-cells";
 import { ContactAssignmentBadge } from "@/components/contacts/contact-assignment-badge";
 import { getContactAssignmentLabel } from "@/lib/contacts/display";
+import { formatPartnerNo } from "@/lib/partners/partner-no";
 import {
   CONTACT_SELECTED_ROW_TSV,
   contactRowToCopyable
@@ -17,24 +18,53 @@ import type { CsvRow } from "@/lib/csv";
 export type ContactTableRow = {
   id: string;
   partner_id: string;
+  partner_no: string | null;
   name: string;
   company_name: string;
+  contract_start_date?: string | null;
   role_type: string | null;
+  role_raw?: string | null;
   department: string | null;
   position: string | null;
   phone: string | null;
   email: string | null;
+  memo?: string | null;
+  created_at?: string;
   is_contract_contact: boolean;
 };
 
 const columns: SortableColumn<ContactTableRow>[] = [
+  {
+    key: "partner_no",
+    label: "파트너번호",
+    kind: "partner_no",
+    className: "min-w-[5.5rem] whitespace-nowrap",
+    value: (row) => row.partner_no,
+    render: (row) => (
+      <Link
+        href={`/dashboard/partners/${row.partner_id}`}
+        className="tabular-nums font-medium text-okestro-600 select-text hover:text-okestro-700 hover:underline"
+        title={formatPartnerNo({ external_no: row.partner_no })}
+      >
+        {formatPartnerNo({ external_no: row.partner_no })}
+      </Link>
+    )
+  },
   {
     key: "company_name",
     label: "회사명",
     kind: "text",
     className: "min-w-[11rem]",
     value: (row) => row.company_name,
-    render: (row) => <TableName title={row.company_name}>{row.company_name}</TableName>
+    render: (row) => (
+      <Link
+        href={`/dashboard/partners/${row.partner_id}`}
+        className={TABLE_LINK_NAME_CLASS}
+        title={row.company_name}
+      >
+        {row.company_name}
+      </Link>
+    )
   },
   {
     key: "name",
@@ -124,9 +154,9 @@ export function ContactsTable({
     <CopyableDataTable
       rows={rows}
       columns={columns}
-      defaultSortKey="company_name"
+      defaultSortKey="partner_no"
       defaultDir="asc"
-      minWidth="1050px"
+      minWidth="1220px"
       rowKey={(row) => row.id}
       toCopyableRow={contactRowToCopyable}
       selectedRowTsv={CONTACT_SELECTED_ROW_TSV}

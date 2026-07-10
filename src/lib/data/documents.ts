@@ -56,9 +56,11 @@ export async function fetchDocumentList(filters: DocumentListFilters = {}) {
     // match_status는 mapDocumentRow 이후 effective status로 재필터
   }
 
-  const visibility = filters.visibility ?? "active";
-  if (visibility === "active") {
-    query = query.eq("is_active", true).eq("is_duplicate", false);
+  const visibility = filters.visibility ?? "current";
+  if (visibility === "active" || visibility === "current") {
+    query = query.eq("is_active", true).eq("is_duplicate", false).eq("is_primary", true);
+  } else if (visibility === "archived") {
+    query = query.eq("is_active", true).eq("is_duplicate", false).eq("is_primary", false);
   } else if (visibility === "hidden") {
     query = query.eq("is_duplicate", true);
   } else if (visibility === "duplicate_candidate") {
@@ -75,7 +77,7 @@ export async function fetchDocumentList(filters: DocumentListFilters = {}) {
   let rows: PartnerDocumentWithPartner[] = (data ?? [])
     .map((row) => mapDocumentRow(row))
     .filter((row) => !isSamplePartnerName(row.partner_name))
-    .filter((row) => visibility !== "active" || !isExcludedReview(row.review_status));
+    .filter((row) => (visibility !== "active" && visibility !== "current") || !isExcludedReview(row.review_status));
 
   if (filters.status && filters.status !== "all") {
     rows = rows.filter((row) => {

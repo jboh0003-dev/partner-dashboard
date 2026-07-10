@@ -7,25 +7,24 @@ import {
   sumProductAmount,
   uniqueProjectCount
 } from "@/lib/excel/parse-partner-performance";
-import { companyNamesMatchWithVariants } from "@/lib/documents/partner-aliases";
 import {
-  getExactCompanyNameKey,
-  normalizeCompanyName
-} from "@/lib/partner-match";
+  matchPerformancePartnerName,
+  toImportMatchStatus,
+  type PartnerAliasRow,
+  type PerformancePartnerRow
+} from "@/lib/partners/performance-match";
 import { REFERENCE_VALIDATION } from "@/lib/performance/constants";
 import { formatMillion } from "@/lib/performance/format";
 import type { PipelinePartnerAggregate } from "@/types/partner-performance";
 
-export type PartnerPerformancePartnerRow = {
-  id: string;
-  company_name: string;
-};
+export type PartnerPerformancePartnerRow = PerformancePartnerRow;
 
 export type MatchedInventoryRow = ParsedInventoryRow & {
   matched_partner_id: string | null;
   matched_partner_name: string | null;
   match_status: "matched" | "review";
   match_reason: string | null;
+  raw_partner_name: string | null;
 };
 
 export type MatchedRevenueRow = ParsedRevenueRow & {
@@ -33,7 +32,27 @@ export type MatchedRevenueRow = ParsedRevenueRow & {
   matched_partner_name: string | null;
   match_status: "matched" | "review";
   match_reason: string | null;
+  raw_partner_name: string;
 };
+
+function applyPartnerMatch(
+  partnerName: string | null | undefined,
+  partners: PartnerPerformancePartnerRow[],
+  aliases: PartnerAliasRow[],
+  businessNumber?: string | null
+) {
+  const match = matchPerformancePartnerName(partnerName, partners, {
+    aliases,
+    businessNumber
+  });
+  return {
+    matched_partner_id: match.partner?.id ?? null,
+    matched_partner_name: match.partner?.company_name ?? null,
+    match_status: toImportMatchStatus(match.match_status),
+    match_reason: match.match_reason,
+    raw_partner_name: partnerName?.trim() || null
+  };
+}
 
 export type PartnerPerformanceAnalysisSummary = {
   snapshot_date: string | null;
@@ -70,53 +89,6 @@ export type PartnerPerformanceAnalysisResult = {
     project_count: number;
   }>;
 };
-
-function matchPartnerName(
-  partnerName: string | null | undefined,
-  partners: PartnerPerformancePartnerRow[]
-): {
-  partner: PartnerPerformancePartnerRow | null;
-  reason: string | null;
-} {
-  if (!partnerName?.trim()) {
-    return { partner: null, reason: "파트너명 없음" };
-  }
-
-  const exact = partners.filter(
-    (p) => p.company_name.trim().toLowerCase() === partnerName.trim().toLowerCase()
-  );
-  if (exact.length === 1) return { partner: exact[0]!, reason: null };
-  if (exact.length > 1) return { partner: null, reason: "동일 파트너사명이 여러 건입니다." };
-
-  const variantMatches = partners.filter((p) =>
-    companyNamesMatchWithVariants(partnerName, p.company_name)
-  );
-  if (variantMatches.length === 1) return { partner: variantMatches[0]!, reason: null };
-  if (variantMatches.length > 1) {
-    return { partner: null, reason: "유사 파트너사명이 여러 건입니다." };
-  }
-
-  const normalized = normalizeCompanyName(partnerName);
-  const normalizedMatches = partners.filter(
-    (p) => normalizeCompanyName(p.company_name) === normalized
-  );
-  if (normalizedMatches.length === 1) return { partner: normalizedMatches[0]!, reason: null };
-  if (normalizedMatches.length > 1) {
-    return { partner: null, reason: "정규화 파트너사명이 여러 건입니다." };
-  }
-
-  const exactKey = getExactCompanyNameKey(partnerName);
-  const includes = partners.filter((p) => {
-    const key = getExactCompanyNameKey(p.company_name);
-    return key && exactKey && (key.includes(exactKey) || exactKey.includes(key));
-  });
-  if (includes.length === 1) return { partner: includes[0]!, reason: null };
-  if (includes.length > 1) {
-    return { partner: null, reason: "포함 검색 파트너 후보가 여러 건입니다." };
-  }
-
-  return { partner: null, reason: "등록된 파트너사를 찾지 못했습니다." };
-}
 
 function buildPartnerTop10(
   rows: ParsedInventoryRow[],
@@ -210,6 +182,7 @@ export function analyzePartnerPerformanceUpload(input: {
     new_reg_partner_count: number | null;
   };
   partners: PartnerPerformancePartnerRow[];
+  aliases?: PartnerAliasRow[];
   required_columns_found: boolean;
   parse_errors: string[];
 }): PartnerPerformanceAnalysisResult {
@@ -219,30 +192,32 @@ export function analyzePartnerPerformanceUpload(input: {
   const newRegTotalRows = input.inventory_rows.filter(isNewRegTotalPipeline);
 
   const inventory_rows: MatchedInventoryRow[] = input.inventory_rows.map((row) => {
-    const match = matchPartnerName(row.partner_name, input.partners);
+    const match = applyPartnerMatch(
+      row.partner_name,
+      input.partners,
+      input.aliases ?? [],
+      typeof row.raw_json?.business_number === "string" ? row.raw_json.business_number : null
+    );
     return {
       ...row,
-      matched_partner_id: match.partner?.id ?? null,
-      matched_partner_name: match.partner?.company_name ?? null,
-      match_status: match.partner ? "matched" : "review",
-      match_reason: match.reason
+      ...match
     };
   });
 
   const revenue_rows: MatchedRevenueRow[] = input.revenue_rows.map((row) => {
-    const match = matchPartnerName(row.partner_name, input.partners);
+    const match = applyPartnerMatch(row.partner_name, input.partners, input.aliases ?? []);
     return {
       ...row,
-      matched_partner_id: match.partner?.id ?? null,
-      matched_partner_name: match.partner?.company_name ?? null,
-      match_status: match.partner ? "matched" : "review",
-      match_reason: match.reason
+      ...match,
+      raw_partner_name: row.partner_name
     };
   });
 
-  const partnerRowsWithName = inventory_rows.filter((row) => row.partner_name?.trim());
-  const partner_match_matched = partnerRowsWithName.filter((row) => row.matched_partner_id).length;
-  const partner_match_review = partnerRowsWithName.length - partner_match_matched;
+  const partnerRowsNeedingReview = inventory_rows.filter(
+    (row) => row.match_status === "review" || !row.matched_partner_id
+  );
+  const partner_match_matched = inventory_rows.filter((row) => row.matched_partner_id).length;
+  const partner_match_review = partnerRowsNeedingReview.length;
 
   const validation_warnings: string[] = [];
   const win_forecast_partner_amount_million = Math.round(sumProductAmount(winForecastPartnerRows));
@@ -345,7 +320,10 @@ export function analyzePartnerPerformanceUpload(input: {
       revenue_partner_amount_million: Math.round(
         revenue_rows.reduce((sum, row) => sum + row.product_revenue_million, 0)
       ),
-      revenue_partner_count: revenue_rows.length,
+      revenue_partner_count: revenue_rows.reduce(
+        (sum, row) => sum + (row.project_count ?? 0),
+        0
+      ),
       partner_match_matched,
       partner_match_review,
       validation_warnings,

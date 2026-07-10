@@ -123,6 +123,13 @@ export function getMatchStatusLabel(status: DocumentMatchStatus): string {
   return MATCH_STATUS_LABEL[status];
 }
 
+/** 일반 사용자용 문서 상태 — 내부 검토 문구 없이 단순 표시 */
+export function getPublicDocumentStatusLabel(status: DocumentMatchStatus): string {
+  if (status === "matched") return "등록됨";
+  if (status === "unmatched") return "미연결";
+  return "등록됨";
+}
+
 export function hasPartnerNameMismatch(input: {
   partner_name: string;
   extracted_partner_name?: string | null;

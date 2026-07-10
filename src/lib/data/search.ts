@@ -109,6 +109,7 @@ export async function fetchSearchContext(): Promise<SearchContext> {
       .from("partner_knowledge")
       .select("*")
       .eq("is_active", true)
+      .eq("in_current_full_db", true)
       .order("sort_order", { ascending: true }),
     supabase.from("partner_notes").select("*").order("created_at", { ascending: false }),
     supabase

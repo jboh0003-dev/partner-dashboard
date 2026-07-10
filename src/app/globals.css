@@ -5,6 +5,12 @@
 :root {
   color-scheme: light;
 
+  /*
+   * Toss Moneygraphy 폰트는 라이선스 확인 후 사용자가 직접 public/fonts/에 배치하세요.
+   * 예: public/fonts/TossMoneygraphy.woff2
+   */
+  --font-sans: "Toss Moneygraphy", "Pretendard", system-ui, -apple-system, sans-serif;
+
   --background: 248 250 252;
   --foreground: 15 23 42;
   --card: 255 255 255;
@@ -23,9 +29,24 @@ body {
   margin: 0;
   background: rgb(var(--background));
   color: rgb(var(--foreground));
+  font-family: var(--font-sans);
   font-feature-settings: "rlig" 1, "calt" 1;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/*
+ * 라이선스 확인 후 public/fonts/TossMoneygraphy.woff2 등을 추가하면 자동 적용됩니다.
+ */
+@font-face {
+  font-family: "Toss Moneygraphy";
+  src:
+    local("Toss Moneygraphy"),
+    url("/fonts/TossMoneygraphy.woff2") format("woff2"),
+    url("/fonts/TossMoneygraphy.woff") format("woff");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
 }
 
 * {
@@ -126,7 +147,43 @@ body {
   }
 
   .ui-table-cell {
-    @apply px-5 py-3.5 text-sm text-slate-700 align-top;
+    @apply px-5 py-3.5 text-sm text-slate-700 align-top select-text;
+  }
+
+  .ui-table-cell-compact {
+    @apply px-3 py-2 text-[13px] text-slate-700 align-middle select-text;
+  }
+
+  .ui-table-head-compact th {
+    @apply px-3 py-2 text-[11px];
+  }
+
+  .ui-table-sticky-left {
+    @apply sticky z-20 bg-white;
+  }
+
+  .ui-table-sticky-right {
+    @apply sticky z-20 bg-white;
+  }
+
+  .ui-table-sticky-left-head {
+    @apply sticky z-30 bg-slate-50/95;
+  }
+
+  .ui-table-sticky-right-head {
+    @apply sticky z-30 bg-slate-50/95;
+  }
+
+  .ui-table-drag-scroll {
+    @apply cursor-grab active:cursor-grabbing;
+  }
+
+  .ui-table-drag-scroll.is-dragging {
+    @apply cursor-grabbing select-none;
+  }
+
+  .ui-table-drag-scroll.is-dragging * {
+    @apply select-none;
   }
 
   .ui-tab {

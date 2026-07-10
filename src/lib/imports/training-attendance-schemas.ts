@@ -31,6 +31,7 @@ export const TrainingAttendanceRowSchema = z.object({
 
 export const TrainingAttendanceImportSchema = z.object({
   file_name: z.string().min(1),
+  storage_path: z.string().nullable().optional(),
   rows: z.array(TrainingAttendanceRowSchema)
 });
 

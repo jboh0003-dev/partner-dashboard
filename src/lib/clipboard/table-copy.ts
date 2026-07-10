@@ -1,5 +1,6 @@
 export type CopyableRow = {
   id: string;
+  partnerNo?: string | null;
   companyName?: string | null;
   name?: string | null;
   role?: string | null;
@@ -14,6 +15,7 @@ export type CopyFormat =
   | "phones"
   | "name_emails"
   | "company_name_emails"
+  | "partner_no_company_name_emails"
   | "selected_rows";
 
 function normalizeEmailKey(email: string): string {
@@ -104,6 +106,25 @@ export function formatCompanyNameEmailTsv(rows: CopyableRow[]): string {
   return lines.join("\n");
 }
 
+export function formatPartnerNoCompanyNameEmailTsv(rows: CopyableRow[]): string {
+  const seen = new Set<string>();
+  const lines = ["파트너번호\t회사명\t이름\t이메일"];
+
+  for (const row of rows) {
+    const partnerNo = row.partnerNo?.trim();
+    const company = row.companyName?.trim();
+    const name = row.name?.trim();
+    const email = row.email?.trim();
+    if (!company || !name || !email) continue;
+    const key = normalizeEmailKey(email);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    lines.push(`${partnerNo ?? ""}\t${company}\t${name}\t${email}`);
+  }
+
+  return lines.join("\n");
+}
+
 export function formatSelectedRowsTsv(
   rows: CopyableRow[],
   headers: readonly string[],
@@ -146,6 +167,12 @@ export function buildCopyPayload(
       if (count === 0) return null;
       return { text, count };
     }
+    case "partner_no_company_name_emails": {
+      const text = formatPartnerNoCompanyNameEmailTsv(rows);
+      const count = Math.max(0, text.split("\n").length - 1);
+      if (count === 0) return null;
+      return { text, count };
+    }
     case "selected_rows": {
       if (!selectedTsv || rows.length === 0) return null;
       return {
@@ -163,6 +190,7 @@ export const COPY_EMPTY_MESSAGES: Record<CopyFormat, string> = {
   phones: "복사할 연락처가 없습니다.",
   name_emails: "복사할 이름+이메일이 없습니다.",
   company_name_emails: "복사할 회사명+이름+이메일이 없습니다.",
+  partner_no_company_name_emails: "복사할 파트너번호+회사명+이름+이메일이 없습니다.",
   selected_rows: "복사할 행이 없습니다."
 };
 
@@ -171,5 +199,6 @@ export const COPY_SUCCESS_LABELS: Record<CopyFormat, string> = {
   phones: "연락처",
   name_emails: "이름+이메일",
   company_name_emails: "회사명+이름+이메일",
+  partner_no_company_name_emails: "파트너번호+회사명+이름+이메일",
   selected_rows: "선택 행"
 };

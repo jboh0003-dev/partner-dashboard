@@ -317,67 +317,223 @@ function parseSummarySheet(sheet: XLSX.WorkSheet): Partial<SummaryValidationValu
   return values;
 }
 
-function parseRevenueSheet(sheet: XLSX.WorkSheet, sheetName: string): ParsedRevenueRow[] {
-  const range = XLSX.utils.decode_range(sheet["!ref"] ?? "A1");
-  let headerRow = -1;
-  const colMap: Record<string, number> = {};
+type RevenueSectionColMap = {
+  partner_name?: number;
+  partner_grade?: number;
+  sales_owner?: number;
+  revenue_2025?: number;
+  project_count?: number;
+};
 
-  for (let row = range.s.r; row <= Math.min(range.e.r, range.s.r + 15); row += 1) {
-    for (let col = range.s.c; col <= range.e.c; col += 1) {
-      const header = normalizeHeader(getCell(sheet, row, col));
-      if (header.includes("파트너") && !header.includes("등급")) colMap.partner_name = col;
-      if (header.includes("파트너등급") || header === "등급") colMap.partner_grade = col;
-      if (header.includes("영업담당")) colMap.sales_owner = col;
-      if (header.includes("매출") || header.includes("제품매출") || header.includes("제품합계")) {
-        colMap.product_revenue_million = col;
-      }
-      if (header.includes("건수") || header.includes("프로젝트수")) colMap.project_count = col;
-      if (header.includes("고객")) colMap.customer_name = col;
-      if (header.includes("프로젝트코드")) colMap.project_code = col;
-      if (header.includes("프로젝트명")) colMap.project_name = col;
-    }
-    if (colMap.partner_name != null && colMap.product_revenue_million != null) {
-      headerRow = row;
-      break;
+function normalizePartnerKey(name: string): string {
+  return name.replace(/\s+/g, "").toLowerCase();
+}
+
+function isRevenueSummaryPartnerRow(partnerName: string): boolean {
+  const normalized = partnerName.replace(/\s+/g, "");
+  if (!normalized) return true;
+  if (/^(합계|총계|소계|계)$/.test(normalized)) return true;
+  if (/소계$|합계$|총계$/.test(normalized)) return true;
+  if (
+    /^(플래티넘|실버|골드|gold|silver|platinum|서비스|service)/i.test(normalized) &&
+    /소계|합계/.test(normalized)
+  ) {
+    return true;
+  }
+  return false;
+}
+
+function isProjectSectionLabel(text: string): boolean {
+  const normalized = text.replace(/\s+/g, "");
+  return /프로젝트/.test(normalized) && /(수|건)/.test(normalized);
+}
+
+function classifyRevenueHeader(header: string, section: "revenue" | "project"): keyof RevenueSectionColMap | null {
+  const h = normalizeHeader(header);
+  if (!h) return null;
+
+  if (h.includes("파트너명") || (h.includes("파트너") && !h.includes("등급") && !h.includes("딜"))) {
+    return "partner_name";
+  }
+  if (h.includes("파트너등급") || h === "등급") return "partner_grade";
+  if (h.includes("영업담당")) return "sales_owner";
+
+  if (section === "revenue") {
+    if (/2025.*소계/.test(h) || h === "2025년소계" || h === "2025소계") return "revenue_2025";
+    if (/2025년$/.test(h) || h === "2025") return "revenue_2025";
+    if (h.includes("매출") || h.includes("제품매출") || h.includes("제품합계")) return "revenue_2025";
+  }
+
+  if (section === "project") {
+    if (h.includes("프로젝트") && (h.includes("수") || h.includes("건"))) return "project_count";
+    if (h.includes("건수")) return "project_count";
+    if (/2025.*소계/.test(h) || h === "2025년소계" || /2025년$/.test(h) || h === "2025") {
+      return "project_count";
     }
   }
 
-  if (headerRow < 0) return [];
+  return null;
+}
 
+function findSectionHeaderRow(
+  sheet: XLSX.WorkSheet,
+  range: XLSX.Range,
+  section: "revenue" | "project",
+  startRow: number
+): { headerRow: number; colMap: RevenueSectionColMap } | null {
+  const searchEnd = Math.min(range.e.r, startRow + 45);
+
+  for (let row = startRow; row <= searchEnd; row += 1) {
+    const colMap: RevenueSectionColMap = {};
+    let hasProjectSectionMarker = false;
+
+    for (let col = range.s.c; col <= range.e.c; col += 1) {
+      const headerText = getCellText(sheet, row, col);
+      if (isProjectSectionLabel(headerText)) {
+        hasProjectSectionMarker = true;
+      }
+      const key = classifyRevenueHeader(headerText, section);
+      if (key) colMap[key] = col;
+    }
+
+    if (section === "project" && hasProjectSectionMarker && colMap.partner_name != null) {
+      return { headerRow: row, colMap };
+    }
+
+    if (section === "revenue" && colMap.partner_name != null && colMap.revenue_2025 != null) {
+      return { headerRow: row, colMap };
+    }
+  }
+
+  return null;
+}
+
+function parsePartnerSectionRows(
+  sheet: XLSX.WorkSheet,
+  sheetName: string,
+  range: XLSX.Range,
+  headerRow: number,
+  colMap: RevenueSectionColMap,
+  mode: "revenue" | "project",
+  stopBeforeRow?: number
+): ParsedRevenueRow[] {
   const rows: ParsedRevenueRow[] = [];
-  for (let row = headerRow + 1; row <= range.e.r; row += 1) {
+  const endRow = stopBeforeRow != null ? Math.min(range.e.r, stopBeforeRow - 1) : range.e.r;
+  let blankStreak = 0;
+
+  for (let row = headerRow + 1; row <= endRow; row += 1) {
     const partnerName =
       colMap.partner_name != null ? getCellText(sheet, row, colMap.partner_name) : "";
-    const amount =
-      colMap.product_revenue_million != null
-        ? parseNumericCell(getCell(sheet, row, colMap.product_revenue_million))
+    if (!partnerName) {
+      blankStreak += 1;
+      if (blankStreak >= 3) break;
+      continue;
+    }
+    blankStreak = 0;
+
+    if (isProjectSectionLabel(partnerName)) break;
+    if (isRevenueSummaryPartnerRow(partnerName)) continue;
+
+    if (mode === "revenue") {
+      const amount =
+        colMap.revenue_2025 != null
+          ? parseNumericCell(getCell(sheet, row, colMap.revenue_2025))
+          : null;
+      if (amount == null || amount <= 0) continue;
+
+      rows.push({
+        row_number: row + 1,
+        partner_name: partnerName,
+        partner_grade:
+          colMap.partner_grade != null ? getCellText(sheet, row, colMap.partner_grade) || null : null,
+        sales_owner:
+          colMap.sales_owner != null ? getCellText(sheet, row, colMap.sales_owner) || null : null,
+        product_revenue_million: amount,
+        project_count: null,
+        customer_name: null,
+        project_code: null,
+        project_name: null,
+        raw_json: { sheet_name: sheetName, row_number: row + 1, section: "revenue" }
+      });
+      continue;
+    }
+
+    const projectCount =
+      colMap.project_count != null
+        ? parseNumericCell(getCell(sheet, row, colMap.project_count))
         : null;
-    if (!partnerName || amount == null) continue;
-    if (/합계|총계|소계/.test(partnerName)) continue;
+    if (projectCount == null || projectCount <= 0) continue;
 
     rows.push({
       row_number: row + 1,
       partner_name: partnerName,
       partner_grade:
         colMap.partner_grade != null ? getCellText(sheet, row, colMap.partner_grade) || null : null,
-      sales_owner:
-        colMap.sales_owner != null ? getCellText(sheet, row, colMap.sales_owner) || null : null,
-      product_revenue_million: amount,
-      project_count:
-        colMap.project_count != null
-          ? parseNumericCell(getCell(sheet, row, colMap.project_count))
-          : null,
-      customer_name:
-        colMap.customer_name != null ? getCellText(sheet, row, colMap.customer_name) || null : null,
-      project_code:
-        colMap.project_code != null ? getCellText(sheet, row, colMap.project_code) || null : null,
-      project_name:
-        colMap.project_name != null ? getCellText(sheet, row, colMap.project_name) || null : null,
-      raw_json: { sheet_name: sheetName, row_number: row + 1 }
+      sales_owner: null,
+      product_revenue_million: 0,
+      project_count: Math.round(projectCount),
+      customer_name: null,
+      project_code: null,
+      project_name: null,
+      raw_json: { sheet_name: sheetName, row_number: row + 1, section: "project_count" }
     });
   }
 
   return rows;
+}
+
+/** 25년 파트너 실적 시트 — 매출(2025년 소계) + 프로젝트 수 섹션 파싱 */
+export function parseRevenueSheet(sheet: XLSX.WorkSheet, sheetName: string): ParsedRevenueRow[] {
+  const range = XLSX.utils.decode_range(sheet["!ref"] ?? "A1");
+  const revenueHeader = findSectionHeaderRow(sheet, range, "revenue", range.s.r);
+  if (!revenueHeader) return [];
+
+  const projectHeader = findSectionHeaderRow(
+    sheet,
+    range,
+    "project",
+    revenueHeader.headerRow + 5
+  );
+
+  const revenueRows = parsePartnerSectionRows(
+    sheet,
+    sheetName,
+    range,
+    revenueHeader.headerRow,
+    revenueHeader.colMap,
+    "revenue",
+    projectHeader?.headerRow
+  );
+
+  const projectRows = projectHeader
+    ? parsePartnerSectionRows(
+        sheet,
+        sheetName,
+        range,
+        projectHeader.headerRow,
+        projectHeader.colMap,
+        "project"
+      )
+    : [];
+
+  const projectCountByPartner = new Map<string, number>();
+  for (const row of projectRows) {
+    const key = normalizePartnerKey(row.partner_name);
+    projectCountByPartner.set(key, row.project_count ?? 0);
+  }
+
+  return revenueRows.map((row) => ({
+    ...row,
+    project_count: projectCountByPartner.get(normalizePartnerKey(row.partner_name)) ?? null
+  }));
+}
+
+export function parseRevenueRowsFromWorkbook(workbook: XLSX.WorkBook): ParsedRevenueRow[] {
+  const revenueSheetName =
+    workbook.SheetNames.find((name) => REVENUE_PARTNER_SHEET_PATTERN.test(name)) ??
+    workbook.SheetNames.find((name) => REVENUE_PIVOT_SHEET_PATTERN.test(name));
+  if (!revenueSheetName) return [];
+  return parseRevenueSheet(workbook.Sheets[revenueSheetName]!, revenueSheetName);
 }
 
 export function parsePartnerPerformanceWorkbook(

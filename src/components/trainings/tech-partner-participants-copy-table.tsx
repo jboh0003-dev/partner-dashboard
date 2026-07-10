@@ -33,7 +33,7 @@ export function TechPartnerParticipantsCopyTable({
         allRows={copyableRows}
         selectedIds={selection.selectedIds}
         selectedCount={selection.selectedCount}
-        filterResultCount={rows.length}
+        totalCount={rows.length}
         onClearSelection={selection.clearSelection}
         selectedRowTsv={TECH_PARTNER_PARTICIPANT_SELECTED_ROW_TSV}
       />

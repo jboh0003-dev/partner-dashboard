@@ -1,5 +1,6 @@
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { isFy26, isRegisteredYear2026 } from "@/lib/performance/format";
+import { needsPerformanceReview } from "@/lib/performance/match-status";
 import type {
   ExecutivePerformanceStats,
   PartnerPerformanceSnapshot,
@@ -56,7 +57,12 @@ function mapOpportunity(row: Record<string, unknown>): PartnerPipelineOpportunit
     is_partner_deal: Boolean(row.is_partner_deal),
     partner_grade: row.partner_grade ? String(row.partner_grade) : null,
     partner_name: row.partner_name ? String(row.partner_name) : null,
+    raw_partner_name: row.raw_partner_name ? String(row.raw_partner_name) : null,
     matched_partner_id: row.matched_partner_id ? String(row.matched_partner_id) : null,
+    matched_partner_name: row.matched_partner_name ? String(row.matched_partner_name) : null,
+    match_status: row.match_status ? String(row.match_status) : null,
+    match_reason: row.match_reason ? String(row.match_reason) : null,
+    review_memo: row.review_memo ? String(row.review_memo) : null,
     is_product_revenue: Boolean(row.is_product_revenue),
     contract_type: row.contract_type ? String(row.contract_type) : null,
     product_amount_million:
@@ -169,17 +175,19 @@ function isNewRegPipelineRow(row: PartnerPipelineOpportunity): boolean {
 }
 
 export async function fetchLatestSnapshots(limit = 12): Promise<PartnerPerformanceSnapshot[]> {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
   const { data } = await supabase
     .from("partner_performance_snapshots")
     .select("*")
-    .order("snapshot_date", { ascending: true })
+    .order("snapshot_date", { ascending: false })
+    .order("created_at", { ascending: false })
     .limit(limit);
-  return (data ?? []).map((row) => mapSnapshot(row as Record<string, unknown>));
+  const snapshots = (data ?? []).map((row) => mapSnapshot(row as Record<string, unknown>));
+  return snapshots.reverse();
 }
 
 export async function fetchExecutivePerformanceStats(): Promise<ExecutivePerformanceStats> {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
   const snapshots = await fetchLatestSnapshots(20);
   const latest = snapshots.at(-1) ?? null;
   const previous = snapshots.length > 1 ? snapshots.at(-2)! : null;
@@ -192,6 +200,14 @@ export async function fetchExecutivePerformanceStats(): Promise<ExecutivePerform
       win_forecast_top10: [],
       new_reg_top10: [],
       revenue_top10: [],
+      revenue_summary: {
+        total_million: 0,
+        total_project_count: 0,
+        top_partner_name: null,
+        top_partner_million: 0,
+        top_partner_project_count: 0,
+        has_data: false
+      },
       win_probability_breakdown: [],
       division_breakdown: [],
       grade_breakdown: [],
@@ -220,34 +236,40 @@ export async function fetchExecutivePerformanceStats(): Promise<ExecutivePerform
   const winFilter = isWinForecastPipelineRow;
   const newFilter = isNewRegPipelineRow;
 
-  const revenue_top10 = Array.from(
-    (revenueRows ?? []).reduce<
-      Map<
-        string,
-        {
-          partner_name: string;
-          matched_partner_id: string | null;
-          partner_grade: string | null;
-          amount: number;
-          count: number;
-        }
-      >
-    >((map, row) => {
-      const record = row as PartnerRevenueRecord;
-      const key = record.matched_partner_id ?? record.partner_name;
-      const entry = map.get(key) ?? {
-        partner_name: record.partner_name,
-        matched_partner_id: record.matched_partner_id,
-        partner_grade: record.partner_grade,
-        amount: 0,
-        count: 0
-      };
-      entry.amount += Number(record.product_revenue_million ?? 0);
-      entry.count += Number(record.project_count ?? 1);
-      map.set(key, entry);
-      return map;
-    }, new Map()).values()
-  )
+  const matchedRevenueRecords = (revenueRows ?? []).filter((row) => {
+    const record = row as PartnerRevenueRecord;
+    return Boolean(record.matched_partner_id) && record.match_status === "matched";
+  });
+
+  const revenueAggregates = matchedRevenueRecords.reduce<
+    Map<
+      string,
+      {
+        partner_name: string;
+        matched_partner_id: string;
+        partner_grade: string | null;
+        amount: number;
+        count: number;
+      }
+    >
+  >((map, row) => {
+    const record = row as PartnerRevenueRecord;
+    const partnerId = record.matched_partner_id!;
+    const entry = map.get(partnerId) ?? {
+      partner_name: record.partner_name,
+      matched_partner_id: partnerId,
+      partner_grade: record.partner_grade,
+      amount: 0,
+      count: 0
+    };
+    entry.amount += Number(record.product_revenue_million ?? 0);
+    entry.count += Number(record.project_count ?? 0);
+    if (!entry.partner_grade && record.partner_grade) entry.partner_grade = record.partner_grade;
+    map.set(partnerId, entry);
+    return map;
+  }, new Map());
+
+  const revenue_top10 = Array.from(revenueAggregates.values())
     .map((row) => ({
       partner_name: row.partner_name,
       matched_partner_id: row.matched_partner_id,
@@ -258,9 +280,27 @@ export async function fetchExecutivePerformanceStats(): Promise<ExecutivePerform
     .sort((a, b) => b.product_revenue_million - a.product_revenue_million)
     .slice(0, 10);
 
+  const revenue_summary = (() => {
+    const totals = Array.from(revenueAggregates.values());
+    const total_million = Math.round(totals.reduce((sum, row) => sum + row.amount, 0));
+    const total_project_count = totals.reduce((sum, row) => sum + row.count, 0);
+    const top = revenue_top10[0];
+    return {
+      total_million,
+      total_project_count,
+      top_partner_name: top?.partner_name ?? null,
+      top_partner_million: top?.product_revenue_million ?? 0,
+      top_partner_project_count: top?.project_count ?? 0,
+      has_data: total_million > 0
+    };
+  })();
+
   const partnerDealRows = rows.filter((row) => row.is_partner_deal && row.is_product_revenue);
+
   const unmatched_partner_count = new Set(
-    partnerDealRows.filter((row) => !row.matched_partner_id && row.partner_name).map((r) => r.partner_name)
+    partnerDealRows
+      .filter(needsPerformanceReview)
+      .map((r) => r.raw_partner_name ?? r.partner_name ?? r.id)
   ).size;
 
   return {
@@ -277,6 +317,7 @@ export async function fetchExecutivePerformanceStats(): Promise<ExecutivePerform
     win_forecast_top10: aggregateByPartner(rows, winFilter).slice(0, 10),
     new_reg_top10: aggregateByPartner(rows, newFilter).slice(0, 10),
     revenue_top10,
+    revenue_summary,
     win_probability_breakdown: aggregateBreakdown(
       partnerDealRows.filter(winFilter),
       (row) => row.win_probability_label
@@ -289,15 +330,13 @@ export async function fetchExecutivePerformanceStats(): Promise<ExecutivePerform
       partnerDealRows.filter(winFilter),
       (row) => row.partner_grade
     ),
-    review_count:
-      partnerDealRows.filter((row) => !row.matched_partner_id && row.partner_name).length +
-      partnerDealRows.filter((row) => !row.project_code?.trim()).length,
+    review_count: partnerDealRows.filter(needsPerformanceReview).length,
     unmatched_partner_count
   };
 }
 
 export async function fetchPartnerPerformanceBundle(partnerId: string) {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
   const snapshots = await fetchLatestSnapshots(1);
   const latest = snapshots.at(-1);
   if (!latest) {
@@ -357,7 +396,7 @@ export async function fetchPartnerPerformanceBundle(partnerId: string) {
 }
 
 export async function fetchPerformanceOpportunities(snapshotId?: string) {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
   let targetSnapshotId = snapshotId;
   if (!targetSnapshotId) {
     const snapshots = await fetchLatestSnapshots(1);
@@ -372,7 +411,6 @@ export async function fetchPerformanceOpportunities(snapshotId?: string) {
       .select("*")
       .eq("snapshot_id", targetSnapshotId)
       .order("product_amount_million", { ascending: false })
-      .limit(5000)
   ]);
 
   return {

@@ -7,6 +7,9 @@ out
 .vercel
 .env.local
 .env*.local
-node_modules/
+
+scripts/output/
 .next/
 .vercel/
+scripts/output/*.csv
+tmp-policy.pptx

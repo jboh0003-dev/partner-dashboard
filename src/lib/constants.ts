@@ -10,11 +10,19 @@ export const PARTNER_GRADE_LABEL: Record<string, string> = {
   silver: "Silver",
   gold: "Gold",
   platinum: "Platinum",
+  service_partner: "Service Partner",
   strategic: "Strategic",
   none: "미분류"
 };
 
-export const PARTNER_GRADE_ORDER = ["platinum", "gold", "silver", "strategic", "none"] as const;
+export const PARTNER_GRADE_ORDER = [
+  "platinum",
+  "service_partner",
+  "gold",
+  "silver",
+  "strategic",
+  "none"
+] as const;
 
 export const CONTACT_ROLE_LABEL: Record<string, string> = {
   sales: "영업",

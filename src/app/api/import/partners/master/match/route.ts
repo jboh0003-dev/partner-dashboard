@@ -17,6 +17,8 @@ const MasterRowSchema = z.object({
   external_no: z.string().nullable(),
   contract_start_date: z.string().nullable(),
   grade: z.string().nullable(),
+  grade_original: z.string().nullable(),
+  grade_change_raw: z.string().nullable(),
   grade_raw: z.string().nullable(),
   website: z.string().nullable(),
   ceo_name: z.string().nullable(),
@@ -36,7 +38,8 @@ const MasterRowSchema = z.object({
 });
 
 const MatchPayloadSchema = z.object({
-  rows: z.array(MasterRowSchema)
+  rows: z.array(MasterRowSchema),
+  upload_mode: z.enum(["update", "full_sync"]).optional().default("update")
 });
 
 export async function POST(request: Request) {
@@ -45,31 +48,39 @@ export async function POST(request: Request) {
     const parsed = MatchPayloadSchema.parse(json);
     const supabase = createAdminClient();
 
-    const { data, error } = await supabase.from("partners").select(
-      [
-        "id",
-        "company_name",
-        "business_number",
-        "external_no",
-        "contract_start_date",
-        "grade",
-        "grade_raw",
-        "website",
-        "ceo_name",
-        "address",
-        "region_group",
-        "region",
-        "city",
-        "okestro_owner",
-        "sales_owner",
-        "contract_contact_name",
-        "contract_contact_phone",
-        "contract_contact_email",
-        "revenue_2023",
-        "employee_count",
-        "credit_rating"
-      ].join(", ")
-    );
+    const { data, error } = await supabase
+      .from("partners")
+      .select(
+        [
+          "id",
+          "company_name",
+          "business_number",
+          "external_no",
+          "contract_start_date",
+          "grade",
+          "grade_original",
+          "grade_change_raw",
+          "grade_raw",
+          "website",
+          "ceo_name",
+          "address",
+          "region_group",
+          "region",
+          "city",
+          "okestro_owner",
+          "sales_owner",
+          "contract_contact_name",
+          "contract_contact_phone",
+          "contract_contact_email",
+          "revenue_2023",
+          "employee_count",
+          "credit_rating",
+          "edited_via_dashboard_at",
+          "deleted_at",
+          "is_active"
+        ].join(", ")
+      )
+      .is("deleted_at", null);
 
     if (error) {
       throw new Error(error.message);
@@ -77,13 +88,15 @@ export async function POST(request: Request) {
 
     const analysis = analyzePartnerMasterRows(
       parsed.rows,
-      ((data ?? []) as unknown) as PartnerMasterDbRow[]
+      ((data ?? []) as unknown) as PartnerMasterDbRow[],
+      { uploadMode: parsed.upload_mode }
     );
 
     return NextResponse.json({
       ok: true,
       summary: analysis.summary,
-      items: analysis.items
+      items: analysis.items,
+      missing_from_excel: analysis.missingFromExcel
     });
   } catch (error) {
     return NextResponse.json(

@@ -2,6 +2,20 @@ import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { isUnknownPartnerName } from "@/lib/partners/performance-match";
+
+function resolveDbMatchStatus(row: {
+  matched_partner_id?: string | null;
+  raw_partner_name?: string | null;
+  partner_name?: string | null;
+  match_status?: string | null;
+}): string {
+  if (row.matched_partner_id) return "matched";
+  const raw = row.raw_partner_name ?? row.partner_name;
+  if (isUnknownPartnerName(raw)) return "unknown_partner";
+  if (row.match_status === "review") return "review_needed";
+  return "unmatched";
+}
 
 const InventoryRowSchema = z.object({
   row_number: z.number(),
@@ -29,6 +43,10 @@ const InventoryRowSchema = z.object({
   partner_grade: z.string().nullable().optional(),
   partner_name: z.string().nullable().optional(),
   matched_partner_id: z.string().uuid().nullable().optional(),
+  matched_partner_name: z.string().nullable().optional(),
+  raw_partner_name: z.string().nullable().optional(),
+  match_status: z.enum(["matched", "review"]).optional(),
+  match_reason: z.string().nullable().optional(),
   is_product_revenue: z.boolean(),
   contract_type: z.string().nullable().optional(),
   product_amount_million: z.number().nullable().optional(),
@@ -59,6 +77,10 @@ const RevenueRowSchema = z.object({
   project_code: z.string().nullable().optional(),
   project_name: z.string().nullable().optional(),
   matched_partner_id: z.string().uuid().nullable().optional(),
+  matched_partner_name: z.string().nullable().optional(),
+  raw_partner_name: z.string().nullable().optional(),
+  match_status: z.enum(["matched", "review"]).optional(),
+  match_reason: z.string().nullable().optional(),
   raw_json: z.record(z.string(), z.unknown()).optional()
 });
 
@@ -185,7 +207,11 @@ export async function POST(request: Request) {
         is_partner_deal: row.is_partner_deal,
         partner_grade: row.partner_grade ?? null,
         partner_name: row.partner_name ?? null,
+        raw_partner_name: row.raw_partner_name ?? row.partner_name ?? null,
         matched_partner_id: row.matched_partner_id ?? null,
+        matched_partner_name: row.matched_partner_name ?? null,
+        match_status: resolveDbMatchStatus(row),
+        match_reason: row.match_reason ?? null,
         is_product_revenue: row.is_product_revenue,
         contract_type: row.contract_type ?? null,
         product_amount_million: row.product_amount_million ?? null,
@@ -226,23 +252,36 @@ export async function POST(request: Request) {
         created += 1;
       }
 
-      if (!row.matched_partner_id && row.partner_name?.trim()) {
+      if (!row.matched_partner_id && !isUnknownPartnerName(row.raw_partner_name ?? row.partner_name)) {
         review += 1;
         await supabase.from("import_review_queue").insert({
           import_job_id: importJobId,
           entity_type: "partner_pipeline_opportunity",
-          reason: "파트너명 매칭 실패",
+          reason: row.match_reason ?? "파트너명 매칭 실패",
           raw_data: row
         });
       }
     }
 
     let revenueCreated = 0;
+    let revenueReview = 0;
+
+    if ((parsed.revenue_rows ?? []).length > 0) {
+      const { error: deleteError } = await supabase
+        .from("partner_revenue_records")
+        .delete()
+        .eq("revenue_year", 2025);
+      if (deleteError) throw new Error(deleteError.message);
+    }
+
     for (const row of parsed.revenue_rows ?? []) {
       const { error } = await supabase.from("partner_revenue_records").insert({
         revenue_year: 2025,
-        partner_name: row.partner_name,
+        partner_name: row.matched_partner_name ?? row.partner_name,
+        raw_partner_name: row.raw_partner_name ?? row.partner_name,
         matched_partner_id: row.matched_partner_id ?? null,
+        match_status: resolveDbMatchStatus(row),
+        match_reason: row.match_reason ?? null,
         partner_grade: row.partner_grade ?? null,
         sales_owner: row.sales_owner ?? null,
         project_code: row.project_code ?? null,
@@ -256,6 +295,16 @@ export async function POST(request: Request) {
       });
       if (error) throw new Error(error.message);
       revenueCreated += 1;
+
+      if (!row.matched_partner_id && !isUnknownPartnerName(row.raw_partner_name ?? row.partner_name)) {
+        revenueReview += 1;
+        await supabase.from("import_review_queue").insert({
+          import_job_id: importJobId,
+          entity_type: "partner_revenue_record",
+          reason: row.match_reason ?? "파트너명 매칭 실패",
+          raw_data: row
+        });
+      }
     }
 
     await supabase
@@ -264,7 +313,7 @@ export async function POST(request: Request) {
         status: "completed",
         created_count: created + revenueCreated,
         updated_count: updated,
-        review_count: review
+        review_count: review + revenueReview
       })
       .eq("id", importJobId);
 
@@ -280,7 +329,8 @@ export async function POST(request: Request) {
       created,
       updated,
       review,
-      revenue_created: revenueCreated
+      revenue_created: revenueCreated,
+      revenue_review: revenueReview
     });
   } catch (error) {
     if (importJobId) {

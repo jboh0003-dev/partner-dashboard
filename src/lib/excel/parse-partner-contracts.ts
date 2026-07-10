@@ -241,13 +241,26 @@ function parseIntSafe(v: unknown): number | null {
 
 export function normalizeGrade(input: string | null | undefined): string {
   if (!input) return "none";
-  const s = String(input).trim().toLowerCase();
-  if (!s) return "none";
+  const label = input.trim();
+  if (!label) return "none";
+
+  const primary = label.match(/^([^()（）[\]]+)/)?.[1]?.trim() ?? label;
+  const s = primary.toLowerCase();
   if (s.includes("플래티넘") || s.includes("플라티넘") || s.includes("platinum")) {
     return "platinum";
   }
   if (s.includes("골드") || s.includes("gold")) return "gold";
   if (s.includes("실버") || s.includes("silver")) return "silver";
+  if (
+    s === "서비스" ||
+    s === "service" ||
+    s.includes("서비스파트너") ||
+    s.includes("서비스 파트너") ||
+    s.includes("service partner") ||
+    s.includes("servicepartner")
+  ) {
+    return "service_partner";
+  }
   if (s.includes("strategic") || s.includes("전략")) return "strategic";
   return "none";
 }

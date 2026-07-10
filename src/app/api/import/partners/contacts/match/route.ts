@@ -11,8 +11,12 @@ const ContactRowSchema = z.object({
   row_number: z.number().int(),
   excluded: z.boolean(),
   excluded_reason: z.string().nullable(),
+  partner_no: z.string().nullable().default(null),
   company_name: z.string(),
   normalized_company_name: z.string().nullable(),
+  contract_date: z.string().nullable().default(null),
+  grade: z.string().nullable().default(null),
+  region_group: z.string().nullable().default(null),
   contact_name: z.string(),
   role_raw: z.string().nullable(),
   role_type: z.enum(["sales", "engineer", "admin", "executive", "contract", "etc"]),
@@ -37,12 +41,17 @@ export async function POST(request: Request) {
 
     const [{ data: partners, error: partnerError }, { data: contacts, error: contactError }] =
       await Promise.all([
-        supabase.from("partners").select("id, company_name"),
+        supabase
+          .from("partners")
+          .select("id, company_name, external_no")
+          .is("deleted_at", null),
         supabase
           .from("partner_contacts")
           .select(
-            "id, partner_id, name, department, position, role_type, role_raw, email, phone, is_primary, is_contract_contact"
+            "id, partner_id, name, department, position, role_type, role_raw, email, phone, is_primary, is_contract_contact, is_active, in_current_full_db, deleted_at, merged_into_contact_id, review_required, review_reason, source_file, created_at"
           )
+          .is("deleted_at", null)
+          .is("merged_into_contact_id", null)
       ]);
 
     if (partnerError) throw new Error(partnerError.message);
@@ -57,7 +66,9 @@ export async function POST(request: Request) {
     return NextResponse.json({
       ok: true,
       summary: analysis.summary,
-      items: analysis.items
+      items: analysis.items,
+      baselineExcluded: analysis.baselineExcluded,
+      reviewMissing: analysis.baselineExcluded
     });
   } catch (error) {
     return NextResponse.json(

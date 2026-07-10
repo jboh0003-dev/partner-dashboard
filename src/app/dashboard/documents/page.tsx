@@ -7,15 +7,16 @@ import {
   getDocumentDisplayFileName,
   getDocumentTypeShortLabel,
   getMatchStatusLabel,
+  getPublicDocumentStatusLabel,
   resolveMatchStatus
 } from "@/lib/documents/display";
 import {
-  countDocumentsNeedingReview,
   fetchDocumentList,
   fetchDocumentTypeOptions,
   fetchPartnerOptionsForDocuments
 } from "@/lib/data/documents";
 import { formatDate } from "@/lib/utils";
+import { getViewerRole } from "@/lib/auth/require-admin";
 
 type SearchParams = {
   q?: string;
@@ -32,30 +33,34 @@ export default async function DocumentsPage({
 }) {
   const params = await searchParams;
   const advanced = params.advanced === "1";
+  const isAdmin = (await getViewerRole()) === "admin";
+  const visibility = params.visibility ?? "current";
 
-  const [{ rows, error }, typeOptions, partnerOptions, needsReviewCount] = await Promise.all([
+  const [{ rows, error }, typeOptions, partnerOptions] = await Promise.all([
     fetchDocumentList({
       q: params.q,
       type: params.type,
-      status: params.status,
-      visibility: params.visibility,
-      advanced
+      status: isAdmin ? params.status : "all",
+      visibility,
+      advanced: isAdmin && advanced
     }),
     fetchDocumentTypeOptions(),
-    fetchPartnerOptionsForDocuments(),
-    countDocumentsNeedingReview()
+    fetchPartnerOptionsForDocuments()
   ]);
 
   const exportRows = rows.map((row) => ({
     파트너사: row.partner_name,
-    파일명추출회사: row.extracted_partner_name,
     문서구분: getDocumentTypeShortLabel(row.document_type),
     파일명: getDocumentDisplayFileName(row),
     계약일자: row.contract_date ? formatDate(row.contract_date) : null,
     업로드일: formatDate(row.created_at),
-    상태: getMatchStatusLabel(
-      resolveMatchStatus({ match_status: row.match_status, review_status: row.review_status })
-    )
+    상태: isAdmin
+      ? getMatchStatusLabel(
+          resolveMatchStatus({ match_status: row.match_status, review_status: row.review_status })
+        )
+      : getPublicDocumentStatusLabel(
+          resolveMatchStatus({ match_status: row.match_status, review_status: row.review_status })
+        )
   }));
 
   const tableRows = rows.map((row) => ({
@@ -84,17 +89,17 @@ export default async function DocumentsPage({
     <>
       <PageHeader
         title="문서 관리"
-        description="파트너사 문서를 등록 상태와 매칭 결과 기준으로 조회합니다."
+        description="파트너 계약서, 신청서, 사업자등록증 등 운영 문서를 조회·다운로드합니다."
         action={<CsvDownloadButton rows={exportRows} filenamePrefix="partner-documents" />}
       />
 
-      <DocumentsToolbar needsReviewCount={needsReviewCount} />
+      <DocumentsToolbar isAdmin={isAdmin} />
 
       <form className="ui-toolbar mb-5 lg:flex-nowrap">
         <input
           name="q"
           defaultValue={params.q ?? ""}
-          placeholder="파트너사, 문서 구분, 표시 파일명 검색"
+          placeholder="파트너사, 문서 구분, 파일명 검색"
           className="ui-input min-w-[220px] flex-1"
         />
         <select name="type" defaultValue={params.type ?? "all"} className="ui-select w-40 shrink-0">
@@ -105,23 +110,30 @@ export default async function DocumentsPage({
             </option>
           ))}
         </select>
-        <select name="visibility" defaultValue={params.visibility ?? "active"} className="ui-select w-44 shrink-0">
-          <option value="all">전체</option>
-          <option value="active">활성 문서</option>
-          <option value="hidden">중복 숨김</option>
-          <option value="duplicate_candidate">중복 후보</option>
-          <option value="needs_review">확인 필요</option>
-        </select>
-        <select name="status" defaultValue={params.status ?? "all"} className="ui-select w-44 shrink-0">
-          <option value="all">전체 상태</option>
-          <option value="matched">정상·수동확인</option>
-          <option value="needs_review">확인 필요</option>
-          <option value="unmatched">미연결</option>
-        </select>
-        <label className="flex shrink-0 items-center gap-2 text-xs text-slate-600">
-          <input type="checkbox" name="advanced" value="1" defaultChecked={advanced} />
-          원본 파일명 포함 검색
-        </label>
+        {isAdmin ? (
+          <>
+            <select name="visibility" defaultValue={visibility} className="ui-select w-44 shrink-0">
+              <option value="current">최신본</option>
+              <option value="archived">구버전</option>
+              <option value="all">전체</option>
+              <option value="hidden">중복 숨김</option>
+              <option value="duplicate_candidate">중복 후보</option>
+              <option value="needs_review">확인 필요</option>
+            </select>
+            <select name="status" defaultValue={params.status ?? "all"} className="ui-select w-44 shrink-0">
+              <option value="all">전체 상태</option>
+              <option value="matched">정상·수동확인</option>
+              <option value="needs_review">확인 필요</option>
+              <option value="unmatched">미연결</option>
+            </select>
+            <label className="flex shrink-0 items-center gap-2 text-xs text-slate-600">
+              <input type="checkbox" name="advanced" value="1" defaultChecked={advanced} />
+              원본 파일명 포함 검색
+            </label>
+          </>
+        ) : (
+          <input type="hidden" name="visibility" value="current" />
+        )}
         <button type="submit" className="ui-btn-accent shrink-0">
           검색
         </button>
@@ -129,6 +141,9 @@ export default async function DocumentsPage({
 
       <div className="mb-3 text-xs text-slate-500">
         총 <span className="font-semibold text-slate-700">{rows.length}</span>건
+        {!isAdmin ? (
+          <span className="ml-2 text-slate-400">· 최신본 문서만 표시</span>
+        ) : null}
       </div>
 
       {error ? (
@@ -139,7 +154,7 @@ export default async function DocumentsPage({
           description="문서 업로드 메뉴에서 계약서, 신청서, 사업자등록증 등을 등록할 수 있습니다."
         />
       ) : (
-        <DocumentsListTable rows={tableRows} partnerOptions={partnerOptions} />
+        <DocumentsListTable rows={tableRows} partnerOptions={partnerOptions} isAdmin={isAdmin} />
       )}
     </>
   );

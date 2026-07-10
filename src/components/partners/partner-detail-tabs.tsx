@@ -2,6 +2,7 @@
 
 import { Fragment, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Building2,
   CalendarDays,
@@ -19,6 +20,9 @@ import { EmptyState } from "@/components/common/empty-state";
 import { ContactTagsBadges } from "@/components/contacts/contact-tags-badges";
 import { mergePartnerOrganizationContacts } from "@/lib/contacts/organization-merge";
 import { DOCUMENT_TYPE_LABEL, POC_RESULT_STATUS_LABEL } from "@/lib/constants";
+import { getDisplayPartnerGrade, getDisplayPartnerGradeLabel } from "@/lib/partners/grade";
+import { PartnerBasicInfoEditModal } from "@/components/partners/partner-basic-info-edit-modal";
+import { PartnerOrganizationAdminPanel } from "@/components/partners/partner-organization-admin-panel";
 import { PartnerDocumentsTab } from "@/components/partners/partner-documents-tab";
 import {
   countVisiblePartnerDocuments,
@@ -93,6 +97,7 @@ export function PartnerDetailTabs({
   const {
     partner,
     contacts,
+    inactiveContacts,
     notes,
     trainings,
     trainingSessions,
@@ -175,8 +180,15 @@ export function PartnerDetailTabs({
       </div>
 
       <div className="p-6">
-        {active === "basic" ? <BasicInfoTab partner={partner} /> : null}
-        {active === "organization" ? <OrganizationTab contacts={contacts} /> : null}
+        {active === "basic" ? <BasicInfoTab partner={partner} isAdmin={isAdmin} /> : null}
+        {active === "organization" ? (
+          <OrganizationTab
+            contacts={contacts}
+            inactiveContacts={inactiveContacts}
+            partnerId={partner.id}
+            isAdmin={isAdmin}
+          />
+        ) : null}
         {active === "trainings" ? (
           <TrainingsTab
             sessions={trainingSessions}
@@ -188,7 +200,7 @@ export function PartnerDetailTabs({
         {active === "pocs" ? <PocsTab pocs={pocs} /> : null}
         {active === "assets" ? <AssetsTab assets={assets} /> : null}
         {active === "documents" ? (
-          <PartnerDocumentsTab documents={documents} isAdmin={isAdmin} />
+          <PartnerDocumentsTab partnerId={partner.id} documents={documents} />
         ) : null}
         {active === "performance" ? <PartnerPerformanceTab performance={performance} /> : null}
         {active === "notes" ? (
@@ -203,42 +215,110 @@ export function PartnerDetailTabs({
   );
 }
 
-function BasicInfoTab({ partner }: { partner: PartnerDetailBundle["partner"] }) {
+function BasicInfoTab({
+  partner,
+  isAdmin
+}: {
+  partner: PartnerDetailBundle["partner"];
+  isAdmin: boolean;
+}) {
+  const router = useRouter();
+  const [editOpen, setEditOpen] = useState(false);
+
   const rows: Array<[string, string]> = [
     ["파트너번호", formatPartnerNo(partner)],
     ["파트너사명", partner.company_name],
+    ["현재 등급", getDisplayPartnerGradeLabel(partner)],
+    ["원본 등급", partner.grade_original ?? "-"],
+    ["등급 변경 원문", partner.grade_change_raw ?? partner.grade_raw ?? "-"],
+    ["광역그룹", partner.region_group ?? "-"],
+    ["영업담당자", partner.sales_owner ?? "-"],
     ["사업자번호", partner.business_number ?? "-"],
     ["대표이사", partner.ceo_name ?? "-"],
     ["대표전화", partner.main_phone ?? "-"],
     ["주소", partner.address ?? "-"],
     ["웹사이트", partner.website ?? "-"],
-    ["계약 시작일", partner.contract_start_date ?? "-"],
-    ["계약 종료일", partner.contract_end_date ?? "-"],
-    ["메모", partner.memo ?? "-"]
+    ["계약 시작일", partner.contract_start_date ? formatDate(partner.contract_start_date) : "-"],
+    ["계약 종료일", partner.contract_end_date ? formatDate(partner.contract_end_date) : "-"],
+    ["비고", partner.memo ?? "-"]
   ];
 
   return (
-    <dl className="grid grid-cols-1 gap-x-8 gap-y-5 md:grid-cols-2 xl:grid-cols-3">
-      {rows.map(([label, value]) => (
-        <div key={label} className="min-w-0">
-          <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-            {label}
-          </dt>
-          <dd className="mt-1.5 break-words text-sm text-slate-900">{value}</dd>
-        </div>
-      ))}
-    </dl>
+    <>
+      <div className="mb-4 flex justify-end">
+        {isAdmin ? (
+          <button type="button" onClick={() => setEditOpen(true)} className="ui-btn-secondary text-sm">
+            기본정보 수정
+          </button>
+        ) : null}
+      </div>
+
+      <dl className="grid grid-cols-1 gap-x-8 gap-y-5 md:grid-cols-2 xl:grid-cols-3">
+        {rows.map(([label, value]) => (
+          <div key={label} className="min-w-0">
+            <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              {label}
+            </dt>
+            <dd className="mt-1.5 break-words text-sm text-slate-900">{value}</dd>
+          </div>
+        ))}
+      </dl>
+
+      {isAdmin ? (
+        <PartnerBasicInfoEditModal
+          partner={partner}
+          open={editOpen}
+          onClose={() => setEditOpen(false)}
+          onSaved={() => router.refresh()}
+        />
+      ) : null}
+    </>
   );
 }
 
-function OrganizationTab({ contacts }: { contacts: PartnerDetailBundle["contacts"] }) {
+function OrganizationTab({
+  contacts,
+  inactiveContacts,
+  partnerId,
+  isAdmin
+}: {
+  contacts: PartnerDetailBundle["contacts"];
+  inactiveContacts: PartnerDetailBundle["inactiveContacts"];
+  partnerId: string;
+  isAdmin: boolean;
+}) {
+  if (isAdmin) {
+    return (
+      <PartnerOrganizationAdminPanel
+        partnerId={partnerId}
+        contacts={contacts}
+        inactiveContacts={inactiveContacts}
+      />
+    );
+  }
+
+  return <OrganizationViewerTab contacts={contacts} inactiveContacts={inactiveContacts} />;
+}
+
+function OrganizationViewerTab({
+  contacts,
+  inactiveContacts
+}: {
+  contacts: PartnerDetailBundle["contacts"];
+  inactiveContacts: PartnerDetailBundle["inactiveContacts"];
+}) {
+  const [showInactive, setShowInactive] = useState(false);
   const { merged, raw_count } = useMemo(
     () => mergePartnerOrganizationContacts(contacts),
     [contacts]
   );
+  const inactiveMerged = useMemo(
+    () => mergePartnerOrganizationContacts(inactiveContacts).merged,
+    [inactiveContacts]
+  );
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
 
-  if (contacts.length === 0) {
+  if (contacts.length === 0 && inactiveContacts.length === 0) {
     return (
       <EmptyState
         title="등록된 담당자가 없습니다."
@@ -266,8 +346,20 @@ function OrganizationTab({ contacts }: { contacts: PartnerDetailBundle["contacts
         </div>
       ) : null}
       <p className="text-xs text-slate-500">
-        원본 {raw_count}건 · 병합 표시 {merged.length}명
+        현재 인력 {merged.length}명
+        {raw_count !== merged.length ? ` · 원본 ${raw_count}건` : ""}
       </p>
+      {inactiveContacts.length > 0 ? (
+        <label className="flex items-center gap-2 text-xs text-slate-600">
+          <input
+            type="checkbox"
+            checked={showInactive}
+            onChange={(event) => setShowInactive(event.target.checked)}
+            className="rounded border-slate-300"
+          />
+          과거 담당자/비활성 인력 보기 ({inactiveMerged.length}명)
+        </label>
+      ) : null}
       <div className="overflow-hidden rounded-xl border border-slate-200">
         <table className="min-w-full divide-y divide-slate-200">
           <thead className="bg-slate-50">
@@ -359,6 +451,21 @@ function OrganizationTab({ contacts }: { contacts: PartnerDetailBundle["contacts
           </tbody>
         </table>
       </div>
+
+      {showInactive && inactiveMerged.length > 0 ? (
+        <div className="space-y-2 rounded-xl border border-dashed border-slate-300 bg-slate-50/60 p-4">
+          <p className="text-sm font-semibold text-slate-700">과거 담당자 / 비활성 인력</p>
+          <ul className="space-y-1 text-sm text-slate-600">
+            {inactiveMerged.map((contact) => (
+              <li key={contact.id}>
+                {contact.name}
+                {contact.email ? ` · ${contact.email}` : ""}
+                {contact.tags.length > 0 ? ` · ${contact.tags.join(", ")}` : ""}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -22,7 +22,10 @@ export function KpiCard({ label, value, hint, href }: KpiCardProps) {
 
   if (href) {
     return (
-      <Link href={href} className="block h-full">
+      <Link
+        href={href}
+        className="block h-full rounded-xl transition hover:ring-2 hover:ring-okestro-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-okestro-500"
+      >
         {inner}
       </Link>
     );

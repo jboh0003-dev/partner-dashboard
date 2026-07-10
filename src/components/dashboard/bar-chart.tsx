@@ -2,6 +2,7 @@ type HorizontalBarChartItem = {
   label: string;
   value: number;
   color?: string;
+  muted?: boolean;
 };
 
 export function HorizontalBarChart({ data }: { data: HorizontalBarChartItem[] }) {
@@ -15,6 +16,51 @@ export function HorizontalBarChart({ data }: { data: HorizontalBarChartItem[] })
             <div className="mb-1 flex items-center justify-between text-xs">
               <span className="font-medium text-slate-700">{item.label}</span>
               <span className="tabular-nums text-slate-500">{item.value}</span>
+            </div>
+            <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-100">
+              <div
+                style={{ width: `${pct}%` }}
+                className={["h-full rounded-full", item.color ?? "bg-blue-500"].join(" ")}
+              />
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/** 임원 대시보드 TOP N — 억 단위 금액, 말줄임 파트너명 */
+export function ExecutiveRankBarChart({
+  data,
+  formatValue
+}: {
+  data: HorizontalBarChartItem[];
+  formatValue: (value: number) => string;
+}) {
+  const max = Math.max(1, ...data.map((d) => d.value));
+
+  if (data.length === 0) {
+    return (
+      <div className="flex h-[200px] items-center justify-center rounded-lg border border-dashed border-slate-200 text-xs text-slate-400">
+        데이터 없음
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {data.map((item) => {
+        const pct = Math.round((item.value / max) * 100);
+        return (
+          <div key={item.label}>
+            <div className="mb-1 flex items-center justify-between gap-3 text-xs">
+              <span className="min-w-0 flex-1 truncate font-medium text-slate-700" title={item.label}>
+                {item.label}
+              </span>
+              <span className="shrink-0 tabular-nums font-semibold text-slate-800">
+                {formatValue(item.value)}
+              </span>
             </div>
             <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-100">
               <div
@@ -51,6 +97,7 @@ function describeArc(
 
 const GRADE_FILL: Record<string, string> = {
   "bg-violet-500": "#8b5cf6",
+  "bg-teal-500": "#14b8a6",
   "bg-amber-500": "#f59e0b",
   "bg-slate-400": "#94a3b8",
   "bg-blue-500": "#3b82f6",
@@ -123,24 +170,60 @@ export function GradeDistributionChart({ data }: { data: HorizontalBarChartItem[
       <div className="w-full min-w-0 flex-1 space-y-3">
         {data.map((item) => {
           const pct = ((item.value / total) * 100).toFixed(1);
+          const isMuted = item.muted === true;
           return (
-            <div key={item.label} className="rounded-xl bg-slate-50 px-3 py-2.5">
+            <div
+              key={item.label}
+              className={[
+                "rounded-xl px-3 py-2.5",
+                isMuted ? "bg-slate-50/80" : "bg-slate-50"
+              ].join(" ")}
+            >
               <div className="flex items-center justify-between gap-3">
                 <div className="flex min-w-0 items-center gap-2">
                   <span
-                    className={["h-3 w-3 shrink-0 rounded-full", item.color ?? "bg-blue-500"].join(" ")}
+                    className={[
+                      "h-3 w-3 shrink-0 rounded-full",
+                      item.color ?? "bg-blue-500",
+                      isMuted ? "opacity-50" : ""
+                    ].join(" ")}
                   />
-                  <span className="text-sm font-semibold text-slate-800">{item.label}</span>
+                  <span
+                    className={[
+                      "text-sm font-semibold",
+                      isMuted ? "text-slate-500" : "text-slate-800"
+                    ].join(" ")}
+                  >
+                    {item.label}
+                  </span>
                 </div>
                 <div className="shrink-0 text-right tabular-nums">
-                  <span className="text-sm font-bold text-slate-950">{item.value}개</span>
-                  <span className="ml-2 text-xs font-medium text-slate-500">/ {pct}%</span>
+                  <span
+                    className={[
+                      "text-sm font-bold",
+                      isMuted ? "text-slate-500" : "text-slate-950"
+                    ].join(" ")}
+                  >
+                    {item.value}개
+                  </span>
+                  <span
+                    className={[
+                      "ml-2 text-xs font-medium",
+                      isMuted ? "text-slate-400" : "text-slate-500"
+                    ].join(" ")}
+                  >
+                    / {pct}%
+                  </span>
                 </div>
               </div>
               <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-slate-200/80">
                 <div
                   style={{ width: `${pct}%` }}
-                  className={["h-full rounded-full", item.color ?? "bg-blue-500"].join(" ")}
+                  className={[
+                    "h-full rounded-full",
+                    item.color ?? "bg-blue-500",
+                    isMuted ? "opacity-40" : ""
+                  ].join(" ")}
                 />
               </div>
             </div>

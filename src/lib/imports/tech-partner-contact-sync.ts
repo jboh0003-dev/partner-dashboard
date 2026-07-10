@@ -3,9 +3,9 @@ import {
   TECH_PARTNER_TRAINING_CONTACT_TAG
 } from "@/lib/contacts/contact-tags";
 import { correctPhoneEmailSwap } from "@/lib/contacts/phone-email";
+import { normalizePersonName } from "@/lib/contacts/person-key";
 import {
   buildContactFillEmptyPatch,
-  findContactForTrainingSync,
   type PartnerContactRow,
   type TrainingContactSyncInput
 } from "@/lib/imports/training-attendance-contact-sync";
@@ -27,11 +27,18 @@ export function findTechPartnerContact(
   input: Pick<TechPartnerContactSyncInput, "name" | "phone" | "email">
 ): TechPartnerExistingContact | null {
   const corrected = correctPhoneEmailSwap(input.phone, input.email);
-  return findContactForTrainingSync(contacts, partnerId, {
-    name: input.name,
-    phone: corrected.phone,
-    email: corrected.email
-  }) as TechPartnerExistingContact | null;
+  const nameKey = normalizePersonName(input.name);
+  const candidates = contacts.filter(
+    (contact) =>
+      contact.partner_id === partnerId &&
+      !contact.merged_into_contact_id &&
+      normalizePersonName(contact.name) === nameKey
+  );
+
+  if (candidates.length === 1) return candidates[0]!;
+  if (candidates.length > 1) return null;
+
+  return null;
 }
 
 export function buildTechPartnerContactInsert(
@@ -42,9 +49,13 @@ export function buildTechPartnerContactInsert(
     partner_id: input.partner_id,
     name: input.name,
     role_type: "engineer",
-    role_raw: TECH_PARTNER_TRAINING_CONTACT_TAG,
+    role_raw: appendRoleRawTag(null, TECH_PARTNER_TRAINING_CONTACT_TAG),
     is_primary: false,
     is_contract_contact: false,
+    is_active: false,
+    in_current_full_db: false,
+    review_required: true,
+    review_reason: "교육 참석 이력에서 자동 생성 — 현재 명단과 별도 검토",
     source_file: TECH_PARTNER_TRAINING_SOURCE,
     last_synced_at: new Date().toISOString()
   };
@@ -59,6 +70,7 @@ export function buildTechPartnerContactInsert(
 
 export type TechPartnerExistingContact = PartnerContactRow & {
   role_raw: string | null;
+  merged_into_contact_id?: string | null;
 };
 
 export function buildTechPartnerContactPatch(

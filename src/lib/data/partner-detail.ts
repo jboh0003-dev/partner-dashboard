@@ -185,7 +185,17 @@ export async function fetchPartnerDetailBundle(
 
   return {
     partner: partner as Partner,
-    contacts: (contacts ?? []) as PartnerContact[],
+    contacts: ((contacts ?? []) as PartnerContact[]).filter(
+      (contact) =>
+        contact.is_active !== false &&
+        contact.in_current_full_db !== false &&
+        !contact.deleted_at
+    ),
+    inactiveContacts: ((contacts ?? []) as PartnerContact[]).filter(
+      (contact) =>
+        (contact.is_active === false || contact.in_current_full_db === false) &&
+        !contact.deleted_at
+    ),
     notes: (notes ?? []) as PartnerNote[],
     trainings,
     trainingSessions: groupTrainingSessions(trainings),

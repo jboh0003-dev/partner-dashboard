@@ -1,3 +1,5 @@
+import { normalizePersonName } from "@/lib/contacts/person-key";
+
 export type PartnerContactRow = {
   id: string;
   partner_id: string;
@@ -7,6 +9,7 @@ export type PartnerContactRow = {
   email: string | null;
   phone: string | null;
   memo: string | null;
+  merged_into_contact_id?: string | null;
 };
 
 export type TrainingContactSyncInput = {
@@ -25,31 +28,15 @@ export function findContactForTrainingSync(
   partnerId: string,
   input: Pick<TrainingContactSyncInput, "name" | "email" | "phone">
 ): PartnerContactRow | null {
-  const normalizedName = normalizePersonName(input.name);
+  const nameKey = normalizePersonName(input.name);
   const candidates = contacts.filter(
     (contact) =>
-      contact.partner_id === partnerId && normalizePersonName(contact.name) === normalizedName
+      contact.partner_id === partnerId &&
+      !contact.merged_into_contact_id &&
+      normalizePersonName(contact.name) === nameKey
   );
 
-  if (candidates.length === 0) return null;
-
-  const normalizedEmail = input.email ? normalizeValue(input.email) : null;
-  const normalizedPhone = input.phone ? normalizePhone(input.phone) : null;
-
-  if (normalizedEmail || normalizedPhone) {
-    const matched = candidates.filter((contact) => {
-      const emailMatch =
-        normalizedEmail && normalizeValue(contact.email) === normalizedEmail;
-      const phoneMatch =
-        normalizedPhone && normalizePhone(contact.phone) === normalizedPhone;
-      return emailMatch || phoneMatch;
-    });
-
-    if (matched.length === 1) return matched[0];
-    return null;
-  }
-
-  if (candidates.length === 1) return candidates[0];
+  if (candidates.length === 1) return candidates[0]!;
   return null;
 }
 
@@ -63,6 +50,10 @@ export function buildReferenceContactInsert(
     role_raw: "정기교육 참석자",
     is_primary: false,
     is_contract_contact: false,
+    is_active: false,
+    in_current_full_db: false,
+    review_required: true,
+    review_reason: "교육 참석 이력에서 자동 생성 — 현재 명단과 별도 검토",
     source_file: input.source_file,
     last_synced_at: new Date().toISOString()
   };
@@ -98,16 +89,4 @@ export function hasContactSyncData(input: TrainingContactSyncInput): boolean {
   return Boolean(
     input.department || input.position || input.phone || input.email || input.memo
   );
-}
-
-function normalizePersonName(value: string | null | undefined): string {
-  return (value ?? "").trim().replace(/\s+/g, "").toLowerCase();
-}
-
-function normalizeValue(value: string | null | undefined): string {
-  return (value ?? "").trim().toLowerCase();
-}
-
-function normalizePhone(value: string | null | undefined): string {
-  return (value ?? "").replace(/[^\d]/g, "");
 }

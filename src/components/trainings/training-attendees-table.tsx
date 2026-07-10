@@ -2,7 +2,7 @@
 
 import { type SortableColumn } from "@/components/common/client-sortable-table";
 import { CopyableDataTable } from "@/components/common/copyable-data-table";
-import { TableName, TableText } from "@/components/common/table-cells";
+import { TableClamp2, TableName, TableNowrap } from "@/components/common/table-cells";
 import { formatTrainingTypeLabel } from "@/lib/training/constants";
 import {
   formatAttendanceStatus,
@@ -39,114 +39,151 @@ const columns: SortableColumn<TrainingAttendeeRow>[] = [
     key: "partner_name",
     label: "파트너사",
     kind: "text",
-    className: "min-w-[11rem]",
+    className: "min-w-[140px]",
     value: (row) => row.partner_name,
-    render: (row) => <TableName title={row.partner_name}>{row.partner_name}</TableName>
+    render: (row) => (
+      <TableName title={row.partner_name} className="min-w-[140px] max-w-[200px]">
+        {row.partner_name}
+      </TableName>
+    )
   },
   {
     key: "attendee_name",
     label: "이름",
     kind: "text",
-    className: "min-w-[6rem] whitespace-nowrap",
+    className: "min-w-[80px]",
     value: (row) => row.attendee_name,
-    render: (row) => <TableText value={row.attendee_name} className="min-w-[6rem] whitespace-nowrap" />
+    render: (row) => <TableNowrap value={row.attendee_name} className="min-w-[80px]" />
   },
   {
     key: "training_year_month",
     label: "교육연월",
     kind: "text",
+    className: "min-w-[90px]",
     value: (row) =>
       row.training_year && row.training_month
         ? `${row.training_year}-${String(row.training_month).padStart(2, "0")}`
         : null,
-    render: (row) => formatTrainingYearMonth(row.training_year, row.training_month)
+    render: (row) => (
+      <TableNowrap
+        value={formatTrainingYearMonth(row.training_year, row.training_month)}
+        className="min-w-[90px] tabular-nums"
+      />
+    )
   },
   {
     key: "training_type",
     label: "교육구분",
     kind: "text",
+    className: "min-w-[100px]",
     value: (row) => row.training_type,
-    render: (row) => formatTrainingTypeLabel(row.training_type)
+    render: (row) => (
+      <TableNowrap
+        value={formatTrainingTypeLabel(row.training_type)}
+        className="min-w-[100px]"
+      />
+    )
   },
   {
     key: "training_name",
     label: "교육명",
     kind: "text",
-    className: "min-w-[10rem]",
+    className: "min-w-[220px]",
     value: (row) => row.training_name,
     render: (row) => (
-      <TableText value={row.training_name} className="block min-w-[10rem] max-w-[18rem] break-keep whitespace-normal" />
+      <TableClamp2
+        value={row.training_name}
+        className="min-w-[220px] max-w-[280px]"
+      />
     )
   },
   {
     key: "attendee_position",
     label: "직급",
     kind: "text",
+    className: "min-w-[80px]",
     value: (row) => row.attendee_position,
-    render: (row) => row.attendee_position ?? "-"
+    render: (row) => <TableNowrap value={row.attendee_position} className="min-w-[80px]" />
   },
   {
     key: "attendee_department",
     label: "직무",
     kind: "text",
+    className: "min-w-[80px]",
     value: (row) => row.attendee_department,
-    render: (row) => row.attendee_department ?? "-"
+    render: (row) => <TableNowrap value={row.attendee_department} className="min-w-[80px]" />
   },
   {
     key: "attendee_phone",
     label: "휴대폰",
     kind: "text",
+    className: "min-w-[120px]",
     value: (row) => row.attendee_phone,
-    render: (row) => row.attendee_phone ?? "-"
+    render: (row) => (
+      <TableNowrap value={row.attendee_phone} className="min-w-[120px] tabular-nums" />
+    )
   },
   {
     key: "attendee_email",
     label: "이메일",
     kind: "text",
+    className: "min-w-[180px]",
     value: (row) => row.attendee_email,
     render: (row) => (
-      <TableText
-        value={row.attendee_email}
-        className="block min-w-[10rem] max-w-[18rem] break-keep whitespace-normal"
-      />
+      <TableNowrap value={row.attendee_email} className="min-w-[180px] max-w-[240px]" />
     )
   },
   {
     key: "attendance_status",
     label: "참석상태",
     kind: "text",
+    className: "min-w-[80px]",
     value: (row) => formatAttendanceStatus(row.attended, row.attendance_status),
-    render: (row) => formatAttendanceStatus(row.attended, row.attendance_status)
+    render: (row) => (
+      <TableNowrap
+        value={formatAttendanceStatus(row.attended, row.attendance_status)}
+        className="min-w-[80px]"
+      />
+    )
   },
   {
     key: "completion_status",
     label: "수료여부",
     kind: "text",
+    className: "min-w-[80px]",
     value: (row) => row.completion_status,
-    render: (row) => row.completion_status ?? "-"
+    render: (row) => <TableNowrap value={row.completion_status} className="min-w-[80px]" />
   },
   {
     key: "score",
     label: "점수",
     kind: "number",
     align: "right",
+    className: "min-w-[70px]",
     value: (row) => row.score,
-    render: (row) => (row.score != null ? row.score : "-")
+    render: (row) => (
+      <TableNowrap
+        value={row.score != null ? String(row.score) : null}
+        className="min-w-[70px] text-right tabular-nums"
+      />
+    )
   },
   {
     key: "evaluation_result",
     label: "평가결과",
     kind: "text",
+    className: "min-w-[80px]",
     value: (row) => row.evaluation_result,
-    render: (row) => row.evaluation_result ?? "-"
+    render: (row) => <TableNowrap value={row.evaluation_result} className="min-w-[80px]" />
   },
   {
     key: "note",
     label: "비고",
     kind: "text",
+    className: "min-w-[160px]",
     value: (row) => row.note,
     render: (row) => (
-      <TableText value={row.note} className="block min-w-[8rem] max-w-[16rem] break-keep whitespace-normal" />
+      <TableClamp2 value={row.note} className="min-w-[160px] max-w-[220px]" />
     )
   }
 ];
@@ -164,12 +201,14 @@ export function TrainingAttendeesTable({
       columns={columns}
       defaultSortKey="training_year_month"
       defaultDir="desc"
-      minWidth="1680px"
+      minWidth="1520px"
       rowKey={(row) => row.id}
       toCopyableRow={trainingAttendeeRowToCopyable}
       selectedRowTsv={TRAINING_ATTENDEE_SELECTED_ROW_TSV}
       csvRows={csvRows}
       csvFilenamePrefix="training-attendees"
+      scrollable
+      scrollMaxHeight="calc(100vh - 360px)"
     />
   );
 }

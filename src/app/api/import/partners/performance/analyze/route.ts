@@ -17,7 +17,10 @@ export async function POST(request: Request) {
     const parsed = parsePartnerPerformanceWorkbook(workbook, file.name);
 
     const supabase = createAdminClient();
-    const { data: partners } = await supabase.from("partners").select("id, company_name");
+    const [{ data: partners }, { data: aliases }] = await Promise.all([
+      supabase.from("partners").select("id, company_name, business_number").is("deleted_at", null),
+      supabase.from("partner_aliases").select("partner_id, alias_name, normalized_alias")
+    ]);
 
     const analysis = analyzePartnerPerformanceUpload({
       inventory_rows: parsed.inventory_rows,
@@ -27,7 +30,13 @@ export async function POST(request: Request) {
       summary_validation: parsed.summary_validation,
       partners: (partners ?? []).map((p) => ({
         id: String(p.id),
-        company_name: String(p.company_name)
+        company_name: String(p.company_name),
+        business_number: p.business_number ? String(p.business_number) : null
+      })),
+      aliases: (aliases ?? []).map((a) => ({
+        partner_id: String(a.partner_id),
+        alias_name: String(a.alias_name),
+        normalized_alias: String(a.normalized_alias)
       })),
       required_columns_found: parsed.required_columns_found,
       parse_errors: parsed.parse_errors

@@ -27,15 +27,20 @@ import {
   parsePartnerContactsWorkbook,
   type PartnerContactsParseResult
 } from "@/lib/excel/parse-partner-contacts";
+import { PARTNER_CONTACTS_ACTION_LABEL } from "@/lib/imports/partner-contacts";
 import {
   parsePartnerMasterWorkbook,
-  type PartnerMasterParseResult
+  type PartnerMasterParseResult,
+  type ParsedPartnerMasterRow
 } from "@/lib/excel/parse-partner-master";
+import { PARTNER_GRADE_LABEL } from "@/lib/constants";
 import {
   parseTrainingAttendanceWorkbook,
   type TrainingAttendanceParseResult
 } from "@/lib/excel/parse-training-attendance-detail";
 import { PartnerDocumentsUploadSection } from "@/components/upload/partner-documents-upload-section";
+import { PartnerDuplicatesPanel } from "@/components/upload/partner-duplicates-panel";
+import { PARTNER_MASTER_ACTION_LABEL } from "@/lib/imports/partner-master";
 import {
   parsePartnerEquipmentWorkbook,
   type PartnerEquipmentParseResult
@@ -59,14 +64,25 @@ type UploadTypeMeta = {
   mode: "active" | "preview_only";
 };
 
+type PartnerMasterUploadMode = "update" | "full_sync";
+
 type PartnerMasterAnalysisItem = {
   row_number: number;
   company_name: string;
   business_number: string | null;
+  external_no: string | null;
   action: "create" | "update" | "skip" | "review";
   reason: string;
   changed_fields: string[];
   matched_partner_id: string | null;
+  warnings?: string[];
+};
+
+type PartnerMasterMissingItem = {
+  partner_id: string;
+  company_name: string;
+  external_no: string | null;
+  business_number: string | null;
 };
 
 type PartnerMasterAnalysisSummary = {
@@ -75,10 +91,13 @@ type PartnerMasterAnalysisSummary = {
   update: number;
   skip: number;
   review: number;
+  missing_from_excel?: number;
+  errors?: number;
 };
 
 type PartnerContactsAnalysisItem = {
   row_number: number;
+  partner_no: string | null;
   company_name: string;
   contact_name: string;
   role_raw: string | null;
@@ -87,7 +106,8 @@ type PartnerContactsAnalysisItem = {
   position: string | null;
   phone: string | null;
   email: string | null;
-  action: "create" | "update" | "skip" | "review";
+  is_contract_contact: boolean;
+  action: "create" | "update" | "merge" | "skip" | "review" | "duplicate";
   reason: string;
   matched_partner_name: string | null;
 };
@@ -99,6 +119,20 @@ type PartnerContactsAnalysisSummary = {
   update: number;
   skip: number;
   review: number;
+  duplicate: number;
+  review_missing: number;
+  baseline_excluded: number;
+  merge: number;
+};
+
+type PartnerContactsBaselineExcludedItem = {
+  contact_id: string;
+  partner_id: string;
+  partner_name: string;
+  contact_name: string;
+  email: string | null;
+  reason: string;
+  is_history_only?: boolean;
 };
 
 type MatchState<TItem, TSummary> = {
@@ -179,10 +213,21 @@ type PartnerEquipmentAnalysisSummary = {
 
 type SaveSummary = {
   total: number;
+  current_baseline_count?: number;
+  active_current_count?: number;
   created: number;
   updated: number;
+  deactivated?: number;
+  merged?: number;
+  emails_added?: number;
+  phones_added?: number;
+  roles_added?: number;
+  baseline_excluded?: number;
+  history_only_excluded?: number;
+  review_missing?: number;
   skipped?: number;
   review?: number;
+  missing_from_excel?: number;
   created_trainings?: number;
   created_attendees?: number;
   errors: number;
@@ -209,8 +254,9 @@ const UPLOAD_TYPES: UploadTypeMeta[] = [
   },
   {
     key: "partner_contacts",
-    title: "파트너 인력/담당자 업로드",
-    description: "파트너 전체 DB.xlsx를 읽어 partner_contacts를 신규 생성 또는 업데이트합니다.",
+    title: "현재 인력/담당자 명단 동기화",
+    description:
+      "파트너 전체 DB.xlsx를 최신 명단 기준으로 동기화합니다. upsert 후 이번 업로드에 없는 active 담당자는 inactive 처리됩니다(삭제 아님). 교육·행사 이력은 유지됩니다.",
     sourceFile: "파트너 전체 DB.xlsx",
     order: 2,
     icon: Users,
@@ -262,7 +308,13 @@ export default function UploadPage() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [selectedType, setSelectedType] = useState<UploadType>("partner_master");
+  const [partnerMasterUploadMode, setPartnerMasterUploadMode] =
+    useState<PartnerMasterUploadMode>("update");
+  const [partnerMasterMissing, setPartnerMasterMissing] = useState<PartnerMasterMissingItem[]>(
+    []
+  );
   const [fileName, setFileName] = useState<string | null>(null);
+  const [sourceFile, setSourceFile] = useState<File | null>(null);
   const [parseError, setParseError] = useState<string | null>(null);
   const [isParsing, setIsParsing] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -282,7 +334,7 @@ export default function UploadPage() {
     MatchState<PartnerMasterAnalysisItem, PartnerMasterAnalysisSummary>
   >({
     items: [],
-    summary: { total: 0, create: 0, update: 0, skip: 0, review: 0 },
+    summary: { total: 0, create: 0, update: 0, skip: 0, review: 0, missing_from_excel: 0 },
     loading: false,
     error: null
   });
@@ -290,10 +342,24 @@ export default function UploadPage() {
     MatchState<PartnerContactsAnalysisItem, PartnerContactsAnalysisSummary>
   >({
     items: [],
-    summary: { total: 0, matched_partners: 0, create: 0, update: 0, skip: 0, review: 0 },
+    summary: {
+      total: 0,
+      matched_partners: 0,
+      create: 0,
+      update: 0,
+      skip: 0,
+      review: 0,
+      duplicate: 0,
+      review_missing: 0,
+      baseline_excluded: 0,
+      merge: 0
+    },
     loading: false,
     error: null
   });
+  const [partnerContactsReviewMissing, setPartnerContactsReviewMissing] = useState<
+    PartnerContactsBaselineExcludedItem[]
+  >([]);
   const [partnerEquipmentPreview, setPartnerEquipmentPreview] = useState<
     MatchState<PartnerEquipmentAnalysisItem, PartnerEquipmentAnalysisSummary>
   >({
@@ -346,7 +412,7 @@ export default function UploadPage() {
     if (selectedType !== "partner_master" || !partnerMasterResult) {
       setPartnerMasterPreview({
         items: [],
-        summary: { total: 0, create: 0, update: 0, skip: 0, review: 0 },
+        summary: { total: 0, create: 0, update: 0, skip: 0, review: 0, missing_from_excel: 0 },
         loading: false,
         error: null
       });
@@ -361,7 +427,10 @@ export default function UploadPage() {
         const response = await fetch("/api/import/partners/master/match", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ rows: partnerMasterResult.rows })
+          body: JSON.stringify({
+            rows: partnerMasterResult.rows,
+            upload_mode: partnerMasterUploadMode
+          })
         });
         const json = await response.json();
         if (cancelled) return;
@@ -374,11 +443,12 @@ export default function UploadPage() {
           loading: false,
           error: null
         });
+        setPartnerMasterMissing((json.missing_from_excel ?? []) as PartnerMasterMissingItem[]);
       } catch (error) {
         if (cancelled) return;
         setPartnerMasterPreview({
           items: [],
-          summary: { total: 0, create: 0, update: 0, skip: 0, review: 0 },
+          summary: { total: 0, create: 0, update: 0, skip: 0, review: 0, missing_from_excel: 0 },
           loading: false,
           error: error instanceof Error ? error.message : "파트너 기본정보 미리보기에 실패했습니다."
         });
@@ -388,16 +458,17 @@ export default function UploadPage() {
     return () => {
       cancelled = true;
     };
-  }, [partnerMasterResult, selectedType]);
+  }, [partnerMasterResult, selectedType, partnerMasterUploadMode]);
 
   useEffect(() => {
     if (selectedType !== "partner_contacts" || !partnerContactsResult) {
       setPartnerContactsPreview({
         items: [],
-        summary: { total: 0, matched_partners: 0, create: 0, update: 0, skip: 0, review: 0 },
+        summary: { total: 0, matched_partners: 0, create: 0, update: 0, skip: 0, review: 0, duplicate: 0, review_missing: 0, baseline_excluded: 0, merge: 0 },
         loading: false,
         error: null
       });
+      setPartnerContactsReviewMissing([]);
       return;
     }
 
@@ -422,14 +493,18 @@ export default function UploadPage() {
           loading: false,
           error: null
         });
+        setPartnerContactsReviewMissing(
+          (json.baselineExcluded ?? json.reviewMissing ?? []) as PartnerContactsBaselineExcludedItem[]
+        );
       } catch (error) {
         if (cancelled) return;
         setPartnerContactsPreview({
           items: [],
-          summary: { total: 0, matched_partners: 0, create: 0, update: 0, skip: 0, review: 0 },
+          summary: { total: 0, matched_partners: 0, create: 0, update: 0, skip: 0, review: 0, duplicate: 0, review_missing: 0, baseline_excluded: 0, merge: 0 },
           loading: false,
           error: error instanceof Error ? error.message : "담당자 업로드 미리보기에 실패했습니다."
         });
+        setPartnerContactsReviewMissing([]);
       }
     })();
 
@@ -620,6 +695,7 @@ export default function UploadPage() {
         }
 
         setFileName(file.name);
+        setSourceFile(file);
 
         if (selectedType === "partner_master") {
           const result = parsePartnerMasterWorkbook(workbook);
@@ -675,18 +751,31 @@ export default function UploadPage() {
     setTrainingAttendanceResult(null);
     setPartnerEquipmentResult(null);
     setGenericPreview(null);
+    setPartnerMasterMissing([]);
     setPartnerMasterPreview({
       items: [],
-      summary: { total: 0, create: 0, update: 0, skip: 0, review: 0 },
+      summary: { total: 0, create: 0, update: 0, skip: 0, review: 0, missing_from_excel: 0 },
       loading: false,
       error: null
     });
     setPartnerContactsPreview({
       items: [],
-      summary: { total: 0, matched_partners: 0, create: 0, update: 0, skip: 0, review: 0 },
+      summary: {
+        total: 0,
+        matched_partners: 0,
+        create: 0,
+        update: 0,
+        skip: 0,
+        review: 0,
+        duplicate: 0,
+        review_missing: 0,
+        baseline_excluded: 0,
+        merge: 0
+      },
       loading: false,
       error: null
     });
+    setPartnerContactsReviewMissing([]);
     setPartnerEquipmentPreview({
       items: [],
       summary: { total: 0, partner_count: 0, matched_partners: 0, unmatched_partners: 0, create: 0, update: 0, skip: 0, review: 0 },
@@ -712,6 +801,7 @@ export default function UploadPage() {
     setSaveError(null);
     setParseError(null);
     setFileName(null);
+    setSourceFile(null);
   }
 
   function clearFile() {
@@ -735,6 +825,30 @@ export default function UploadPage() {
     void processFile(file);
   }
 
+  async function importEmbeddedPartnerRevenue(file: File | null): Promise<void> {
+    if (!file) return;
+    try {
+      const formData = new FormData();
+      formData.set("file", file);
+      await fetch("/api/import/partners/revenue", { method: "POST", body: formData });
+    } catch {
+      // 매출 시트가 없거나 파싱 실패 시 파트너/전체DB 업로드는 계속 성공 처리
+    }
+  }
+
+  async function uploadTempStoragePath(file: File, importType: string): Promise<string | null> {
+    const formData = new FormData();
+    formData.set("file", file);
+    formData.set("import_type", importType);
+    const response = await fetch("/api/import/temp-file", { method: "POST", body: formData });
+    const json = (await response.json().catch(() => null)) as {
+      ok?: boolean;
+      storage_path?: string;
+    } | null;
+    if (!response.ok || !json?.ok) return null;
+    return json.storage_path ?? null;
+  }
+
   async function handleSave() {
     try {
       setIsSaving(true);
@@ -746,26 +860,39 @@ export default function UploadPage() {
         const response = await fetch("/api/import/partners/master", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ file_name: fileName, rows: partnerMasterResult.rows })
+          body: JSON.stringify({
+            file_name: fileName,
+            rows: partnerMasterResult.rows,
+            upload_mode: partnerMasterUploadMode
+          })
         });
         const json = await response.json();
         if (!response.ok || !json.ok) throw new Error(json?.message ?? "저장 중 오류가 발생했습니다.");
         setSaveSummary(json.summary as SaveSummary);
         setSaveResults((json.results ?? []) as SaveResult[]);
+        await importEmbeddedPartnerRevenue(sourceFile);
         router.refresh();
         return;
       }
 
       if (selectedType === "partner_contacts" && partnerContactsResult && fileName) {
+        const storagePath = sourceFile
+          ? await uploadTempStoragePath(sourceFile, "contact_full_db")
+          : null;
         const response = await fetch("/api/import/partners/contacts", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ file_name: fileName, rows: partnerContactsResult.rows })
+          body: JSON.stringify({
+            file_name: fileName,
+            storage_path: storagePath,
+            rows: partnerContactsResult.rows
+          })
         });
         const json = await response.json();
         if (!response.ok || !json.ok) throw new Error(json?.message ?? "저장 중 오류가 발생했습니다.");
         setSaveSummary(json.summary as SaveSummary);
         setSaveResults((json.results ?? []) as SaveResult[]);
+        await importEmbeddedPartnerRevenue(sourceFile);
         router.refresh();
         return;
       }
@@ -788,11 +915,15 @@ export default function UploadPage() {
       }
 
       if (selectedType === "training_attendance_detail" && trainingAttendanceResult && fileName) {
+        const storagePath = sourceFile
+          ? await uploadTempStoragePath(sourceFile, "education_attendee_upload")
+          : null;
         const response = await fetch("/api/import/trainings/attendance", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             file_name: fileName,
+            storage_path: storagePath,
             rows: trainingAttendanceResult.rows
           })
         });
@@ -848,7 +979,7 @@ export default function UploadPage() {
     selectedType === "partner_master"
       ? partnerMasterPreview.summary.review
       : selectedType === "partner_contacts"
-        ? partnerContactsPreview.summary.review
+        ? partnerContactsPreview.summary.review + partnerContactsPreview.summary.duplicate
         : selectedType === "partner_equipment"
           ? partnerEquipmentPreview.summary.review
         : selectedType === "training_attendance_detail"
@@ -880,6 +1011,8 @@ export default function UploadPage() {
 
       <UploadTypeSelector selectedType={selectedType} onChange={setSelectedType} />
 
+      {selectedType === "partner_master" ? <PartnerDuplicatesPanel /> : null}
+
       {selectedType === "partner_documents" ? (
         <PartnerDocumentsUploadSection />
       ) : (
@@ -902,6 +1035,37 @@ export default function UploadPage() {
             {selectedMeta.mode === "active" ? "업로드 가능" : "준비중"}
           </span>
         </div>
+
+        {selectedType === "partner_master" ? (
+          <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <div className="text-xs font-semibold text-slate-700">업로드 모드</div>
+            <div className="mt-2 flex flex-wrap gap-4 text-sm text-slate-700">
+              <label className="inline-flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="partner_master_upload_mode"
+                  checked={partnerMasterUploadMode === "update"}
+                  onChange={() => setPartnerMasterUploadMode("update")}
+                />
+                갱신 업로드 (기본)
+              </label>
+              <label className="inline-flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="partner_master_upload_mode"
+                  checked={partnerMasterUploadMode === "full_sync"}
+                  onChange={() => setPartnerMasterUploadMode("full_sync")}
+                />
+                전체 동기화
+              </label>
+            </div>
+            <p className="mt-2 text-xs leading-relaxed text-slate-500">
+              갱신 업로드: 엑셀 행은 upsert(신규 insert / 기존 update)하고, 엑셀에 없는 기존
+              파트너는 건드리지 않습니다. 전체 동기화: 엑셀에 없는 기존 파트너를
+              &quot;엑셀에서 누락됨&quot;으로 표시합니다(자동 삭제 없음).
+            </p>
+          </div>
+        ) : null}
 
         <div
           onDragOver={(event) => {
@@ -979,6 +1143,7 @@ export default function UploadPage() {
           selectedMeta={selectedMeta}
           partnerMasterResult={partnerMasterResult}
           partnerMasterPreview={partnerMasterPreview}
+          partnerMasterMissing={partnerMasterMissing}
           partnerContactsResult={partnerContactsResult}
           partnerContactsPreview={partnerContactsPreview}
           partnerEquipmentResult={partnerEquipmentResult}
@@ -1019,6 +1184,15 @@ export default function UploadPage() {
             </div>
           ) : null}
 
+          {selectedType === "partner_contacts" &&
+          partnerContactsPreview.summary.baseline_excluded > 0 ? (
+            <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+              현재 목록에서 제외 예정 {partnerContactsPreview.summary.baseline_excluded}명 — 이번
+              전체DB.xlsx에 없는 기존 contact는 baseline reset으로 현재 인력 목록에서 제외됩니다.
+              (교육/행사 이력은 유지)
+            </div>
+          ) : null}
+
           {reviewCount > 0 ? (
             <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
               확인필요 예정 {reviewCount}건은 자동 저장되지 않고 review queue로 들어갑니다.
@@ -1033,12 +1207,32 @@ export default function UploadPage() {
 
           {saveSummary ? (
             <div className="mt-4 space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-              <div className="font-semibold text-slate-900">저장 결과</div>
-              <ResultLine label="전체" value={saveSummary.total} />
-              <ResultLine label="생성" value={saveSummary.created} />
-              <ResultLine label="업데이트" value={saveSummary.updated} />
-              <ResultLine label="제외" value={saveSummary.skipped ?? 0} />
-              <ResultLine label="확인필요" value={saveSummary.review ?? 0} />
+              <div className="font-semibold text-slate-900">저장 결과 (baseline reset)</div>
+              <ResultLine label="업로드 행" value={saveSummary.total} />
+              <ResultLine
+                label="전체DB 기준 현재 인력"
+                value={saveSummary.current_baseline_count ?? 0}
+              />
+              <ResultLine
+                label="DB active/current contact"
+                value={saveSummary.active_current_count ?? 0}
+              />
+              <ResultLine label="신규 추가" value={saveSummary.created} />
+              <ResultLine label="기존 갱신" value={saveSummary.updated} />
+              <ResultLine label="중복 병합" value={saveSummary.merged ?? 0} />
+              <ResultLine label="이메일 추가" value={saveSummary.emails_added ?? 0} />
+              <ResultLine label="연락처 추가" value={saveSummary.phones_added ?? 0} />
+              <ResultLine label="담당구분 추가" value={saveSummary.roles_added ?? 0} />
+              <ResultLine
+                label="현재 목록에서 제외"
+                value={saveSummary.baseline_excluded ?? saveSummary.review_missing ?? 0}
+              />
+              <ResultLine
+                label="교육/행사 이력만 남은 제외"
+                value={saveSummary.history_only_excluded ?? 0}
+              />
+              <ResultLine label="제외(파일)" value={saveSummary.skipped ?? 0} />
+              <ResultLine label="검토 필요" value={saveSummary.review ?? 0} />
               <ResultLine label="오류" value={saveSummary.errors} />
               {selectedType === "training_attendance_detail" ? (
                 <>
@@ -1058,14 +1252,55 @@ export default function UploadPage() {
         </div>
 
         {selectedType === "partner_master" && partnerMasterResult ? (
-          <PartnerMasterPreviewTable items={partnerMasterPreview.items} loading={partnerMasterPreview.loading} />
+          <>
+            <PartnerMasterGradePreviewTable rows={partnerMasterResult.rows.filter((row) => !row.excluded)} />
+            <div className="mt-4">
+              <PartnerMasterPreviewTable
+                items={partnerMasterPreview.items}
+                loading={partnerMasterPreview.loading}
+              />
+            {partnerMasterUploadMode === "full_sync" && partnerMasterMissing.length > 0 ? (
+              <div className="mt-4">
+                <p className="mb-2 text-xs font-semibold text-amber-800">
+                  엑셀에서 누락됨 ({partnerMasterMissing.length}건)
+                </p>
+                <PreviewTable
+                  headers={["파트너번호", "회사명", "사업자번호"]}
+                  rows={partnerMasterMissing.slice(0, 50).map((item) => [
+                    item.external_no ?? "-",
+                    item.company_name,
+                    item.business_number ?? "-"
+                  ])}
+                />
+              </div>
+            ) : null}
+            </div>
+          </>
         ) : null}
 
         {selectedType === "partner_contacts" && partnerContactsResult ? (
-          <PartnerContactsPreviewTable
-            items={partnerContactsPreview.items}
-            loading={partnerContactsPreview.loading}
-          />
+          <>
+            <PartnerContactsPreviewTable
+              items={partnerContactsPreview.items}
+              loading={partnerContactsPreview.loading}
+            />
+            {partnerContactsReviewMissing.length > 0 ? (
+              <div className="mt-4">
+                <p className="mb-2 text-xs font-semibold text-amber-800">
+                  검토 필요 이동 예정 ({partnerContactsReviewMissing.length}명)
+                </p>
+                <PreviewTable
+                  headers={["회사명", "담당자", "이메일", "사유"]}
+                  rows={partnerContactsReviewMissing.slice(0, 100).map((item) => [
+                    item.partner_name,
+                    item.contact_name,
+                    item.email ?? "-",
+                    item.reason
+                  ])}
+                />
+              </div>
+            ) : null}
+          </>
         ) : null}
 
         {selectedType === "partner_training_summary" && partnerTrainingResult ? (
@@ -1123,11 +1358,11 @@ export default function UploadPage() {
           ) : selectedType === "partner_contacts" ? (
             <ReviewList
               rows={partnerContactsPreview.items
-                .filter((item) => item.action === "review")
+                .filter((item) => item.action === "review" || item.action === "duplicate")
                 .map((item) => ({
                   key: `contact-${item.row_number}`,
-                  title: `${item.company_name} / ${item.contact_name}`,
-                  description: item.reason
+                  title: `${item.company_name} / ${item.contact_name || "(이름 없음)"}`,
+                  description: `[${PARTNER_CONTACTS_ACTION_LABEL[item.action]}] ${item.reason}`
                 }))}
             />
           ) : selectedType === "partner_equipment" ? (
@@ -1202,6 +1437,7 @@ function SummaryPanel({
   selectedMeta,
   partnerMasterResult,
   partnerMasterPreview,
+  partnerMasterMissing,
   partnerContactsResult,
   partnerContactsPreview,
   partnerEquipmentResult,
@@ -1216,6 +1452,7 @@ function SummaryPanel({
   selectedMeta: UploadTypeMeta;
   partnerMasterResult: PartnerMasterParseResult | null;
   partnerMasterPreview: MatchState<PartnerMasterAnalysisItem, PartnerMasterAnalysisSummary>;
+  partnerMasterMissing: PartnerMasterMissingItem[];
   partnerContactsResult: PartnerContactsParseResult | null;
   partnerContactsPreview: MatchState<PartnerContactsAnalysisItem, PartnerContactsAnalysisSummary>;
   partnerEquipmentResult: PartnerEquipmentParseResult | null;
@@ -1231,19 +1468,26 @@ function SummaryPanel({
   if (selectedType === "partner_master" && partnerMasterResult) {
     cards.push(
       { label: "전체 행 수", value: partnerMasterPreview.summary.total },
-      { label: "신규 생성 예정", value: partnerMasterPreview.summary.create },
-      { label: "업데이트 예정", value: partnerMasterPreview.summary.update },
-      { label: "제외 예정", value: partnerMasterPreview.summary.skip },
-      { label: "확인필요 예정", value: partnerMasterPreview.summary.review }
+      { label: "신규 추가", value: partnerMasterPreview.summary.create },
+      { label: "기존 갱신", value: partnerMasterPreview.summary.update },
+      { label: "변경 없음", value: partnerMasterPreview.summary.skip },
+      { label: "중복 의심", value: partnerMasterPreview.summary.review },
+      {
+        label: "엑셀 누락",
+        value: partnerMasterPreview.summary.missing_from_excel ?? partnerMasterMissing.length
+      }
     );
   } else if (selectedType === "partner_contacts" && partnerContactsResult) {
     cards.push(
       { label: "전체 행 수", value: partnerContactsPreview.summary.total },
-      { label: "파트너 매칭 성공 수", value: partnerContactsPreview.summary.matched_partners },
-      { label: "담당자 신규 생성 예정", value: partnerContactsPreview.summary.create },
-      { label: "담당자 업데이트 예정", value: partnerContactsPreview.summary.update },
-      { label: "제외 예정", value: partnerContactsPreview.summary.skip },
-      { label: "확인필요 예정", value: partnerContactsPreview.summary.review }
+      { label: "파트너 매칭 성공", value: partnerContactsPreview.summary.matched_partners },
+      { label: "신규 담당자", value: partnerContactsPreview.summary.create },
+      { label: "기존 담당자 갱신", value: partnerContactsPreview.summary.update },
+      { label: "이름 없음/검토 필요", value: partnerContactsPreview.summary.review },
+      { label: "중복 의심", value: partnerContactsPreview.summary.duplicate },
+      { label: "중복 병합", value: partnerContactsPreview.summary.merge },
+      { label: "현재 목록 제외 예정", value: partnerContactsPreview.summary.baseline_excluded },
+      { label: "제외", value: partnerContactsPreview.summary.skip }
     );
   } else if (selectedType === "partner_equipment" && partnerEquipmentResult) {
     cards.push(
@@ -1318,6 +1562,28 @@ function SummaryPanel({
   );
 }
 
+function PartnerMasterGradePreviewTable({ rows }: { rows: ParsedPartnerMasterRow[] }) {
+  if (rows.length === 0) return null;
+
+  return (
+    <div className="mb-4">
+      <p className="mb-2 text-xs font-semibold text-slate-600">등급 적용 미리보기</p>
+      <PreviewTable
+        headers={["회사명", "등급", "등급(변경)", "최종 적용 등급"]}
+        rows={rows.slice(0, 50).map((row) => [
+          row.company_name,
+          row.grade_original ?? "-",
+          row.grade_change_raw ?? "-",
+          PARTNER_GRADE_LABEL[row.grade ?? "none"] ?? row.grade ?? "-"
+        ])}
+      />
+      {rows.length > 50 ? (
+        <p className="mt-2 text-xs text-slate-500">등급 미리보기는 상위 50행만 표시합니다.</p>
+      ) : null}
+    </div>
+  );
+}
+
 function PartnerMasterPreviewTable({
   items,
   loading
@@ -1330,14 +1596,25 @@ function PartnerMasterPreviewTable({
 
   return (
     <PreviewTable
-      headers={["row_number", "company_name", "business_number", "action", "reason", "주요 변경 필드"]}
+      headers={[
+        "행",
+        "파트너번호",
+        "회사명",
+        "사업자번호",
+        "처리",
+        "사유",
+        "변경 필드",
+        "주의"
+      ]}
       rows={items.map((item) => [
         String(item.row_number),
+        item.external_no ?? "-",
         item.company_name,
         item.business_number ?? "-",
-        item.action,
+        PARTNER_MASTER_ACTION_LABEL[item.action] ?? item.action,
         item.reason,
-        item.changed_fields.join(", ") || "-"
+        item.changed_fields.join(", ") || "-",
+        item.warnings?.join(" ") || "-"
       ])}
     />
   );
@@ -1357,29 +1634,31 @@ function PartnerContactsPreviewTable({
     <PreviewTable
       headers={[
         "row_number",
+        "partner_no",
         "company_name",
         "contact_name",
         "role_raw",
-        "role_type",
         "department",
         "position",
         "phone",
         "email",
+        "계약담당자",
         "action",
         "reason",
         "matched_partner_name"
       ]}
       rows={items.map((item) => [
         String(item.row_number),
+        item.partner_no ?? "-",
         item.company_name,
-        item.contact_name,
+        item.contact_name || "-",
         item.role_raw ?? "-",
-        item.role_type,
         item.department ?? "-",
         item.position ?? "-",
         item.phone ?? "-",
         item.email ?? "-",
-        item.action,
+        item.is_contract_contact ? "O" : "-",
+        PARTNER_CONTACTS_ACTION_LABEL[item.action],
         item.reason,
         item.matched_partner_name ?? "-"
       ])}

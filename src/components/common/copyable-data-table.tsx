@@ -25,6 +25,8 @@ type CopyableDataTableProps<T> = {
   minWidth?: string;
   csvRows?: CsvRow[];
   csvFilenamePrefix?: string;
+  scrollable?: boolean;
+  scrollMaxHeight?: string;
 };
 
 export function CopyableDataTable<T>({
@@ -37,7 +39,9 @@ export function CopyableDataTable<T>({
   defaultDir = "asc",
   minWidth,
   csvRows,
-  csvFilenamePrefix
+  csvFilenamePrefix,
+  scrollable = false,
+  scrollMaxHeight = "calc(100vh - 320px)"
 }: CopyableDataTableProps<T>) {
   const getRowId = useMemo(() => rowKey, [rowKey]);
   const selection = useTableSelection(rows, getRowId);
@@ -53,7 +57,7 @@ export function CopyableDataTable<T>({
         allRows={copyableRows}
         selectedIds={selection.selectedIds}
         selectedCount={selection.selectedCount}
-        filterResultCount={rows.length}
+        totalCount={rows.length}
         onClearSelection={selection.clearSelection}
         selectedRowTsv={selectedRowTsv}
         csvRows={csvRows}
@@ -72,6 +76,8 @@ export function CopyableDataTable<T>({
         onToggleAll={selection.toggleAll}
         allSelected={selection.allSelected}
         someSelected={selection.someSelected}
+        scrollable={scrollable}
+        scrollMaxHeight={scrollMaxHeight}
       />
     </>
   );

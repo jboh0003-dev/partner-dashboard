@@ -1,5 +1,6 @@
 import * as XLSX from "xlsx";
-import { normalizeGrade, parseContractDate } from "@/lib/excel/parse-partner-contracts";
+import { parseContractDate } from "@/lib/excel/parse-partner-contracts";
+import { pickGradeColumnsFromRow } from "@/lib/partners/grade";
 import { normalizeBusinessNumber, normalizeCompanyName } from "@/lib/partner-match";
 
 export const PARTNER_MASTER_SOURCE_FILE = "파트너관리.xlsx";
@@ -15,6 +16,9 @@ export type ParsedPartnerMasterRow = {
   external_no: string | null;
   contract_start_date: string | null;
   grade: string | null;
+  grade_original: string | null;
+  grade_change_raw: string | null;
+  /** @deprecated grade_change_raw 우선 — 하위 호환용 */
   grade_raw: string | null;
   website: string | null;
   ceo_name: string | null;
@@ -81,6 +85,8 @@ function parseRow(row: Record<string, unknown>, index: number): ParsedPartnerMas
       external_no: null,
       contract_start_date: null,
       grade: null,
+      grade_original: null,
+      grade_change_raw: null,
       grade_raw: null,
       website: null,
       ceo_name: null,
@@ -108,9 +114,7 @@ function parseRow(row: Record<string, unknown>, index: number): ParsedPartnerMas
   );
   if (contractDate.warning) warnings.push(contractDate.warning);
 
-  const gradeRaw = normalizeEmpty(
-    pickString(row, ["등급 변경", "등급변경", "등급 원문", "등급"])
-  );
+  const gradeFields = pickGradeColumnsFromRow(row, pickString);
   const contractEmail = normalizeEmail(
     normalizeEmpty(
       pickString(row, ["계약 담당자 이메일", "계약담당자 이메일", "계약담당자 메일", "계약 담당자 메일"])
@@ -130,8 +134,10 @@ function parseRow(row: Record<string, unknown>, index: number): ParsedPartnerMas
       pickString(row, ["번호", "No", "NO", "파트너번호"])
     ),
     contract_start_date: contractDate.iso,
-    grade: gradeRaw ? normalizeGrade(gradeRaw) : null,
-    grade_raw: gradeRaw,
+    grade: gradeFields.grade,
+    grade_original: gradeFields.grade_original,
+    grade_change_raw: gradeFields.grade_change_raw,
+    grade_raw: gradeFields.grade_change_raw ?? gradeFields.grade_original,
     website: normalizeEmpty(pickString(row, ["홈페이지", "웹사이트", "website", "URL"])),
     ceo_name: normalizeEmpty(pickString(row, ["대표이사", "대표자", "대표"])),
     address: normalizeEmpty(pickString(row, ["주소", "본사 주소"])),
@@ -158,14 +164,14 @@ function parseRow(row: Record<string, unknown>, index: number): ParsedPartnerMas
   };
 }
 
-function pickRaw(row: Record<string, unknown>, keys: string[]): unknown {
+function pickRaw(row: Record<string, unknown>, keys: readonly string[]): unknown {
   for (const key of keys) {
     if (key in row) return row[key];
   }
   return undefined;
 }
 
-function pickString(row: Record<string, unknown>, keys: string[]): string {
+function pickString(row: Record<string, unknown>, keys: readonly string[]): string {
   const value = pickRaw(row, keys);
   if (value == null) return "";
   if (value instanceof Date) return value.toISOString();

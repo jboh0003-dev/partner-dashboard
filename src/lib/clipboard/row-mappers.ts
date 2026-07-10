@@ -1,15 +1,18 @@
 import { getContactAssignmentLabel } from "@/lib/contacts/display";
+import { formatPartnerNo } from "@/lib/partners/partner-no";
 import type { CopyableRow } from "@/lib/clipboard/table-copy";
 import type { ContactTableRow } from "@/components/contacts/contacts-table";
 import type { PartnerListRow } from "@/lib/partners/list";
 import type { TrainingAttendeeRow } from "@/components/trainings/training-attendees-table";
 import type { RecruitmentRow } from "@/lib/trainings/recruitment";
 import type { TechPartnerParticipantRecord } from "@/lib/imports/tech-partner-training";
-import { PARTNER_GRADE_LABEL } from "@/lib/constants";
+import { getDisplayPartnerGradeLabel } from "@/lib/partners/grade";
 
 export function contactRowToCopyable(row: ContactTableRow): CopyableRow {
+  const partnerNo = formatPartnerNo({ external_no: row.partner_no });
   return {
     id: row.id,
+    partnerNo: partnerNo === "-" ? null : partnerNo,
     companyName: row.company_name,
     name: row.name,
     role: getContactAssignmentLabel({
@@ -23,8 +26,9 @@ export function contactRowToCopyable(row: ContactTableRow): CopyableRow {
 }
 
 export const CONTACT_SELECTED_ROW_TSV = {
-  headers: ["회사명", "이름", "역할", "직급", "연락처", "이메일"],
+  headers: ["파트너번호", "회사명", "이름", "역할", "직급", "연락처", "이메일"],
   getValues: (row: CopyableRow) => [
+    row.partnerNo ?? "",
     row.companyName ?? "",
     row.name ?? "",
     row.role ?? "",
@@ -40,7 +44,7 @@ export function partnerRowToCopyable(row: PartnerListRow): CopyableRow {
     companyName: row.partner.company_name,
     name: row.contactName,
     role:
-      PARTNER_GRADE_LABEL[row.partner.grade ?? "none"] ?? row.partner.grade ?? null,
+      getDisplayPartnerGradeLabel(row.partner),
     position: row.contactPosition,
     phone: row.contactPhone,
     email: row.contactEmail

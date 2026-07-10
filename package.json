@@ -7,7 +7,17 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "cleanup:storage:dry": "npx tsx scripts/cleanup-partner-document-duplicates.ts",
+    "cleanup:storage:delete": "powershell -NoProfile -Command \"$env:CONFIRM_DELETE='true'; npx tsx scripts/cleanup-partner-document-duplicates.ts\"",
+    "cleanup:storage:nonessential:dry": "npx tsx scripts/cleanup-storage-nonessential.ts",
+    "cleanup:storage:nonessential:delete": "powershell -NoProfile -Command \"$env:CONFIRM_DELETE='true'; npx tsx scripts/cleanup-storage-nonessential.ts\"",
+    "cleanup:contacts:invalid-names:dry": "npx tsx scripts/cleanup-invalid-contact-names.ts",
+    "cleanup:contacts:invalid-names:delete": "powershell -NoProfile -Command \"$env:CONFIRM_DELETE='true'; npx tsx scripts/cleanup-invalid-contact-names.ts\"",
+    "merge:contacts:dry": "npx tsx scripts/merge-duplicate-contacts.ts",
+    "merge:contacts:run": "powershell -NoProfile -Command \"$env:CONFIRM_MERGE='true'; npx tsx scripts/merge-duplicate-contacts.ts\"",
+    "normalize:phones:dry": "npx tsx scripts/normalize-contact-phones.ts",
+    "normalize:phones:run": "powershell -NoProfile -Command \"$env:CONFIRM_NORMALIZE='true'; npx tsx scripts/normalize-contact-phones.ts\""
   },
   "dependencies": {
     "@supabase/ssr": "latest",

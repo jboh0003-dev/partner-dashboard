@@ -68,6 +68,7 @@ export type PartnerEventHistoryItem = {
 export type PartnerDetailBundle = {
   partner: Partner;
   contacts: PartnerContact[];
+  inactiveContacts: PartnerContact[];
   notes: PartnerNote[];
   trainings: PartnerTrainingHistoryItem[];
   trainingSessions: PartnerTrainingSessionGroup[];

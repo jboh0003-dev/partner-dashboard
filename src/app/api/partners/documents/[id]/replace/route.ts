@@ -1,6 +1,5 @@
 import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/auth/require-admin";
 import { PARTNER_DOCUMENTS_BUCKET } from "@/lib/documents/constants";
 import {
   computeFileHash,
@@ -17,15 +16,12 @@ import {
 } from "@/lib/documents/storage-path";
 import { createAdminClient } from "@/lib/supabase/admin";
 
+// TODO(auth): 추후 admin/user 권한 적용 예정 — requireAdmin() 검증 추가
+
 export async function POST(
   request: Request,
   context: { params: Promise<{ id: string }> }
 ) {
-  const auth = await requireAdmin();
-  if (!auth.ok) {
-    return NextResponse.json({ ok: false, message: auth.message }, { status: auth.status });
-  }
-
   try {
     const { id } = await context.params;
     const formData = await request.formData();
@@ -116,7 +112,7 @@ export async function POST(
         duplicate_of: null,
         deleted_at: null,
         document_status: "active",
-        uploaded_by: auth.userId
+        uploaded_by: "dashboard-manual"
       })
       .eq("id", id);
 

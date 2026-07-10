@@ -7,6 +7,8 @@ import {
   DocumentFileNameLink,
   DocumentPreviewButton
 } from "@/components/documents/document-row-actions";
+import { ConfirmDialog } from "@/components/common/confirm-dialog";
+import { PartnerDocumentAddModal } from "@/components/partners/partner-document-add-modal";
 import { groupDocumentsForPartnerTab, isVisibleDocument } from "@/lib/documents/duplicate-detection";
 import {
   comparePartnerDocumentsForTab,
@@ -16,8 +18,8 @@ import { formatDate } from "@/lib/utils";
 import type { PartnerDocument } from "@/types/document";
 
 type PartnerDocumentsTabProps = {
+  partnerId: string;
   documents: PartnerDocument[];
-  isAdmin?: boolean;
 };
 
 function toDuplicateRow(doc: PartnerDocument) {
@@ -37,10 +39,9 @@ function toDuplicateRow(doc: PartnerDocument) {
   };
 }
 
-export function PartnerDocumentsTab({
-  documents,
-  isAdmin = false
-}: PartnerDocumentsTabProps) {
+export function PartnerDocumentsTab({ partnerId, documents }: PartnerDocumentsTabProps) {
+  const [addOpen, setAddOpen] = useState(false);
+
   const visibleDocuments = useMemo(() => {
     const active = documents.filter((doc) => !doc.deleted_at && isVisibleDocument(doc));
     const groups = groupDocumentsForPartnerTab(active.map(toDuplicateRow));
@@ -53,62 +54,59 @@ export function PartnerDocumentsTab({
     return [...representatives].sort(comparePartnerDocumentsForTab);
   }, [documents]);
 
-  if (documents.filter((doc) => !doc.deleted_at).length === 0) {
-    return (
-      <div className="rounded-xl border border-dashed border-slate-200 px-6 py-10 text-center">
-        <p className="text-sm font-medium text-slate-700">등록된 문서가 없습니다.</p>
-        <p className="mt-2 text-sm text-slate-500">
-          문서 업로드 메뉴에서 파트너 신청서, 사업자등록증 등을 등록할 수 있습니다.
-        </p>
-      </div>
-    );
-  }
-
-  if (visibleDocuments.length === 0) {
-    return (
-      <div className="rounded-xl border border-dashed border-slate-200 px-6 py-10 text-center">
-        <p className="text-sm font-medium text-slate-700">표시할 문서가 없습니다.</p>
-        <p className="mt-2 text-sm text-slate-500">
-          파트너사별 주요 문서를 조회할 수 있습니다.
-        </p>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-4">
-      <p className="text-xs text-slate-500">파트너사별 주요 문서를 조회할 수 있습니다.</p>
-
-      <div className="overflow-hidden rounded-xl border border-slate-200">
-        <div className="hidden border-b border-slate-200 bg-slate-50 px-4 py-2.5 text-xs font-semibold text-slate-500 md:grid md:grid-cols-[8.5rem_1fr_7rem_7rem_auto] md:gap-3">
-          <div>문서 구분</div>
-          <div>파일명</div>
-          <div>계약일</div>
-          <div>등록일</div>
-          <div />
-        </div>
-
-        <div className="divide-y divide-slate-100">
-          {visibleDocuments.map((document) => (
-            <DocumentRow key={document.id} document={document} isAdmin={isAdmin} />
-          ))}
-        </div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-xs text-slate-500">파트너사별 주요 문서를 조회·관리할 수 있습니다.</p>
+        <button type="button" onClick={() => setAddOpen(true)} className="ui-btn-primary text-sm">
+          문서 추가
+        </button>
       </div>
+
+      {documents.filter((doc) => !doc.deleted_at).length === 0 ? (
+        <div className="rounded-xl border border-dashed border-slate-200 px-6 py-10 text-center">
+          <p className="text-sm font-medium text-slate-700">등록된 문서가 없습니다.</p>
+          <p className="mt-2 text-sm text-slate-500">문서 추가 버튼으로 계약서, 사업자등록증 등을 등록할 수 있습니다.</p>
+        </div>
+      ) : visibleDocuments.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-slate-200 px-6 py-10 text-center">
+          <p className="text-sm font-medium text-slate-700">표시할 문서가 없습니다.</p>
+        </div>
+      ) : (
+        <div className="overflow-hidden rounded-xl border border-slate-200">
+          <div className="hidden border-b border-slate-200 bg-slate-50 px-4 py-2.5 text-xs font-semibold text-slate-500 md:grid md:grid-cols-[8.5rem_1fr_7rem_7rem_auto] md:gap-3">
+            <div>문서 구분</div>
+            <div>파일명</div>
+            <div>계약일</div>
+            <div>등록일</div>
+            <div />
+          </div>
+
+          <div className="divide-y divide-slate-100">
+            {visibleDocuments.map((document) => (
+              <DocumentRow key={document.id} document={document} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      <PartnerDocumentAddModal
+        open={addOpen}
+        partnerId={partnerId}
+        onClose={() => setAddOpen(false)}
+      />
     </div>
   );
 }
 
-function DocumentRow({
-  document,
-  isAdmin
-}: {
-  document: PartnerDocument;
-  isAdmin: boolean;
-}) {
+function DocumentRow({ document }: { document: PartnerDocument }) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmReplace, setConfirmReplace] = useState(false);
+  const [pendingReplaceFile, setPendingReplaceFile] = useState<File | null>(null);
 
   const documentSource = {
     document_type: document.document_type,
@@ -125,18 +123,14 @@ function DocumentRow({
     router.refresh();
   }
 
-  function handleDelete() {
-    const confirmed = window.confirm(
-      `「${displayName}」 문서를 삭제하시겠습니까?\n\nDB 레코드와 Storage 파일이 함께 삭제됩니다.`
-    );
-    if (!confirmed) return;
-
+  function runDelete() {
     startTransition(async () => {
       setMessage(null);
       const response = await fetch(`/api/partners/documents/${document.id}`, {
         method: "DELETE"
       });
       const json = (await response.json().catch(() => null)) as { ok?: boolean; message?: string } | null;
+      setConfirmDelete(false);
       if (!response.ok || !json?.ok) {
         setMessage(json?.message ?? "삭제에 실패했습니다.");
         return;
@@ -153,22 +147,25 @@ function DocumentRow({
     const file = event.target.files?.[0];
     event.target.value = "";
     if (!file) return;
+    setPendingReplaceFile(file);
+    setConfirmReplace(true);
+  }
 
-    const confirmed = window.confirm(
-      `「${displayName}」 문서를 새 파일로 교체하시겠습니까?\n\n기존 Storage 파일은 삭제됩니다.`
-    );
-    if (!confirmed) return;
+  function runReplace() {
+    if (!pendingReplaceFile) return;
 
     startTransition(async () => {
       setMessage(null);
       const formData = new FormData();
-      formData.set("file", file);
+      formData.set("file", pendingReplaceFile);
 
       const response = await fetch(`/api/partners/documents/${document.id}/replace`, {
         method: "POST",
         body: formData
       });
       const json = (await response.json().catch(() => null)) as { ok?: boolean; message?: string } | null;
+      setConfirmReplace(false);
+      setPendingReplaceFile(null);
       if (!response.ok || !json?.ok) {
         setMessage(json?.message ?? "교체에 실패했습니다.");
         return;
@@ -178,48 +175,65 @@ function DocumentRow({
   }
 
   return (
-    <div className="grid grid-cols-1 gap-3 px-4 py-3 md:grid-cols-[8.5rem_1fr_7rem_7rem_auto] md:items-center">
-      <div className="text-sm font-medium text-slate-700">
-        {getPartnerDocumentTabTypeLabel(document)}
+    <>
+      <div className="grid grid-cols-1 gap-3 px-4 py-3 md:grid-cols-[8.5rem_1fr_7rem_7rem_auto] md:items-center">
+        <div className="text-sm font-medium text-slate-700">
+          {getPartnerDocumentTabTypeLabel(document)}
+        </div>
+        <div className="text-sm">
+          <DocumentFileNameLink documentId={document.id} document={documentSource} />
+          {message ? <p className="mt-1 text-xs text-rose-600">{message}</p> : null}
+        </div>
+        <div className="text-sm tabular-nums text-slate-700">
+          {document.contract_date ? formatDate(document.contract_date) : "-"}
+        </div>
+        <div className="text-sm tabular-nums text-slate-700">{formatDate(document.created_at)}</div>
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <DocumentPreviewButton documentId={document.id} document={documentSource} />
+          <DocumentDownloadButton documentId={document.id} document={documentSource} />
+          <input ref={fileInputRef} type="file" className="hidden" onChange={handleReplaceFile} />
+          <button
+            type="button"
+            disabled={isPending}
+            onClick={handleReplaceClick}
+            className="rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-800 hover:bg-blue-100 disabled:opacity-50"
+          >
+            교체
+          </button>
+          <button
+            type="button"
+            disabled={isPending}
+            onClick={() => setConfirmDelete(true)}
+            className="rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-800 hover:bg-rose-100 disabled:opacity-50"
+          >
+            삭제
+          </button>
+        </div>
       </div>
-      <div className="text-sm">
-        <DocumentFileNameLink documentId={document.id} document={documentSource} />
-        {message ? <p className="mt-1 text-xs text-rose-600">{message}</p> : null}
-      </div>
-      <div className="text-sm tabular-nums text-slate-700">
-        {document.contract_date ? formatDate(document.contract_date) : "-"}
-      </div>
-      <div className="text-sm tabular-nums text-slate-700">{formatDate(document.created_at)}</div>
-      <div className="flex flex-wrap items-center gap-2 text-sm">
-        <DocumentPreviewButton documentId={document.id} document={documentSource} />
-        <DocumentDownloadButton documentId={document.id} document={documentSource} />
-        {isAdmin ? (
-          <>
-            <input
-              ref={fileInputRef}
-              type="file"
-              className="hidden"
-              onChange={handleReplaceFile}
-            />
-            <button
-              type="button"
-              disabled={isPending}
-              onClick={handleReplaceClick}
-              className="rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-800 hover:bg-blue-100 disabled:opacity-50"
-            >
-              교체
-            </button>
-            <button
-              type="button"
-              disabled={isPending}
-              onClick={handleDelete}
-              className="rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-800 hover:bg-rose-100 disabled:opacity-50"
-            >
-              삭제
-            </button>
-          </>
-        ) : null}
-      </div>
-    </div>
+
+      <ConfirmDialog
+        open={confirmDelete}
+        title="문서 삭제"
+        message={`「${displayName}」 문서를 삭제하시겠습니까?\n\nStorage 파일과 DB 레코드가 함께 삭제됩니다.`}
+        confirmLabel="삭제"
+        danger
+        loading={isPending}
+        onCancel={() => setConfirmDelete(false)}
+        onConfirm={runDelete}
+      />
+
+      <ConfirmDialog
+        open={confirmReplace}
+        title="문서 교체"
+        message={`「${displayName}」 문서를 새 파일로 교체하시겠습니까?\n\n기존 Storage 파일은 삭제됩니다.`}
+        confirmLabel="교체"
+        loading={isPending}
+        onCancel={() => {
+          setConfirmReplace(false);
+          setPendingReplaceFile(null);
+        }}
+        onConfirm={runReplace}
+      />
+    </>
   );
 }

@@ -3,17 +3,15 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { BrandLogo } from "@/components/layout/brand-logo";
+import { GlobalPartnerSearch } from "@/components/layout/global-partner-search";
 import { useOkePanel } from "@/components/search/oke-panel-context";
 import { OKE_MENU_LABEL } from "@/lib/search/oke-branding";
 import {
   Building2,
-  CalendarDays,
   FileText,
-  FlaskConical,
   GraduationCap,
   LayoutDashboard,
   MonitorUp,
-  ScrollText,
   Sparkles,
   TrendingUp,
   Upload,
@@ -40,18 +38,15 @@ const NAV_GROUPS: NavGroup[] = [
     title: "Partner",
     items: [
       { href: "/dashboard/partners", label: "파트너사", icon: Building2 },
-      { href: "/dashboard/performance", label: "실적/파이프라인", icon: TrendingUp },
       { href: "/dashboard/contacts", label: "인력·담당자", icon: Users },
-      { href: "/dashboard/documents", label: "문서 관리", icon: FileText },
-      { href: "/dashboard/policy", label: "파트너 정책", icon: ScrollText }
+      { href: "/dashboard/performance", label: "실적/파이프라인", icon: TrendingUp },
+      { href: "/dashboard/documents", label: "문서 관리", icon: FileText }
     ]
   },
   {
     title: "Operations",
     items: [
       { href: "/dashboard/trainings", label: "교육 현황", icon: GraduationCap },
-      { href: "/dashboard/events", label: "행사 현황", icon: CalendarDays },
-      { href: "/dashboard/pocs", label: "PoC 현황", icon: FlaskConical },
       { href: "/dashboard/assets", label: "장비·리소스", icon: MonitorUp }
     ]
   },
@@ -64,7 +59,6 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: "/dashboard/upload", label: "데이터 업로드", icon: Upload },
       { href: "/dashboard/performance/upload", label: "실적/파이프라인 업로드", icon: TrendingUp },
-      { href: "/dashboard/policy/upload", label: "파트너 정책 업로드", icon: ScrollText },
       { href: "/dashboard/trainings/tech-partner-upload", label: "기술파트너 교육 업로드", icon: GraduationCap }
     ]
   }
@@ -108,6 +102,7 @@ export function Sidebar() {
         <p className="mt-2.5 text-2xs font-medium uppercase tracking-wider text-slate-400">
           Enterprise Partner Portal
         </p>
+        <GlobalPartnerSearch />
       </div>
 
       <nav className="flex-1 overflow-y-auto px-3 py-4">

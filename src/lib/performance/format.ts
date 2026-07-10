@@ -21,6 +21,45 @@ export function formatEokPrimary(million: number | null | undefined): string {
   return `${eok.toLocaleString("ko-KR")}억`;
 }
 
+export function formatEokExecutive(
+  million: number | null | undefined,
+  options?: { treatZeroAsEmpty?: boolean }
+): string {
+  if (million == null || Number.isNaN(million)) return "데이터 없음";
+  if (options?.treatZeroAsEmpty && million === 0) return "데이터 없음";
+  const eok = millionToEok(million);
+  if (eok == null) return "데이터 없음";
+  return `${eok.toLocaleString("ko-KR")}억`;
+}
+
+export function formatEokDelta(million: number | null | undefined): string {
+  if (million == null || Number.isNaN(million)) return "-";
+  const eok = millionToEok(million);
+  if (eok == null) return "-";
+  const sign = eok >= 0 ? "+" : "";
+  return `${sign}${eok.toLocaleString("ko-KR")}억`;
+}
+
+export function formatSnapshotLabelShort(label: string, snapshotDate?: string): string {
+  const match = label.match(/(\d{2})(\d{2})(\d{2})/);
+  if (match) {
+    const month = Number(match[2]);
+    const day = Number(match[3]);
+    if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+      return `${month}/${day}`;
+    }
+  }
+
+  if (snapshotDate) {
+    const date = new Date(snapshotDate);
+    if (!Number.isNaN(date.getTime())) {
+      return `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, "0")}`;
+    }
+  }
+
+  return label.length > 8 ? label.slice(0, 8) : label;
+}
+
 export function formatCount(count: number | null | undefined): string {
   if (count == null) return "-";
   return `${count.toLocaleString("ko-KR")}건`;

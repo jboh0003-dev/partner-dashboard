@@ -1,9 +1,8 @@
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/layout/page-header";
 import { PartnerDetailTabs } from "@/components/partners/partner-detail-tabs";
-import { getViewerRole } from "@/lib/auth/require-admin";
 import { fetchPartnerDetailBundle } from "@/lib/data/partner-detail";
-import { PARTNER_GRADE_LABEL } from "@/lib/constants";
+import { getDisplayPartnerGradeLabel } from "@/lib/partners/grade";
 import { formatPartnerNo } from "@/lib/partners/partner-no";
 import { formatDate } from "@/lib/utils";
 import { addPartnerNote } from "./actions";
@@ -18,7 +17,8 @@ export default async function PartnerDetailPage({
   const { id } = await params;
   const { tab } = await searchParams;
   const bundle = await fetchPartnerDetailBundle(id);
-  const isAdmin = (await getViewerRole()) === "admin";
+  // TODO(auth): 추후 admin/user 권한 적용 예정
+  const isAdmin = true;
 
   if (!bundle) {
     notFound();
@@ -41,7 +41,7 @@ export default async function PartnerDetailPage({
         <SummaryCard label="파트너번호" value={formatPartnerNo(p)} />
         <SummaryCard
           label="등급"
-          value={PARTNER_GRADE_LABEL[p.grade ?? "none"] ?? p.grade ?? "-"}
+          value={getDisplayPartnerGradeLabel(p)}
         />
         <SummaryCard
           label="계약일자"

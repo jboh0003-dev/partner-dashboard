@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server";
-import { searchPartnersForEventLink } from "@/lib/data/event-partners";
+import { searchPartnersGlobal } from "@/lib/partners/global-search";
 
 export async function GET(request: Request) {
-  const q = new URL(request.url).searchParams.get("q") ?? "";
-  const partners = await searchPartnersForEventLink(q, 20);
+  const url = new URL(request.url);
+  const q = url.searchParams.get("q") ?? "";
+  const limitRaw = Number(url.searchParams.get("limit") ?? "10");
+  const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(limitRaw, 1), 20) : 10;
+
+  const partners = await searchPartnersGlobal(q, limit);
   return NextResponse.json({ partners });
 }

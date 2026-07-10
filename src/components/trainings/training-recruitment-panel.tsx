@@ -223,7 +223,7 @@ export function TrainingRecruitmentPanel({
         allRows={copyableRows}
         selectedIds={selection.selectedIds}
         selectedCount={selection.selectedCount}
-        filterResultCount={rows.length}
+        totalCount={rows.length}
         onClearSelection={selection.clearSelection}
         selectedRowTsv={RECRUITMENT_SELECTED_ROW_TSV}
         csvRows={csvRows}

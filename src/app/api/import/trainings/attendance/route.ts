@@ -1,6 +1,7 @@
 import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { deleteTempImportFile, writeImportLog } from "@/lib/imports/import-logs";
 import {
   analyzeTrainingAttendanceRows,
   type ExistingTrainingAttendanceRow,
@@ -43,15 +44,19 @@ type RowResult = {
 export async function POST(request: Request) {
   const supabase = createAdminClient();
   let importJobId: string | null = null;
+  let parsedFileName: string | null = null;
+  let parsedStoragePath: string | null = null;
 
   try {
     const json = await request.json();
     const parsed = TrainingAttendanceImportSchema.parse(json);
+    parsedFileName = parsed.file_name;
+    parsedStoragePath = parsed.storage_path ?? null;
 
     const { data: importJob, error: importJobError } = await supabase
       .from("import_jobs")
       .insert({
-        import_type: "training_attendance_detail",
+        import_type: "education_attendee_upload",
         file_name: parsed.file_name,
         status: "processing",
         total_rows: parsed.rows.length,
@@ -282,7 +287,7 @@ export async function POST(request: Request) {
     for (const reviewRow of reviewRows) {
       const { error } = await supabase.from("import_review_queue").insert({
         import_job_id: importJobId,
-        import_type: "training_attendance_detail",
+        import_type: "education_attendee_upload",
         row_number: reviewRow.row.row_number,
         company_name: reviewRow.row.company_name,
         reason: reviewRow.reason,
@@ -308,6 +313,23 @@ export async function POST(request: Request) {
       })
       .eq("id", importJobId);
     if (updateJobError) throw new Error(updateJobError.message);
+
+    const storageDeleted = await deleteTempImportFile(supabase, parsed.storage_path ?? null);
+
+    await writeImportLog(supabase, {
+      import_type: "education_attendee_upload",
+      original_filename: parsed.file_name,
+      total_rows: parsed.rows.length,
+      success_count: createdCount + updatedCount,
+      failed_count: 0,
+      review_count: reviewCount,
+      merge_count: 0,
+      excluded_count: skippedCount,
+      storage_file_deleted: storageDeleted,
+      storage_path: parsed.storage_path ?? null,
+      status: reviewCount > 0 ? "partial_success" : "success",
+      import_job_id: importJobId
+    });
 
     revalidatePath("/dashboard/trainings");
     revalidatePath("/dashboard/partners");
@@ -337,6 +359,27 @@ export async function POST(request: Request) {
           error_message: error instanceof Error ? error.message : "알 수 없는 오류"
         })
         .eq("id", importJobId);
+    }
+
+    if (parsedStoragePath) {
+      await deleteTempImportFile(supabase, parsedStoragePath);
+      if (parsedFileName) {
+        await writeImportLog(supabase, {
+          import_type: "education_attendee_upload",
+          original_filename: parsedFileName,
+          total_rows: 0,
+          success_count: 0,
+          failed_count: 1,
+          review_count: 0,
+          merge_count: 0,
+          excluded_count: 0,
+          storage_file_deleted: true,
+          storage_path: parsedStoragePath,
+          status: "failed",
+          error_message: error instanceof Error ? error.message : "저장 실패",
+          import_job_id: importJobId
+        });
+      }
     }
 
     return NextResponse.json(

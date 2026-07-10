@@ -1,7 +1,7 @@
 "use client";
 
-import { Copy, X } from "lucide-react";
-import { useCallback, useState } from "react";
+import { ChevronDown, Copy, X } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { CsvDownloadButton } from "@/components/common/csv-download-button";
 import { CopyToast } from "@/components/common/copy-toast";
 import {
@@ -18,11 +18,28 @@ type SelectedRowTsvConfig = {
   getValues: (row: CopyableRow) => string[];
 };
 
+type CopyMenuItem = {
+  format: CopyFormat;
+  label: string;
+};
+
+const COPY_MENU_ITEMS: CopyMenuItem[] = [
+  { format: "emails", label: "이메일 복사" },
+  { format: "phones", label: "연락처 복사" },
+  { format: "name_emails", label: "이름+이메일 복사" },
+  { format: "company_name_emails", label: "회사명+이름+이메일 복사" },
+  { format: "partner_no_company_name_emails", label: "파트너번호+회사명+이름+이메일 복사" },
+  { format: "selected_rows", label: "선택 행 복사" }
+];
+
 type TableCopyToolbarProps = {
   allRows: CopyableRow[];
   selectedIds: Set<string>;
   selectedCount: number;
-  filterResultCount: number;
+  /** 필터 조건에 맞는 전체 건수 */
+  totalCount: number;
+  /** 현재 페이지에 표시 중인 건수 */
+  pageCount?: number;
   onClearSelection: () => void;
   selectedRowTsv: SelectedRowTsvConfig;
   csvRows?: CsvRow[];
@@ -34,7 +51,8 @@ export function TableCopyToolbar({
   allRows,
   selectedIds,
   selectedCount,
-  filterResultCount,
+  totalCount,
+  pageCount,
   onClearSelection,
   selectedRowTsv,
   csvRows,
@@ -43,19 +61,26 @@ export function TableCopyToolbar({
 }: TableCopyToolbarProps) {
   const [message, setMessage] = useState<string | null>(null);
   const [messageTone, setMessageTone] = useState<"success" | "error">("success");
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   const targetRows =
-    selectedCount > 0
-      ? allRows.filter((row) => selectedIds.has(row.id))
-      : allRows;
+    selectedCount > 0 ? allRows.filter((row) => selectedIds.has(row.id)) : allRows;
 
   const scopeHint =
     selectedCount > 0
       ? `선택한 ${selectedCount.toLocaleString("ko-KR")}건 기준`
-      : `현재 필터 결과 ${filterResultCount.toLocaleString("ko-KR")}건 기준`;
+      : `전체 ${totalCount.toLocaleString("ko-KR")}건 기준`;
+
+  const visibleCount = pageCount ?? allRows.length;
+  const countLabel =
+    totalCount > visibleCount
+      ? `전체 ${totalCount.toLocaleString("ko-KR")}명 중 ${visibleCount.toLocaleString("ko-KR")}명 표시`
+      : `전체 ${totalCount.toLocaleString("ko-KR")}명`;
 
   const copy = useCallback(
     async (format: CopyFormat) => {
+      setMenuOpen(false);
       const payload = buildCopyPayload(format, targetRows, selectedRowTsv);
       if (!payload) {
         setMessageTone("error");
@@ -77,23 +102,24 @@ export function TableCopyToolbar({
     [targetRows, selectedRowTsv, scopeHint]
   );
 
+  useEffect(() => {
+    if (!menuOpen) return;
+    function handleClickOutside(event: MouseEvent) {
+      if (!menuRef.current?.contains(event.target as Node)) {
+        setMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [menuOpen]);
+
   return (
     <div className={className}>
-      <CopyToast
-        message={message}
-        tone={messageTone}
-        onDismiss={() => setMessage(null)}
-      />
+      <CopyToast message={message} tone={messageTone} onDismiss={() => setMessage(null)} />
 
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3 select-none">
         <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
-          <span>
-            {scopeHint} · 전체{" "}
-            <span className="font-semibold text-slate-700">
-              {filterResultCount.toLocaleString("ko-KR")}
-            </span>
-            건
-          </span>
+          <span>{countLabel}</span>
           {selectedCount > 0 ? (
             <>
               <span className="text-slate-300">|</span>
@@ -104,6 +130,7 @@ export function TableCopyToolbar({
                 type="button"
                 onClick={onClearSelection}
                 className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] font-semibold text-slate-600 hover:border-slate-300"
+                data-no-drag-scroll
               >
                 <X size={12} />
                 선택 해제
@@ -113,44 +140,38 @@ export function TableCopyToolbar({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <CopyActionButton label="이메일 복사" onClick={() => void copy("emails")} />
-          <CopyActionButton label="연락처 복사" onClick={() => void copy("phones")} />
-          <CopyActionButton
-            label="이름+이메일 복사"
-            onClick={() => void copy("name_emails")}
-          />
-          <CopyActionButton
-            label="회사명+이름+이메일 복사"
-            onClick={() => void copy("company_name_emails")}
-          />
-          <CopyActionButton
-            label="선택 행 복사"
-            onClick={() => void copy("selected_rows")}
-          />
+          <div className="relative" ref={menuRef}>
+            <button
+              type="button"
+              onClick={() => setMenuOpen((open) => !open)}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-blue-500 hover:text-blue-700"
+              data-no-drag-scroll
+            >
+              <Copy size={14} />
+              복사
+              <ChevronDown size={14} className={menuOpen ? "rotate-180 transition" : "transition"} />
+            </button>
+            {menuOpen ? (
+              <div className="absolute right-0 top-full z-30 mt-1 min-w-[15rem] rounded-xl border border-slate-200 bg-white py-1 shadow-lg">
+                {COPY_MENU_ITEMS.map((item) => (
+                  <button
+                    key={item.format}
+                    type="button"
+                    onClick={() => void copy(item.format)}
+                    className="block w-full px-3 py-2 text-left text-xs font-medium text-slate-700 hover:bg-slate-50"
+                    data-no-drag-scroll
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </div>
           {csvRows && csvFilenamePrefix ? (
             <CsvDownloadButton rows={csvRows} filenamePrefix={csvFilenamePrefix} />
           ) : null}
         </div>
       </div>
     </div>
-  );
-}
-
-function CopyActionButton({
-  label,
-  onClick
-}: {
-  label: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:border-blue-500 hover:text-blue-700"
-    >
-      <Copy size={14} />
-      {label}
-    </button>
   );
 }

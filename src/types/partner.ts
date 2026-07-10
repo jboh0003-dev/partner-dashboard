@@ -6,6 +6,9 @@ export type Partner = {
   company_name: string;
   business_number: string | null;
   grade: string | null;
+  grade_override: string | null;
+  grade_original: string | null;
+  grade_change_raw: string | null;
   grade_raw: string | null;
   status: PartnerStatus;
   ceo_name: string | null;
@@ -33,6 +36,10 @@ export type Partner = {
   theory_only: boolean;
   has_sales_opportunity: boolean;
   data_quality_warning: string | null;
+  is_active?: boolean;
+  deleted_at?: string | null;
+  edited_via_dashboard_at?: string | null;
+  updated_by?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -52,6 +59,18 @@ export type PartnerContact = {
   source_file: string | null;
   last_synced_at: string | null;
   memo: string | null;
+  is_active?: boolean;
+  deleted_at?: string | null;
+  previous_emails?: string[];
+  match_confidence?: number | null;
+  match_method?: string | null;
+  review_required?: boolean;
+  review_reason?: string | null;
+  contact_source?: string | null;
+  in_current_full_db?: boolean;
+  last_seen_in_full_sync_at?: string | null;
+  updated_at?: string;
+  edited_via_dashboard_at?: string | null;
   created_at: string;
 };
 

@@ -42,7 +42,12 @@ export type PartnerPipelineOpportunity = {
   is_partner_deal: boolean;
   partner_grade: string | null;
   partner_name: string | null;
+  raw_partner_name: string | null;
   matched_partner_id: string | null;
+  matched_partner_name: string | null;
+  match_status: string | null;
+  match_reason: string | null;
+  review_memo: string | null;
   is_product_revenue: boolean;
   contract_type: string | null;
   product_amount_million: number | null;
@@ -77,6 +82,7 @@ export type PartnerRevenueRecord = {
   project_count: number | null;
   source_sheet: string | null;
   source_file_name: string | null;
+  match_status?: string | null;
 };
 
 export type PipelinePartnerAggregate = {
@@ -109,6 +115,14 @@ export type ExecutivePerformanceStats = {
     product_revenue_million: number;
     project_count: number;
   }>;
+  revenue_summary: {
+    total_million: number;
+    total_project_count: number;
+    top_partner_name: string | null;
+    top_partner_million: number;
+    top_partner_project_count: number;
+    has_data: boolean;
+  };
   win_probability_breakdown: Array<{ label: string; amount_million: number; count: number }>;
   division_breakdown: Array<{ label: string; amount_million: number; count: number }>;
   grade_breakdown: Array<{ label: string; amount_million: number; count: number }>;

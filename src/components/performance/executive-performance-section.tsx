@@ -1,27 +1,51 @@
 import Link from "next/link";
-import { HorizontalBarChart, VerticalBarChart } from "@/components/dashboard/bar-chart";
+import { ExecutiveRankBarChart } from "@/components/dashboard/bar-chart";
 import { LineChart } from "@/components/dashboard/line-chart";
-import { formatCount, formatEok, formatEokPrimary, formatMillion, formatPercent } from "@/lib/performance/format";
+import {
+  formatCount,
+  formatEokDelta,
+  formatEokExecutive,
+  formatMillion,
+  formatPercent,
+  formatSnapshotLabelShort
+} from "@/lib/performance/format";
 import type { ExecutivePerformanceStats } from "@/types/partner-performance";
 
+const PIPELINE_CARD_CLASS =
+  "flex h-full min-h-[9rem] flex-col rounded-xl border border-slate-200 bg-white p-4 shadow-sm";
+
 export function ExecutivePerformanceSection({ stats }: { stats: ExecutivePerformanceStats }) {
+  return (
+    <>
+      <ExecutivePipelineSummarySection stats={stats} />
+      <ExecutivePipelineTrendSection stats={stats} />
+      <ExecutiveTopPartnersSection stats={stats} />
+    </>
+  );
+}
+
+export function ExecutivePipelineSummarySection({ stats }: { stats: ExecutivePerformanceStats }) {
   const latest = stats.latest_snapshot;
+
   if (!latest) {
     return (
-      <section className="mt-6 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6">
-        <h2 className="text-lg font-bold text-slate-900">파트너 실적/파이프라인</h2>
-        <p className="mt-2 text-sm text-slate-600">
+      <section className="mt-8 space-y-3">
+        <SectionHeader title="2026 파이프라인 요약" href="/dashboard/performance/upload" hrefLabel="업로드" />
+        <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-6 text-sm text-slate-600">
           아직 업로드된 파이프라인 스냅샷이 없습니다.{" "}
           <Link href="/dashboard/performance/upload" className="font-semibold text-okestro-600 hover:underline">
             실적/파이프라인 업로드
           </Link>
           에서 엑셀을 등록해 주세요.
-        </p>
+        </div>
       </section>
     );
   }
 
-  const prev = stats.previous_snapshot;
+  const topWin = stats.win_forecast_top10[0];
+  const revenue = stats.revenue_summary;
+  const hasRevenueData = revenue.has_data;
+
   const winShare =
     latest.total_pipeline_amount_million && latest.total_pipeline_amount_million > 0
       ? (latest.partner_pipeline_amount_million ?? 0) / latest.total_pipeline_amount_million
@@ -31,160 +55,324 @@ export function ExecutivePerformanceSection({ stats }: { stats: ExecutivePerform
       ? (latest.new_partner_pipeline_amount_million ?? 0) / latest.new_total_pipeline_amount_million
       : null;
 
-  const winDelta =
-    prev && prev.partner_pipeline_amount_million
-      ? (latest.partner_pipeline_amount_million ?? 0) - prev.partner_pipeline_amount_million
-      : null;
-  const newDelta =
-    prev && prev.new_partner_pipeline_amount_million
-      ? (latest.new_partner_pipeline_amount_million ?? 0) - prev.new_partner_pipeline_amount_million
-      : null;
-
-  const topWin = stats.win_forecast_top10[0];
-  const topRevenue = stats.revenue_top10[0];
-
   return (
-    <section className="mt-6 space-y-4">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h2 className="text-lg font-bold text-slate-900">파트너 실적/파이프라인</h2>
-          <p className="mt-1 text-xs text-slate-500">
-            기준일: {latest.snapshot_date} ({latest.snapshot_label}) · 금액 단위: 백만원 원본 / 억원 환산
-          </p>
-        </div>
-        <Link href="/dashboard/performance" className="text-sm font-semibold text-okestro-600 hover:underline">
-          상세 보기 →
-        </Link>
-      </div>
-
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-        <ExecKpi
+    <section className="mt-8 space-y-3">
+      <SectionHeader title="2026 파이프라인 요약" href="/dashboard/performance" hrefLabel="파이프라인 상세" />
+      <div
+        className={`grid gap-3 md:grid-cols-2 ${hasRevenueData ? "xl:grid-cols-4" : "xl:grid-cols-3"}`}
+      >
+        <PipelineCard
           title="2026 수주예상 파트너 파이프라인"
           amount={latest.partner_pipeline_amount_million}
           count={latest.partner_pipeline_count}
           share={winShare}
-          deltaMillion={winDelta}
         />
-        <ExecKpi
+        <PipelineCard
           title="2026 신규등록 파트너 파이프라인"
           amount={latest.new_partner_pipeline_amount_million}
           count={latest.new_partner_pipeline_count}
           share={newShare}
-          deltaMillion={newDelta}
         />
-        <ExecKpi
-          title="2025 파트너 매출"
-          amount={stats.revenue_top10.reduce((sum, row) => sum + row.product_revenue_million, 0)}
-          count={stats.revenue_top10.reduce((sum, row) => sum + row.project_count, 0)}
-        />
-        <ExecKpi
-          title="Top 파이프라인 파트너"
-          subtitle={topWin?.partner_name ?? "-"}
+        <TopPartnerCard
+          title="TOP 파이프라인 파트너"
+          partnerName={topWin?.partner_name}
           amount={topWin?.amount_million ?? null}
           count={topWin?.project_count ?? null}
         />
-        <ExecKpi
-          title="Top 매출 파트너"
-          subtitle={topRevenue?.partner_name ?? "-"}
-          amount={topRevenue?.product_revenue_million ?? null}
-          count={topRevenue?.project_count ?? null}
-        />
-        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
-          <p className="text-xs font-semibold uppercase text-amber-800">검토 필요</p>
-          <p className="mt-2 text-2xl font-bold text-amber-900">{stats.unmatched_partner_count}</p>
-          <p className="mt-1 text-xs text-amber-800">파트너명 매칭 실패 {stats.review_count}건</p>
-        </div>
-      </div>
-
-      <div className="grid gap-4 xl:grid-cols-3">
-        <ChartCard title="수주예상 파이프라인 추이">
-          <LineChart
-            data={stats.snapshot_trend.map((point) => ({
-              label: point.snapshot_label,
-              value: point.partner_pipeline_amount_million
-            }))}
-          />
-        </ChartCard>
-        <ChartCard title="신규등록 파이프라인 추이">
-          <LineChart
-            data={stats.snapshot_trend.map((point) => ({
-              label: point.snapshot_label,
-              value: point.new_partner_pipeline_amount_million
-            }))}
-          />
-        </ChartCard>
-        <ChartCard title="수주확도별 파이프라인">
-          <VerticalBarChart
-            data={stats.win_probability_breakdown.slice(0, 8).map((row) => ({
-              label: row.label,
-              value: row.amount_million
-            }))}
-            barColor="fill-violet-500"
-          />
-        </ChartCard>
-      </div>
-
-      <div className="grid gap-4 xl:grid-cols-2">
-        <ChartCard title="파트너별 수주예상 Top 10">
-          <HorizontalBarChart
-            data={stats.win_forecast_top10.map((row) => ({
-              label: row.partner_name,
-              value: row.amount_million
-            }))}
-          />
-        </ChartCard>
-        <ChartCard title="파트너별 신규등록 Top 10">
-          <HorizontalBarChart
-            data={stats.new_reg_top10.map((row) => ({
-              label: row.partner_name,
-              value: row.amount_million
-            }))}
-          />
-        </ChartCard>
+        {hasRevenueData ? <RevenueSummaryCard revenue={revenue} /> : null}
       </div>
     </section>
   );
 }
 
-function ExecKpi({
+export function ExecutivePipelineTrendSection({ stats }: { stats: ExecutivePerformanceStats }) {
+  const latest = stats.latest_snapshot;
+  if (!latest) return null;
+
+  const trendCount = stats.snapshot_trend.length;
+  const showLineCharts = trendCount >= 3;
+
+  return (
+    <section className="mt-8 space-y-3">
+      <SectionHeader title="파이프라인 추이" href="/dashboard/performance" hrefLabel="파이프라인 상세" />
+      {showLineCharts ? (
+        <div className="grid gap-4 lg:grid-cols-2">
+          <TrendChartCard
+            title="수주예상 파이프라인 추이"
+            data={stats.snapshot_trend.map((point) => ({
+              label: formatSnapshotLabelShort(point.snapshot_label, point.snapshot_date),
+              value: point.partner_pipeline_amount_million
+            }))}
+          />
+          <TrendChartCard
+            title="신규등록 파이프라인 추이"
+            data={stats.snapshot_trend.map((point) => ({
+              label: formatSnapshotLabelShort(point.snapshot_label, point.snapshot_date),
+              value: point.new_partner_pipeline_amount_million
+            }))}
+          />
+        </div>
+      ) : (
+        <div className="grid gap-4 lg:grid-cols-2">
+          <TrendComparisonCard
+            title="수주예상 파이프라인"
+            trend={stats.snapshot_trend}
+            valueKey="partner_pipeline_amount_million"
+          />
+          <TrendComparisonCard
+            title="신규등록 파이프라인"
+            trend={stats.snapshot_trend}
+            valueKey="new_partner_pipeline_amount_million"
+          />
+        </div>
+      )}
+    </section>
+  );
+}
+
+export function ExecutiveTopPartnersSection({ stats }: { stats: ExecutivePerformanceStats }) {
+  const latest = stats.latest_snapshot;
+  if (!latest) return null;
+
+  const hasRevenue = stats.revenue_top10.length > 0;
+
+  return (
+    <section className="mt-8 space-y-3">
+      <SectionHeader title="TOP 파트너" href="/dashboard/performance" hrefLabel="TOP 10 보기" />
+      <div className={`grid gap-4 ${hasRevenue ? "lg:grid-cols-3" : "lg:grid-cols-2"}`}>
+        <RankCard title="파트너별 수주예상 TOP 5">
+          <ExecutiveRankBarChart
+            data={stats.win_forecast_top10.slice(0, 5).map((row) => ({
+              label: row.partner_name,
+              value: row.amount_million
+            }))}
+            formatValue={(value) => formatEokExecutive(value) ?? "데이터 없음"}
+          />
+        </RankCard>
+        <RankCard title="파트너별 신규등록 TOP 5">
+          <ExecutiveRankBarChart
+            data={stats.new_reg_top10.slice(0, 5).map((row) => ({
+              label: row.partner_name,
+              value: row.amount_million
+            }))}
+            formatValue={(value) => formatEokExecutive(value) ?? "데이터 없음"}
+          />
+        </RankCard>
+        {hasRevenue ? (
+          <RankCard title="파트너별 2025 매출 TOP 5">
+            <ExecutiveRankBarChart
+              data={stats.revenue_top10.slice(0, 5).map((row) => ({
+                label: row.partner_name,
+                value: row.product_revenue_million
+              }))}
+              formatValue={(value) => formatEokExecutive(value) ?? "데이터 없음"}
+            />
+          </RankCard>
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
+function SectionHeader({
   title,
-  subtitle,
-  amount,
-  count,
-  share,
-  deltaMillion
+  href,
+  hrefLabel = "상세 보기"
 }: {
   title: string;
-  subtitle?: string;
-  amount: number | null;
-  count?: number | null;
-  share?: number | null;
-  deltaMillion?: number | null;
+  href?: string;
+  hrefLabel?: string;
 }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4">
-      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{title}</p>
-      {subtitle ? <p className="mt-1 text-sm font-medium text-slate-700">{subtitle}</p> : null}
-      <p className="mt-2 text-3xl font-bold text-slate-900">{formatEokPrimary(amount)}</p>
-      <p className="mt-1 text-sm text-slate-600">
-        {count != null ? formatCount(count) : "-"} · {formatMillion(amount)}
-      </p>
-      {share != null ? <p className="mt-1 text-xs text-slate-500">전체 대비 {formatPercent(share)}</p> : null}
-      {deltaMillion != null ? (
-        <p className={`mt-1 text-xs font-semibold ${deltaMillion >= 0 ? "text-emerald-700" : "text-red-600"}`}>
-          이전 스냅샷 대비 {deltaMillion >= 0 ? "+" : ""}
-          {formatMillion(deltaMillion)}
-        </p>
+    <div className="flex flex-wrap items-end justify-between gap-3">
+      <h2 className="text-lg font-bold text-slate-900">{title}</h2>
+      {href ? (
+        <Link href={href} className="text-sm font-semibold text-okestro-600 hover:underline">
+          {hrefLabel} →
+        </Link>
       ) : null}
     </div>
   );
 }
 
-function ChartCard({ title, children }: { title: string; children: React.ReactNode }) {
+function PipelineCard({
+  title,
+  amount,
+  count,
+  share
+}: {
+  title: string;
+  amount: number | null;
+  count: number | null;
+  share: number | null;
+}) {
   return (
-    <div className="flex min-h-[280px] flex-col rounded-xl border border-slate-200 bg-white p-4">
-      <h3 className="text-sm font-bold text-slate-900">{title}</h3>
-      <div className="mt-3 min-h-0 flex-1">{children}</div>
+    <div className={PIPELINE_CARD_CLASS}>
+      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{title}</p>
+      <p className="mt-2 text-3xl font-bold tabular-nums text-slate-950">
+        {formatEokExecutive(amount)}
+      </p>
+      <p className="mt-1 text-xs text-slate-500">
+        {formatCount(count)}
+        {amount != null ? ` · ${formatMillion(amount)}` : ""}
+      </p>
+      {share != null ? (
+        <p className="mt-auto pt-2 text-xs text-slate-500">전체 대비 {formatPercent(share)}</p>
+      ) : (
+        <div className="mt-auto" />
+      )}
+    </div>
+  );
+}
+
+function RevenueSummaryCard({ revenue }: { revenue: ExecutivePerformanceStats["revenue_summary"] }) {
+  return (
+    <div className={PIPELINE_CARD_CLASS}>
+      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">2025 파트너 매출</p>
+      <p className="mt-2 text-3xl font-bold tabular-nums text-slate-950">
+        {formatEokExecutive(revenue.total_million)}
+      </p>
+      <p className="mt-1 text-xs text-slate-500">
+        {formatCount(revenue.total_project_count)} · {formatMillion(revenue.total_million)}
+      </p>
+      {revenue.top_partner_name ? (
+        <p
+          className="mt-auto truncate pt-2 text-xs text-slate-500"
+          title={revenue.top_partner_name}
+        >
+          TOP {revenue.top_partner_name}{" "}
+          {formatEokExecutive(revenue.top_partner_million, { treatZeroAsEmpty: true })}
+        </p>
+      ) : (
+        <div className="mt-auto" />
+      )}
+    </div>
+  );
+}
+
+function TopPartnerCard({
+  title,
+  partnerName,
+  amount,
+  count,
+  emptyWhenNoData = false,
+  subtitleNote
+}: {
+  title: string;
+  partnerName?: string;
+  amount: number | null;
+  count: number | null;
+  emptyWhenNoData?: boolean;
+  subtitleNote?: string;
+}) {
+  const displayAmount = emptyWhenNoData
+    ? "데이터 없음"
+    : formatEokExecutive(amount, { treatZeroAsEmpty: true });
+
+  return (
+    <div className={PIPELINE_CARD_CLASS}>
+      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{title}</p>
+      <p
+        className="mt-1 truncate text-sm font-medium text-slate-700"
+        title={partnerName && partnerName !== "-" ? partnerName : undefined}
+      >
+        {emptyWhenNoData ? subtitleNote ?? "-" : partnerName ?? "-"}
+      </p>
+      <p className="mt-2 text-3xl font-bold tabular-nums text-slate-950">{displayAmount}</p>
+      {!emptyWhenNoData && count != null ? (
+        <p className="mt-1 text-xs text-slate-500">{formatCount(count)}</p>
+      ) : (
+        <div className="mt-auto" />
+      )}
+    </div>
+  );
+}
+
+function TrendChartCard({
+  title,
+  data
+}: {
+  title: string;
+  data: { label: string; value: number }[];
+}) {
+  return (
+    <div className="flex min-h-[280px] flex-col rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <h3 className="mb-3 text-sm font-semibold text-slate-900">{title}</h3>
+      <div className="min-h-0 flex-1">
+        <LineChart data={data} height={240} />
+      </div>
+    </div>
+  );
+}
+
+function TrendComparisonCard({
+  title,
+  trend,
+  valueKey
+}: {
+  title: string;
+  trend: ExecutivePerformanceStats["snapshot_trend"];
+  valueKey: "partner_pipeline_amount_million" | "new_partner_pipeline_amount_million";
+}) {
+  if (trend.length === 0) {
+    return (
+      <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-6 text-sm text-slate-500">
+        {title}: 데이터 없음
+      </div>
+    );
+  }
+
+  if (trend.length === 1) {
+    const current = trend[0]!;
+    const value = current[valueKey];
+    return (
+      <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <p className="text-sm font-semibold text-slate-900">{title}</p>
+        <p className="mt-3 text-2xl font-bold tabular-nums text-slate-950">
+          {formatEokExecutive(value)}
+        </p>
+        <p className="mt-1 text-xs text-slate-500">
+          기준 {formatSnapshotLabelShort(current.snapshot_label, current.snapshot_date)}
+        </p>
+      </div>
+    );
+  }
+
+  const prev = trend[trend.length - 2]!;
+  const curr = trend[trend.length - 1]!;
+  const prevValue = prev[valueKey];
+  const currValue = curr[valueKey];
+  const deltaMillion = currValue - prevValue;
+  const deltaPct =
+    prevValue > 0 ? Math.round(((currValue - prevValue) / prevValue) * 1000) / 10 : null;
+
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+      <p className="text-sm font-semibold text-slate-900">{title}</p>
+      <div className="mt-3 flex flex-wrap items-baseline gap-2 text-2xl font-bold tabular-nums text-slate-950">
+        <span>{formatEokExecutive(prevValue)}</span>
+        <span className="text-lg text-slate-400">→</span>
+        <span className="text-okestro-700">{formatEokExecutive(currValue)}</span>
+      </div>
+      <p className="mt-2 text-xs text-slate-500">
+        {formatSnapshotLabelShort(prev.snapshot_label, prev.snapshot_date)} →{" "}
+        {formatSnapshotLabelShort(curr.snapshot_label, curr.snapshot_date)}
+      </p>
+      <p
+        className={`mt-3 text-sm font-semibold ${deltaMillion >= 0 ? "text-emerald-700" : "text-red-600"}`}
+      >
+        전월 대비 {formatEokDelta(deltaMillion)}
+        {deltaPct != null ? ` (${deltaMillion >= 0 ? "+" : ""}${deltaPct}%)` : ""}
+      </p>
+    </div>
+  );
+}
+
+function RankCard({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <h3 className="mb-3 text-sm font-semibold text-slate-900">{title}</h3>
+      {children}
     </div>
   );
 }

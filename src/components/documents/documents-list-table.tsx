@@ -2,11 +2,13 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState, useTransition } from "react";
 import {
   ClientSortableTable,
   type SortableColumn
 } from "@/components/common/client-sortable-table";
+import { ConfirmDialog } from "@/components/common/confirm-dialog";
+import { CopyToast } from "@/components/common/copy-toast";
 import {
   DocumentDownloadButton,
   DocumentFileNameLink,
@@ -23,7 +25,7 @@ import {
   getDocumentDisplayFileName,
   getDocumentTypeShortLabel,
   getMatchStatusLabel,
-  hasPartnerNameMismatch,
+  getPublicDocumentStatusLabel,
   resolveMatchStatus
 } from "@/lib/documents/display";
 import { isManuallyConfirmedReview } from "@/lib/documents/review-status";
@@ -69,28 +71,30 @@ function toDocumentSource(row: DocumentListRow) {
 
 function MatchStatusBadge({
   status,
-  reviewStatus
+  reviewStatus,
+  isAdmin = false
 }: {
   status: DocumentMatchStatus;
   reviewStatus?: string | null;
+  isAdmin?: boolean;
 }) {
-  const label = isManuallyConfirmedReview(reviewStatus) ? "정상" : getMatchStatusLabel(status);
-  const className =
-    status === "matched"
+  const label = isAdmin
+    ? isManuallyConfirmedReview(reviewStatus)
+      ? "정상"
+      : getMatchStatusLabel(status)
+    : getPublicDocumentStatusLabel(status);
+  const className = isAdmin
+    ? status === "matched"
       ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
       : status === "needs_review"
         ? "bg-amber-50 text-amber-800 ring-amber-200"
-        : "bg-slate-100 text-slate-600 ring-slate-200";
+        : "bg-slate-100 text-slate-600 ring-slate-200"
+    : "bg-slate-100 text-slate-700 ring-slate-200";
 
   return (
-    <div className="space-y-1">
-      <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1 ${className}`}>
-        {label}
-      </span>
-      {isManuallyConfirmedReview(reviewStatus) ? (
-        <p className="text-[10px] text-slate-500">수동 확인 완료</p>
-      ) : null}
-    </div>
+    <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1 ${className}`}>
+      {label}
+    </span>
   );
 }
 
@@ -98,12 +102,18 @@ type DocumentRowActions = {
   onRematch: (row: DocumentListRow) => void;
   onAction: (documentId: string, action: "confirm" | "exclude" | "representative") => Promise<void>;
   pendingId: string | null;
+  isAdmin?: boolean;
+  onDelete?: (row: DocumentListRow) => void;
+  onReplace?: (row: DocumentListRow) => void;
 };
 
 function buildColumns({
   onRematch,
   onAction,
-  pendingId
+  pendingId,
+  isAdmin,
+  onDelete,
+  onReplace
 }: DocumentRowActions): SortableColumn<DocumentListRow>[] {
   return [
     {
@@ -112,31 +122,15 @@ function buildColumns({
       kind: "text",
       className: "min-w-[11rem]",
       value: (row) => row.partner_name,
-      render: (row) => {
-        const mismatch = hasPartnerNameMismatch({
-          partner_name: row.partner_name,
-          extracted_partner_name: row.extracted_partner_name,
-          match_status: row.match_status,
-          review_status: row.review_status
-        });
-
-        return (
-          <div className="min-w-[11rem] max-w-[18rem]">
-            <Link
-              href={`/dashboard/partners/${row.partner_id}?tab=documents`}
-              className="block truncate whitespace-nowrap font-semibold text-okestro-600 hover:text-okestro-700 hover:underline"
-              title={row.partner_name}
-            >
-              {row.partner_name}
-            </Link>
-            {mismatch && row.extracted_partner_name ? (
-              <p className="mt-1 text-[11px] text-amber-700">
-                파일명 추출: {row.extracted_partner_name}
-              </p>
-            ) : null}
-          </div>
-        );
-      }
+      render: (row) => (
+        <Link
+          href={`/dashboard/partners/${row.partner_id}?tab=documents`}
+          className="block min-w-[11rem] max-w-[18rem] truncate whitespace-nowrap font-semibold text-okestro-600 select-text hover:text-okestro-700 hover:underline"
+          title={row.partner_name}
+        >
+          {row.partner_name}
+        </Link>
+      )
     },
     {
       key: "document_type",
@@ -151,19 +145,7 @@ function buildColumns({
       kind: "text",
       value: (row) => getDocumentDisplayFileName(toDocumentSource(row)),
       render: (row) => (
-        <div className="space-y-1">
-          <DocumentFileNameLink documentId={row.id} document={toDocumentSource(row)} />
-          {row.is_duplicate ? (
-            <span className="inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
-              중복 숨김
-            </span>
-          ) : null}
-          {row.duplicate_reason === "near_duplicate_candidate" ? (
-            <span className="inline-flex rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
-              중복 후보
-            </span>
-          ) : null}
-        </div>
+        <DocumentFileNameLink documentId={row.id} document={toDocumentSource(row)} />
       )
     },
     {
@@ -196,6 +178,7 @@ function buildColumns({
             summary: row.summary
           })}
           reviewStatus={row.review_status}
+          isAdmin={isAdmin}
         />
       )
     },
@@ -217,10 +200,10 @@ function buildColumns({
         const isPending = pendingId === row.id;
 
         return (
-          <div className="flex flex-wrap items-center justify-end gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-2 select-none">
             <DocumentPreviewButton documentId={row.id} document={toDocumentSource(row)} />
             <DocumentDownloadButton documentId={row.id} document={toDocumentSource(row)} />
-            {status === "needs_review" ? (
+            {isAdmin && status === "needs_review" ? (
               <>
                 <button
                   type="button"
@@ -256,6 +239,22 @@ function buildColumns({
                 </button>
               </>
             ) : null}
+            <button
+              type="button"
+              disabled={isPending}
+              onClick={() => onReplace?.(row)}
+              className="rounded-md border border-blue-200 bg-blue-50 px-2.5 py-1 text-[11px] font-semibold text-blue-800 hover:bg-blue-100 disabled:opacity-50"
+            >
+              교체
+            </button>
+            <button
+              type="button"
+              disabled={isPending}
+              onClick={() => onDelete?.(row)}
+              className="rounded-md border border-rose-200 bg-rose-50 px-2.5 py-1 text-[11px] font-semibold text-rose-800 hover:bg-rose-100 disabled:opacity-50"
+            >
+              삭제
+            </button>
           </div>
         );
       }
@@ -265,14 +264,22 @@ function buildColumns({
 
 export function DocumentsListTable({
   rows,
-  partnerOptions
+  partnerOptions,
+  isAdmin = false
 }: {
   rows: DocumentListRow[];
   partnerOptions: PartnerOption[];
+  isAdmin?: boolean;
 }) {
   const router = useRouter();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [rematchDocument, setRematchDocument] = useState<DocumentListRow | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
+  const [replaceTarget, setReplaceTarget] = useState<DocumentListRow | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<DocumentListRow | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
 
   async function handleAction(
     documentId: string,
@@ -297,14 +304,72 @@ export function DocumentsListTable({
     }
   }
 
+  function handleReplaceClick(row: DocumentListRow) {
+    setReplaceTarget(row);
+    fileInputRef.current?.click();
+  }
+
+  function handleReplaceFile(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file || !replaceTarget) return;
+
+    startTransition(async () => {
+      setError(null);
+      const formData = new FormData();
+      formData.set("file", file);
+      const response = await fetch(`/api/partners/documents/${replaceTarget.id}/replace`, {
+        method: "POST",
+        body: formData
+      });
+      const json = (await response.json().catch(() => null)) as { ok?: boolean; message?: string } | null;
+      setReplaceTarget(null);
+      if (!response.ok || !json?.ok) {
+        setError(json?.message ?? "교체에 실패했습니다.");
+        return;
+      }
+      setToast("저장되었습니다.");
+      router.refresh();
+    });
+  }
+
+  function runDelete() {
+    if (!deleteTarget) return;
+    startTransition(async () => {
+      setError(null);
+      const response = await fetch(`/api/partners/documents/${deleteTarget.id}`, {
+        method: "DELETE"
+      });
+      const json = (await response.json().catch(() => null)) as { ok?: boolean; message?: string } | null;
+      setDeleteTarget(null);
+      if (!response.ok || !json?.ok) {
+        setError(json?.message ?? "삭제에 실패했습니다.");
+        return;
+      }
+      setToast("삭제되었습니다.");
+      router.refresh();
+    });
+  }
+
   return (
     <>
+      <CopyToast message={toast} onDismiss={() => setToast(null)} />
+      {error ? (
+        <div className="mb-3 rounded-lg border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm text-rose-800">
+          {error}
+        </div>
+      ) : null}
+      <input ref={fileInputRef} type="file" className="hidden" onChange={handleReplaceFile} />
+
       <ClientSortableTable
         rows={rows}
         columns={buildColumns({
           onRematch: setRematchDocument,
           onAction: handleAction,
-          pendingId
+          pendingId,
+          isAdmin,
+          onDelete: setDeleteTarget,
+          onReplace: handleReplaceClick
         })}
         defaultSortKey="created_at"
         defaultDir="desc"
@@ -317,6 +382,21 @@ export function DocumentsListTable({
         partnerOptions={partnerOptions}
         onClose={() => setRematchDocument(null)}
         onSaved={() => router.refresh()}
+      />
+
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        title="문서 삭제"
+        message={
+          deleteTarget
+            ? `「${getDocumentDisplayFileName(toDocumentSource(deleteTarget))}」 문서를 삭제하시겠습니까?\n\nDB 레코드와 Storage 파일이 함께 삭제됩니다.`
+            : ""
+        }
+        confirmLabel="삭제"
+        danger
+        loading={isPending}
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={runDelete}
       />
     </>
   );

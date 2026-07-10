@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { FileSpreadsheet, Loader2, UploadCloud } from "lucide-react";
 import type { PartnerPerformanceAnalysisResult } from "@/lib/imports/partner-performance";
@@ -18,6 +19,7 @@ type TabKey =
   | "raw";
 
 export function PerformanceUploadPanel() {
+  const router = useRouter();
   const [file, setFile] = useState<File | null>(null);
   const [analysis, setAnalysis] = useState<PartnerPerformanceAnalysisResult | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
@@ -101,6 +103,8 @@ export function PerformanceUploadPanel() {
       setSaveMessage(
         `저장 완료 — 스냅샷 ${json.snapshot_action}, 생성 ${json.created}건, 업데이트 ${json.updated}건, 검토 ${json.review}건`
       );
+      router.push("/dashboard/performance");
+      router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "저장 실패");
     } finally {

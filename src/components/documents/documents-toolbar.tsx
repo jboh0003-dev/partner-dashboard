@@ -4,17 +4,21 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { AlertCircle, Loader2, RefreshCw } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 
 type DocumentsToolbarProps = {
-  needsReviewCount: number;
+  isAdmin?: boolean;
 };
 
-export function DocumentsToolbar({ needsReviewCount }: DocumentsToolbarProps) {
+/** 관리자 전용 — 문서 매칭 재검사·중복 정리 */
+export function DocumentsToolbar({ isAdmin = false }: DocumentsToolbarProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
   const [isError, setIsError] = useState(false);
+
+  if (!isAdmin) {
+    return null;
+  }
 
   function handleReinspect() {
     startTransition(async () => {
@@ -26,7 +30,7 @@ export function DocumentsToolbar({ needsReviewCount }: DocumentsToolbarProps) {
         if (!response.ok || !json.ok) {
           throw new Error(json?.message ?? "문서 매칭 재검사에 실패했습니다.");
         }
-        setMessage(`재검사 완료: ${json.updated}건 업데이트, 확인 필요 ${json.needs_review}건`);
+        setMessage(`재검사 완료: ${json.updated}건 업데이트`);
         router.refresh();
       } catch (error) {
         setIsError(true);
@@ -50,11 +54,6 @@ export function DocumentsToolbar({ needsReviewCount }: DocumentsToolbarProps) {
         <Link href="/dashboard/documents/duplicates" className="ui-btn-secondary">
           문서 중복 정리
         </Link>
-        {needsReviewCount > 0 ? (
-          <Badge tone="warning">확인 필요 {needsReviewCount}건</Badge>
-        ) : (
-          <Badge tone="success">확인 필요 없음</Badge>
-        )}
       </div>
       {message ? (
         <div
