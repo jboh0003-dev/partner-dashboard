@@ -36,6 +36,7 @@ type ConfirmAction =
 type ContactsAdminTableProps = {
   rows: PersonContactRow[];
   totalCount?: number;
+  countLabel?: string;
   csvRows?: CsvRow[];
   partnerOptions: PartnerOption[];
   defaultPartnerId?: string;
@@ -46,6 +47,7 @@ type ContactsAdminTableProps = {
 export function ContactsAdminTable({
   rows,
   totalCount,
+  countLabel,
   csvRows,
   partnerOptions,
   defaultPartnerId,
@@ -406,7 +408,7 @@ export function ContactsAdminTable({
         selectedIds={selection.selectedIds}
         selectedCount={selection.selectedCount}
         totalCount={totalCount ?? rows.length}
-        pageCount={rows.length}
+        countLabel={countLabel}
         onClearSelection={selection.clearSelection}
         selectedRowTsv={CONTACT_SELECTED_ROW_TSV}
         csvRows={csvRows}
@@ -433,6 +435,8 @@ export function ContactsAdminTable({
           allSelected={selection.allSelected}
           someSelected={selection.someSelected}
           compact
+          scrollable
+          scrollMaxHeight="calc(100vh - 360px)"
           dragScroll
           stickyLeftKeys={["partner_no", "company_name", "name"]}
           stickyRightKeys={["actions"]}

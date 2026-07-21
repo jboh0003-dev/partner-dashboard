@@ -38,7 +38,9 @@ type TableCopyToolbarProps = {
   selectedCount: number;
   /** 필터 조건에 맞는 전체 건수 */
   totalCount: number;
-  /** 현재 페이지에 표시 중인 건수 */
+  /** 표시 문구 (미지정 시 totalCount 기준 자동 생성) */
+  countLabel?: string;
+  /** @deprecated 페이지네이션 제거 — countLabel 사용 */
   pageCount?: number;
   onClearSelection: () => void;
   selectedRowTsv: SelectedRowTsvConfig;
@@ -52,6 +54,7 @@ export function TableCopyToolbar({
   selectedIds,
   selectedCount,
   totalCount,
+  countLabel: countLabelProp,
   pageCount,
   onClearSelection,
   selectedRowTsv,
@@ -74,9 +77,10 @@ export function TableCopyToolbar({
 
   const visibleCount = pageCount ?? allRows.length;
   const countLabel =
-    totalCount > visibleCount
+    countLabelProp ??
+    (totalCount > visibleCount
       ? `전체 ${totalCount.toLocaleString("ko-KR")}명 중 ${visibleCount.toLocaleString("ko-KR")}명 표시`
-      : `전체 ${totalCount.toLocaleString("ko-KR")}명`;
+      : `전체 ${totalCount.toLocaleString("ko-KR")}명`);
 
   const copy = useCallback(
     async (format: CopyFormat) => {

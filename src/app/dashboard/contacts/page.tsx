@@ -8,12 +8,11 @@ import {
 import { ContactSummaryCards } from "@/components/contacts/contact-summary-cards";
 import { ContactsAdminTable } from "@/components/contacts/contacts-admin-table";
 import { ContactsLoadError } from "@/components/contacts/contacts-load-error";
-import { ContactsPagination } from "@/components/contacts/contacts-pagination";
 import { PageHeader } from "@/components/layout/page-header";
 import {
-  CONTACTS_PAGE_SIZE_DEFAULT,
+  buildContactsCountLabel,
   fetchBouncedContactIds,
-  fetchContactsListPage,
+  fetchContactsList,
   fetchContactsQuickStats,
   normalizeContactsRoleFilter
 } from "@/lib/contacts/contacts-list-query";
@@ -29,7 +28,6 @@ type SearchParams = {
   role?: string;
   partnerId?: string;
   view?: string;
-  page?: string;
 };
 
 export default async function ContactsPage({
@@ -41,18 +39,12 @@ export default async function ContactsPage({
   const partnerId = (params.partnerId ?? "").trim();
   const view = parseContactListView(params.view);
   const hrefParams = { q: params.q, role: params.role, partnerId };
-  const page = Math.max(1, Number.parseInt(params.page ?? "1", 10) || 1);
   const role = normalizeContactsRoleFilter(params.role);
   const q = (params.q ?? "").trim();
 
   let loadError: string | null = null;
-  let contacts = [] as Awaited<ReturnType<typeof fetchContactsListPage>>["rows"];
-  let listMeta = {
-    total: 0,
-    page: 1,
-    pageSize: CONTACTS_PAGE_SIZE_DEFAULT,
-    totalPages: 0
-  };
+  let contacts = [] as Awaited<ReturnType<typeof fetchContactsList>>["rows"];
+  let listTotal = 0;
   let stats = { activeCount: 0, reviewCount: 0, error: null as string | null };
   let partnerOptions: Array<{ id: string; company_name: string }> = [];
   let partnerFilter: { id: string; company_name: string } | null = null;
@@ -64,10 +56,8 @@ export default async function ContactsPage({
       view === "bounced" ? await fetchBouncedContactIds(supabase) : undefined;
 
     const [listResult, quickStats, partnersResult, partnerResult] = await Promise.all([
-      fetchContactsListPage(supabase, {
+      fetchContactsList(supabase, {
         view,
-        page,
-        pageSize: CONTACTS_PAGE_SIZE_DEFAULT,
         partnerId: partnerId || undefined,
         q: q || undefined,
         role,
@@ -89,12 +79,7 @@ export default async function ContactsPage({
       loadError = listResult.error;
     } else {
       contacts = listResult.rows;
-      listMeta = {
-        total: listResult.total,
-        page: listResult.page,
-        pageSize: listResult.pageSize,
-        totalPages: listResult.totalPages
-      };
+      listTotal = listResult.total;
     }
 
     if (quickStats.error && !loadError) {
@@ -135,6 +120,14 @@ export default async function ContactsPage({
     연락처: row.display_phone ?? row.phone ?? "",
     이메일: row.email ?? ""
   }));
+
+  const countLabel = buildContactsCountLabel({
+    total: listTotal,
+    view,
+    q,
+    role,
+    partnerId
+  });
 
   const filterLabel =
     partnerFilter && !isSamplePartner(partnerFilter)
@@ -244,18 +237,8 @@ export default async function ContactsPage({
           </form>
 
           <div className="mt-3 text-xs text-slate-500">
-            {listMeta.total > 0 ? (
-              <>
-                전체{" "}
-                <span className="font-semibold text-slate-700">
-                  {listMeta.total.toLocaleString("ko-KR")}
-                </span>
-                명 중{" "}
-                <span className="font-semibold text-slate-700">
-                  {contacts.length.toLocaleString("ko-KR")}
-                </span>
-                명 표시
-              </>
+            {listTotal > 0 ? (
+              <span className="font-semibold text-slate-700">{countLabel}</span>
             ) : (
               <>조건에 맞는 담당자가 없습니다.</>
             )}
@@ -276,20 +259,13 @@ export default async function ContactsPage({
 
           <ContactsAdminTable
             rows={contacts}
-            totalCount={listMeta.total}
+            totalCount={listTotal}
+            countLabel={countLabel}
             csvRows={exportRows}
             partnerOptions={partnerOptions}
             defaultPartnerId={partnerId || undefined}
             embedded
             showReviewReason={view === "review"}
-          />
-
-          <ContactsPagination
-            page={listMeta.page}
-            totalPages={listMeta.totalPages}
-            total={listMeta.total}
-            pageSize={listMeta.pageSize}
-            hrefParams={{ view: view !== "all" ? view : undefined, q, role, partnerId }}
           />
         </div>
       ) : null}

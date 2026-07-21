@@ -8,8 +8,8 @@ import {
 } from "@/lib/contacts/map-contact-list-row";
 import type { PersonContactRow } from "@/lib/contacts/person-groups";
 
-export const CONTACTS_PAGE_SIZE_DEFAULT = 50;
-export const CONTACTS_PAGE_SIZE_MAX = 100;
+/** 기본 목록은 페이지네이션 없이 전체 조회 (현재 전체DB ~600명 수준) */
+export const CONTACTS_LIST_MAX = 5000;
 
 export const CONTACT_LIST_SELECT =
   "id, partner_id, name, department, position, role_type, role_raw, email, phone, phone_display, phone_normalized, is_contract_contact, is_primary, review_required, review_reason, memo, created_at, is_active, in_current_full_db";
@@ -21,8 +21,6 @@ export function normalizeContactsRoleFilter(role?: string | null): string {
 
 export type ContactsListQueryInput = {
   view: ContactListView;
-  page: number;
-  pageSize: number;
   partnerId?: string;
   q?: string;
   role?: string;
@@ -32,9 +30,6 @@ export type ContactsListQueryInput = {
 export type ContactsListQueryResult = {
   rows: PersonContactRow[];
   total: number;
-  page: number;
-  pageSize: number;
-  totalPages: number;
   error: string | null;
   usedFallbackQuery: boolean;
 };
@@ -58,9 +53,22 @@ function isMissingColumnError(message: string): boolean {
   );
 }
 
-function clampPageSize(value: number): number {
-  if (!Number.isFinite(value) || value < 1) return CONTACTS_PAGE_SIZE_DEFAULT;
-  return Math.min(CONTACTS_PAGE_SIZE_MAX, Math.max(1, Math.floor(value)));
+export function buildContactsCountLabel(input: {
+  total: number;
+  view: ContactListView;
+  q?: string;
+  role?: string;
+  partnerId?: string;
+}): string {
+  const total = input.total.toLocaleString("ko-KR");
+  const q = (input.q ?? "").trim();
+  const role = normalizeContactsRoleFilter(input.role);
+  const hasPartner = Boolean((input.partnerId ?? "").trim());
+  const hasViewFilter = input.view !== "all";
+
+  if (q) return `검색 결과 ${total}명`;
+  if (role !== "all" || hasPartner || hasViewFilter) return `필터 결과 ${total}명`;
+  return `현재 전체DB 기준 ${total}명`;
 }
 
 function applyListFilters(query: any, input: ContactsListQueryInput, useBaselineColumns: boolean) {
@@ -167,18 +175,10 @@ async function runListQuery(
   input: ContactsListQueryInput,
   useBaselineColumns: boolean
 ): Promise<ContactsListQueryResult> {
-  const pageSize = clampPageSize(input.pageSize);
-  const page = Math.max(1, input.page);
-  const from = (page - 1) * pageSize;
-  const to = from + pageSize - 1;
-
   if (input.view === "merge") {
     return {
       rows: [],
       total: 0,
-      page,
-      pageSize,
-      totalPages: 0,
       error: null,
       usedFallbackQuery: !useBaselineColumns
     };
@@ -198,7 +198,10 @@ async function runListQuery(
 
   const [{ count, error: countError }, { data, error }] = await Promise.all([
     countQuery,
-    query.order("name", { ascending: true }).order("id", { ascending: true }).range(from, to)
+    query
+      .order("name", { ascending: true })
+      .order("id", { ascending: true })
+      .range(0, CONTACTS_LIST_MAX - 1)
   ]);
 
   if (countError) {
@@ -221,15 +224,12 @@ async function runListQuery(
   return {
     rows,
     total,
-    page,
-    pageSize,
-    totalPages: total > 0 ? Math.ceil(total / pageSize) : 0,
     error: null,
     usedFallbackQuery: !useBaselineColumns
   };
 }
 
-export async function fetchContactsListPage(
+export async function fetchContactsList(
   supabase: SupabaseClient,
   input: ContactsListQueryInput
 ): Promise<ContactsListQueryResult> {
@@ -241,9 +241,6 @@ export async function fetchContactsListPage(
       return {
         rows: [],
         total: 0,
-        page: input.page,
-        pageSize: input.pageSize,
-        totalPages: 0,
         error: message,
         usedFallbackQuery: false
       };
@@ -255,9 +252,6 @@ export async function fetchContactsListPage(
       return {
         rows: [],
         total: 0,
-        page: input.page,
-        pageSize: input.pageSize,
-        totalPages: 0,
         error:
           fallbackError instanceof Error ? fallbackError.message : "목록 조회 실패 (fallback)",
         usedFallbackQuery: true
