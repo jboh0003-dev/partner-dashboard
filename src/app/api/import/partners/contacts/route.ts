@@ -1,7 +1,6 @@
 import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { requireAdmin } from "@/lib/auth/require-admin";
 import { writeImportLog, deleteTempImportFile } from "@/lib/imports/import-logs";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
@@ -51,11 +50,7 @@ const ImportPayloadSchema = z.object({
 });
 
 export async function POST(request: Request) {
-  const auth = await requireAdmin();
-  if (!auth.ok) {
-    return NextResponse.json({ ok: false, message: auth.message }, { status: auth.status });
-  }
-
+  // TODO(auth): 추후 admin 세션 도입 시 requireAdmin() 복원. 현재는 service role로 처리.
   const supabase = createAdminClient();
   let importJobId: string | null = null;
   let parsedFileName: string | null = null;

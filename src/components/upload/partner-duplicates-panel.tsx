@@ -49,28 +49,9 @@ export function PartnerDuplicatesPanel() {
   }
 
   if (error) {
-    const needsLogin = error.includes("로그인");
     return (
-      <section
-        className={`mb-6 rounded-2xl border p-5 shadow-sm ${
-          needsLogin ? "border-amber-200 bg-amber-50" : "border-rose-200 bg-rose-50"
-        }`}
-      >
-        <div className={`text-sm ${needsLogin ? "text-amber-950" : "text-rose-700"}`}>
-          {needsLogin ? (
-            <>
-              <div className="font-semibold">로그인이 필요합니다</div>
-              <p className="mt-1 text-xs text-amber-900">
-                중복 후보 조회는 로그인 후 가능합니다.{" "}
-                <Link href="/login" className="font-semibold underline">
-                  로그인
-                </Link>
-              </p>
-            </>
-          ) : (
-            error
-          )}
-        </div>
+      <section className="mb-6 rounded-2xl border border-rose-200 bg-rose-50 p-5 shadow-sm">
+        <div className="text-sm text-rose-700">{error}</div>
       </section>
     );
   }

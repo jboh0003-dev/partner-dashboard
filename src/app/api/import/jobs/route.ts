@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/auth/require-admin";
 import {
   cancelStaleImportJobs,
   isStaleImportJob,
@@ -10,11 +9,6 @@ import { FULL_SYNC_IMPORT_TYPE } from "@/lib/imports/partner-contacts-sync";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function GET(request: Request) {
-  const auth = await requireAdmin();
-  if (!auth.ok) {
-    return NextResponse.json({ ok: false, message: auth.message }, { status: auth.status });
-  }
-
   try {
     const { searchParams } = new URL(request.url);
     const importType = searchParams.get("import_type") ?? FULL_SYNC_IMPORT_TYPE;

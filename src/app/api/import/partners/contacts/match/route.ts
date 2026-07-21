@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { requireAdmin } from "@/lib/auth/require-admin";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   analyzePartnerContactRows,
@@ -36,11 +35,6 @@ const MatchPayloadSchema = z.object({
 
 /** 분석/미리보기 — read-only. partner_contacts를 변경하지 않는다. */
 export async function POST(request: Request) {
-  const auth = await requireAdmin();
-  if (!auth.ok) {
-    return NextResponse.json({ ok: false, message: auth.message }, { status: auth.status });
-  }
-
   try {
     const json = await request.json();
     const parsed = MatchPayloadSchema.parse(json);

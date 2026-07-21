@@ -46,7 +46,6 @@ import {
   parsePartnerEquipmentWorkbook,
   type PartnerEquipmentParseResult
 } from "@/lib/excel/parse-partner-equipment";
-import { createClient as createBrowserSupabase } from "@/lib/supabase/client";
 
 type UploadType =
   | "partner_master"
@@ -394,8 +393,6 @@ export default function UploadPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [saveCompleted, setSaveCompleted] = useState(false);
   const [forceReprocess, setForceReprocess] = useState(false);
-  const [authChecked, setAuthChecked] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const saveLockRef = useRef(false);
   const [saveSummary, setSaveSummary] = useState<SaveSummary | null>(null);
   const [saveResults, setSaveResults] = useState<SaveResult[]>([]);
@@ -416,25 +413,6 @@ export default function UploadPage() {
       fileInputRef.current.value = "";
     }
   }, [selectedType]);
-
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      try {
-        const supabase = createBrowserSupabase();
-        const { data } = await supabase.auth.getSession();
-        if (cancelled) return;
-        setIsLoggedIn(Boolean(data.session?.user));
-      } catch {
-        if (!cancelled) setIsLoggedIn(false);
-      } finally {
-        if (!cancelled) setAuthChecked(true);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   useEffect(() => {
     if (selectedType !== "partner_master" || !partnerMasterResult) {
@@ -890,10 +868,6 @@ export default function UploadPage() {
       setSaveSummary(null);
       setSaveResults([]);
 
-      if (!isLoggedIn) {
-        throw new Error("로그인이 필요합니다. 로그인 후 다시 시도해 주세요.");
-      }
-
       if (selectedType === "partner_master" && partnerMasterResult && fileName) {
         const response = await fetch("/api/import/partners/master", {
           method: "POST",
@@ -1036,7 +1010,6 @@ export default function UploadPage() {
     trainingAttendancePreview.summary.skipped;
 
   const canSave =
-    isLoggedIn &&
     !saveCompleted &&
     ((selectedType === "partner_master" && !!partnerMasterResult) ||
       (selectedType === "partner_contacts" && !!partnerContactsResult) ||
@@ -1067,19 +1040,6 @@ export default function UploadPage() {
         title="엑셀 업로드"
         description="업로드 유형을 선택한 뒤 분석, 미리보기, 저장을 순서대로 진행합니다."
       />
-
-      {authChecked && !isLoggedIn ? (
-        <section className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 p-4 shadow-sm">
-          <div className="text-sm font-semibold text-amber-950">로그인이 필요합니다</div>
-          <p className="mt-1 text-xs text-amber-900">
-            세션이 없어 업로드 분석·저장을 실행할 수 없습니다.{" "}
-            <a href="/login" className="font-semibold underline">
-              로그인
-            </a>
-            후 다시 접속해 주세요.
-          </p>
-        </section>
-      ) : null}
 
       {selectedType === "partner_contacts" ? (
         <ImportJobsPanel importType="contact_full_db_upload" pollFast={isSaving} />
@@ -1119,22 +1079,12 @@ export default function UploadPage() {
           <span
             className={[
               "inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold",
-              !authChecked
-                ? "bg-slate-100 text-slate-500"
-                : !isLoggedIn
-                  ? "bg-rose-50 text-rose-700"
-                  : selectedMeta.mode === "active"
-                    ? "bg-blue-50 text-blue-700"
-                    : "bg-amber-50 text-amber-700"
+              selectedMeta.mode === "active"
+                ? "bg-blue-50 text-blue-700"
+                : "bg-amber-50 text-amber-700"
             ].join(" ")}
           >
-            {!authChecked
-              ? "세션 확인 중"
-              : !isLoggedIn
-                ? "로그인 필요"
-                : selectedMeta.mode === "active"
-                  ? "업로드 가능"
-                  : "준비중"}
+            {selectedMeta.mode === "active" ? "업로드 가능" : "준비중"}
           </span>
         </div>
 

@@ -1,16 +1,10 @@
 import { NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/auth/require-admin";
 import { cancelImportJob } from "@/lib/imports/import-jobs";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 type Params = { params: Promise<{ id: string }> };
 
 export async function POST(request: Request, { params }: Params) {
-  const auth = await requireAdmin();
-  if (!auth.ok) {
-    return NextResponse.json({ ok: false, message: auth.message }, { status: auth.status });
-  }
-
   try {
     const { id } = await params;
     const body = (await request.json().catch(() => ({}))) as { reason?: string };

@@ -105,20 +105,6 @@ export function ImportJobsPanel({
     );
   }
 
-  if (error === "로그인이 필요합니다.") {
-    return (
-      <section className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 p-4 shadow-sm">
-        <div className="text-sm font-semibold text-amber-950">로그인이 필요합니다</div>
-        <p className="mt-1 text-xs text-amber-900">
-          업로드·저장은 로그인 후 사용할 수 있습니다.{" "}
-          <a href="/login" className="font-semibold underline">
-            로그인
-          </a>
-        </p>
-      </section>
-    );
-  }
-
   if (error) {
     return (
       <section className="mb-6 rounded-2xl border border-rose-200 bg-rose-50 p-4 shadow-sm">
