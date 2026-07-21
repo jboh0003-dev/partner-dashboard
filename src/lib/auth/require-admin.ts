@@ -80,18 +80,6 @@ export async function getViewerAuthContext(): Promise<ViewerAuthContext> {
     devBypass
   };
 
-  if (isDevelopmentAdminBypassEnabled()) {
-    console.log("[contacts/auth] isAdmin =", context.isAdmin);
-    console.log("[contacts/auth] detail", {
-      user: context.user,
-      profile: context.profile,
-      role: context.role,
-      devBypass: context.devBypass,
-      profilesEmpty: context.profile === null,
-      nodeEnv: process.env.NODE_ENV
-    });
-  }
-
   return context;
 }
 
@@ -128,11 +116,6 @@ export async function requireAdmin(): Promise<AdminAuthResult> {
   // TODO(auth): development bypass — 운영 배포 전 제거 또는 env 플래그로 분리할 것.
   if (isDevelopmentAdminBypassEnabled()) {
     const fallbackUserId = user?.id ?? (await resolveDevFallbackUserId());
-    console.log("[auth] requireAdmin: development bypass", {
-      hasSessionUser: Boolean(user),
-      authError: authError?.message ?? null,
-      fallbackUserId
-    });
     return { ok: true, userId: fallbackUserId, role: "admin" };
   }
 

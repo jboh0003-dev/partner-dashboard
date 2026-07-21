@@ -40,11 +40,13 @@ import {
 } from "@/lib/excel/parse-training-attendance-detail";
 import { PartnerDocumentsUploadSection } from "@/components/upload/partner-documents-upload-section";
 import { PartnerDuplicatesPanel } from "@/components/upload/partner-duplicates-panel";
+import { ImportJobsPanel } from "@/components/upload/import-jobs-panel";
 import { PARTNER_MASTER_ACTION_LABEL } from "@/lib/imports/partner-master";
 import {
   parsePartnerEquipmentWorkbook,
   type PartnerEquipmentParseResult
 } from "@/lib/excel/parse-partner-equipment";
+import { createClient as createBrowserSupabase } from "@/lib/supabase/client";
 
 type UploadType =
   | "partner_master"
@@ -390,6 +392,11 @@ export default function UploadPage() {
     });
 
   const [isSaving, setIsSaving] = useState(false);
+  const [saveCompleted, setSaveCompleted] = useState(false);
+  const [forceReprocess, setForceReprocess] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const saveLockRef = useRef(false);
   const [saveSummary, setSaveSummary] = useState<SaveSummary | null>(null);
   const [saveResults, setSaveResults] = useState<SaveResult[]>([]);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -403,10 +410,31 @@ export default function UploadPage() {
 
   useEffect(() => {
     resetState();
+    setSaveCompleted(false);
+    setForceReprocess(false);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
   }, [selectedType]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const supabase = createBrowserSupabase();
+        const { data } = await supabase.auth.getSession();
+        if (cancelled) return;
+        setIsLoggedIn(Boolean(data.session?.user));
+      } catch {
+        if (!cancelled) setIsLoggedIn(false);
+      } finally {
+        if (!cancelled) setAuthChecked(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (selectedType !== "partner_master" || !partnerMasterResult) {
@@ -696,6 +724,10 @@ export default function UploadPage() {
 
         setFileName(file.name);
         setSourceFile(file);
+        setSaveCompleted(false);
+        setSaveSummary(null);
+        setSaveResults([]);
+        setSaveError(null);
 
         if (selectedType === "partner_master") {
           const result = parsePartnerMasterWorkbook(workbook);
@@ -850,11 +882,17 @@ export default function UploadPage() {
   }
 
   async function handleSave() {
+    if (saveLockRef.current || isSaving || saveCompleted) return;
+    saveLockRef.current = true;
     try {
       setIsSaving(true);
       setSaveError(null);
       setSaveSummary(null);
       setSaveResults([]);
+
+      if (!isLoggedIn) {
+        throw new Error("로그인이 필요합니다. 로그인 후 다시 시도해 주세요.");
+      }
 
       if (selectedType === "partner_master" && partnerMasterResult && fileName) {
         const response = await fetch("/api/import/partners/master", {
@@ -870,6 +908,7 @@ export default function UploadPage() {
         if (!response.ok || !json.ok) throw new Error(json?.message ?? "저장 중 오류가 발생했습니다.");
         setSaveSummary(json.summary as SaveSummary);
         setSaveResults((json.results ?? []) as SaveResult[]);
+        setSaveCompleted(true);
         await importEmbeddedPartnerRevenue(sourceFile);
         router.refresh();
         return;
@@ -885,14 +924,44 @@ export default function UploadPage() {
           body: JSON.stringify({
             file_name: fileName,
             storage_path: storagePath,
-            rows: partnerContactsResult.rows
+            rows: partnerContactsResult.rows,
+            force_reprocess: forceReprocess
           })
         });
         const json = await response.json();
-        if (!response.ok || !json.ok) throw new Error(json?.message ?? "저장 중 오류가 발생했습니다.");
+        if (response.status === 409) {
+          throw new Error(json?.message ?? "이미 처리 중이거나 처리된 파일입니다.");
+        }
+        if (!response.ok || !json.ok) {
+          throw new Error(json?.message ?? "저장 중 오류가 발생했습니다.");
+        }
         setSaveSummary(json.summary as SaveSummary);
         setSaveResults((json.results ?? []) as SaveResult[]);
-        await importEmbeddedPartnerRevenue(sourceFile);
+        setSaveCompleted(true);
+        const revenueFile = sourceFile;
+        // 새로고침 시 재저장 방지: 파싱 결과 클리어
+        setPartnerContactsResult(null);
+        setPartnerContactsPreview({
+          items: [],
+          summary: {
+            total: 0,
+            matched_partners: 0,
+            create: 0,
+            update: 0,
+            skip: 0,
+            review: 0,
+            duplicate: 0,
+            review_missing: 0,
+            baseline_excluded: 0,
+            merge: 0
+          },
+          loading: false,
+          error: null
+        });
+        setSourceFile(null);
+        setFileName(null);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+        await importEmbeddedPartnerRevenue(revenueFile);
         router.refresh();
         return;
       }
@@ -910,6 +979,7 @@ export default function UploadPage() {
         if (!response.ok || !json.ok) throw new Error(json?.message ?? "저장 중 오류가 발생했습니다.");
         setSaveSummary(json.summary as SaveSummary);
         setSaveResults((json.results ?? []) as SaveResult[]);
+        setSaveCompleted(true);
         router.refresh();
         return;
       }
@@ -931,6 +1001,7 @@ export default function UploadPage() {
         if (!response.ok || !json.ok) throw new Error(json?.message ?? "저장 중 오류가 발생했습니다.");
         setSaveSummary(json.summary as SaveSummary);
         setSaveResults((json.results ?? []) as SaveResult[]);
+        setSaveCompleted(true);
         router.refresh();
         return;
       }
@@ -945,6 +1016,7 @@ export default function UploadPage() {
         if (!response.ok || !json.ok) throw new Error(json?.message ?? "저장 중 오류가 발생했습니다.");
         setSaveSummary(json.summary as SaveSummary);
         setSaveResults((json.results ?? []) as SaveResult[]);
+        setSaveCompleted(true);
         router.refresh();
         return;
       }
@@ -952,6 +1024,7 @@ export default function UploadPage() {
       setSaveError(error instanceof Error ? error.message : "저장에 실패했습니다.");
     } finally {
       setIsSaving(false);
+      saveLockRef.current = false;
     }
   }
 
@@ -963,17 +1036,19 @@ export default function UploadPage() {
     trainingAttendancePreview.summary.skipped;
 
   const canSave =
-    (selectedType === "partner_master" && !!partnerMasterResult) ||
-    (selectedType === "partner_contacts" && !!partnerContactsResult) ||
-    (selectedType === "partner_training_summary" && !!partnerTrainingResult) ||
-    (selectedType === "partner_equipment" &&
-      !!partnerEquipmentResult &&
-      !partnerEquipmentPreview.loading &&
-      partnerEquipmentPreview.summary.total > 0) ||
-    (selectedType === "training_attendance_detail" &&
-      !!trainingAttendanceResult &&
-      !trainingAttendancePreview.loading &&
-      trainingAnalysisTotal > 0);
+    isLoggedIn &&
+    !saveCompleted &&
+    ((selectedType === "partner_master" && !!partnerMasterResult) ||
+      (selectedType === "partner_contacts" && !!partnerContactsResult) ||
+      (selectedType === "partner_training_summary" && !!partnerTrainingResult) ||
+      (selectedType === "partner_equipment" &&
+        !!partnerEquipmentResult &&
+        !partnerEquipmentPreview.loading &&
+        partnerEquipmentPreview.summary.total > 0) ||
+      (selectedType === "training_attendance_detail" &&
+        !!trainingAttendanceResult &&
+        !trainingAttendancePreview.loading &&
+        trainingAnalysisTotal > 0));
 
   const reviewCount =
     selectedType === "partner_master"
@@ -992,6 +1067,23 @@ export default function UploadPage() {
         title="엑셀 업로드"
         description="업로드 유형을 선택한 뒤 분석, 미리보기, 저장을 순서대로 진행합니다."
       />
+
+      {authChecked && !isLoggedIn ? (
+        <section className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 p-4 shadow-sm">
+          <div className="text-sm font-semibold text-amber-950">로그인이 필요합니다</div>
+          <p className="mt-1 text-xs text-amber-900">
+            세션이 없어 업로드 분석·저장을 실행할 수 없습니다.{" "}
+            <a href="/login" className="font-semibold underline">
+              로그인
+            </a>
+            후 다시 접속해 주세요.
+          </p>
+        </section>
+      ) : null}
+
+      {selectedType === "partner_contacts" ? (
+        <ImportJobsPanel importType="contact_full_db_upload" pollFast={isSaving} />
+      ) : null}
 
       <section className="mb-6">
         <div className="mb-3 text-sm font-semibold text-slate-900">권장 업로드 순서</div>
@@ -1027,12 +1119,22 @@ export default function UploadPage() {
           <span
             className={[
               "inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold",
-              selectedMeta.mode === "active"
-                ? "bg-blue-50 text-blue-700"
-                : "bg-amber-50 text-amber-700"
+              !authChecked
+                ? "bg-slate-100 text-slate-500"
+                : !isLoggedIn
+                  ? "bg-rose-50 text-rose-700"
+                  : selectedMeta.mode === "active"
+                    ? "bg-blue-50 text-blue-700"
+                    : "bg-amber-50 text-amber-700"
             ].join(" ")}
           >
-            {selectedMeta.mode === "active" ? "업로드 가능" : "준비중"}
+            {!authChecked
+              ? "세션 확인 중"
+              : !isLoggedIn
+                ? "로그인 필요"
+                : selectedMeta.mode === "active"
+                  ? "업로드 가능"
+                  : "준비중"}
           </span>
         </div>
 
@@ -1166,8 +1268,30 @@ export default function UploadPage() {
             className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
           >
             {isSaving ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
-            저장 실행
+            {isSaving ? "저장 중…" : saveCompleted ? "저장 완료" : "저장 실행"}
           </button>
+
+          {selectedType === "partner_contacts" ? (
+            <label className="mt-3 flex items-start gap-2 text-xs text-slate-600">
+              <input
+                type="checkbox"
+                checked={forceReprocess}
+                onChange={(event) => setForceReprocess(event.target.checked)}
+                className="mt-0.5"
+              />
+              <span>
+                동일 파일 강제 재실행 (이미 처리된 파일도 다시 저장). 일반 재업로드는 체크하지
+                마세요.
+              </span>
+            </label>
+          ) : null}
+
+          {saveCompleted ? (
+            <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+              저장이 완료되었습니다. 새로고침해도 저장이 다시 실행되지 않습니다. 다시 저장하려면
+              파일을 다시 선택하세요.
+            </div>
+          ) : null}
 
           {selectedMeta.mode !== "active" ? (
             <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">

@@ -78,17 +78,24 @@ export function applyNormalizedPhoneToPayload(
   return false;
 }
 
-export function buildContactUpsertPayload(context: ContactImportContext): Record<string, unknown> {
+/**
+ * 저장 중 데이터 payload.
+ * in_current_full_db / is_active 는 여기서 바꾸지 않는다.
+ * baseline은 전체 저장 성공 후 activateBaselineContacts로 한 번에 전환한다.
+ */
+export function buildContactDataPayload(context: ContactImportContext): Record<string, unknown> {
   const { row, matchConfidence, matchMethod } = context;
-  const payload = buildBaselineActivePayload();
-
-  Object.assign(payload, {
+  const now = new Date().toISOString();
+  const payload: Record<string, unknown> = {
     role_type: row.role_type,
     role_raw: row.role_raw,
     is_contract_contact: row.is_contract_contact,
     source_file: row.source_file,
-    contact_source: FULL_DB_CONTACT_SOURCE
-  });
+    contact_source: FULL_DB_CONTACT_SOURCE,
+    last_synced_at: now,
+    deleted_at: null,
+    merged_into_contact_id: null
+  };
 
   if (row.contact_name && !isFlagLikeContactName(row.contact_name)) {
     payload.name = row.contact_name;
@@ -100,6 +107,14 @@ export function buildContactUpsertPayload(context: ContactImportContext): Record
   if (matchMethod) payload.match_method = matchMethod;
 
   return payload;
+}
+
+/** @deprecated buildContactDataPayload 사용 — baseline 플래그 즉시 적용 금지 */
+export function buildContactUpsertPayload(context: ContactImportContext): Record<string, unknown> {
+  return {
+    ...buildContactDataPayload(context),
+    ...buildBaselineActivePayload()
+  };
 }
 
 export { buildContactBaselineExcludedPayload };
