@@ -39,6 +39,7 @@ import {
   type TrainingAttendanceParseResult
 } from "@/lib/excel/parse-training-attendance-detail";
 import { PartnerDocumentsUploadSection } from "@/components/upload/partner-documents-upload-section";
+import { PartnerApplicationUploadSection } from "@/components/upload/partner-application-upload-section";
 import { PartnerDuplicatesPanel } from "@/components/upload/partner-duplicates-panel";
 import { ImportJobsPanel } from "@/components/upload/import-jobs-panel";
 import { PARTNER_MASTER_ACTION_LABEL } from "@/lib/imports/partner-master";
@@ -53,7 +54,8 @@ type UploadType =
   | "partner_training_summary"
   | "training_attendance_detail"
   | "partner_equipment"
-  | "partner_documents";
+  | "partner_documents"
+  | "partner_application";
 
 type UploadTypeMeta = {
   key: UploadType;
@@ -214,8 +216,13 @@ type PartnerEquipmentAnalysisSummary = {
 
 type SaveSummary = {
   total: number;
+  source_rows?: number;
+  deduped_persons?: number;
+  actionable?: number;
+  synced?: number;
   current_baseline_count?: number;
   active_current_count?: number;
+  baseline_ok?: boolean;
   created: number;
   updated: number;
   deactivated?: number;
@@ -300,6 +307,16 @@ const UPLOAD_TYPES: UploadTypeMeta[] = [
     sourceFile: "문서 폴더 (ZIP 해제 후)",
     order: 6,
     icon: FileText,
+    mode: "active"
+  },
+  {
+    key: "partner_application",
+    title: "파트너 신청서 등록",
+    description:
+      "파트너 신청서를 분석하여 회사·담당자·전담인원을 등록하고 계약서를 생성합니다.",
+    sourceFile: "파트너 신청서.xlsx",
+    order: 7,
+    icon: FileSpreadsheet,
     mode: "active"
   }
 ];
@@ -1067,6 +1084,8 @@ export default function UploadPage() {
 
       {selectedType === "partner_documents" ? (
         <PartnerDocumentsUploadSection />
+      ) : selectedType === "partner_application" ? (
+        <PartnerApplicationUploadSection />
       ) : (
         <>
       <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -1281,29 +1300,33 @@ export default function UploadPage() {
 
           {saveSummary ? (
             <div className="mt-4 space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-              <div className="font-semibold text-slate-900">저장 결과 (baseline reset)</div>
-              <ResultLine label="업로드 행" value={saveSummary.total} />
+              <div className="font-semibold text-slate-900">저장 결과</div>
+              {selectedType === "partner_contacts" && saveSummary.baseline_ok === false ? (
+                <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
+                  저장 성공 수와 current baseline 반영 수가 일치하지 않습니다. 성공으로 간주하지
+                  마세요.
+                </div>
+              ) : null}
+              <ResultLine label="원본 행 수" value={saveSummary.source_rows ?? saveSummary.total} />
+              {saveSummary.deduped_persons != null ? (
+                <ResultLine label="파일 내 병합 후 인원" value={saveSummary.deduped_persons} />
+              ) : null}
+              {saveSummary.actionable != null ? (
+                <ResultLine label="저장 대상" value={saveSummary.actionable} />
+              ) : null}
+              {saveSummary.synced != null ? (
+                <ResultLine label="실제 저장 성공" value={saveSummary.synced} />
+              ) : null}
               <ResultLine
-                label="전체DB 기준 현재 인력"
-                value={saveSummary.current_baseline_count ?? 0}
-              />
-              <ResultLine
-                label="DB active/current contact"
+                label="current baseline 반영"
                 value={saveSummary.active_current_count ?? 0}
               />
               <ResultLine label="신규 추가" value={saveSummary.created} />
               <ResultLine label="기존 갱신" value={saveSummary.updated} />
               <ResultLine label="중복 병합" value={saveSummary.merged ?? 0} />
-              <ResultLine label="이메일 추가" value={saveSummary.emails_added ?? 0} />
-              <ResultLine label="연락처 추가" value={saveSummary.phones_added ?? 0} />
-              <ResultLine label="담당구분 추가" value={saveSummary.roles_added ?? 0} />
               <ResultLine
                 label="현재 목록에서 제외"
                 value={saveSummary.baseline_excluded ?? saveSummary.review_missing ?? 0}
-              />
-              <ResultLine
-                label="교육/행사 이력만 남은 제외"
-                value={saveSummary.history_only_excluded ?? 0}
               />
               <ResultLine label="제외(파일)" value={saveSummary.skipped ?? 0} />
               <ResultLine label="검토 필요" value={saveSummary.review ?? 0} />

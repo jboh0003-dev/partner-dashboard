@@ -31,10 +31,10 @@ export function ExecutiveKpiGrid({ stats, currentYear }: ExecutiveKpiGridProps) 
       >
         <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">신규 계약</p>
         <p className="mt-2 text-3xl font-bold tabular-nums leading-none text-slate-950">
-          올해 {stats.newContractsThisYear.toLocaleString("ko-KR")}건
+          누적 {stats.newContractsThisYear.toLocaleString("ko-KR")}건
         </p>
         <p className="mt-auto pt-3 text-xs text-slate-500">
-          이달 {stats.newContractsThisMonth.toLocaleString("ko-KR")}건
+          이전달 {stats.newContractsPreviousMonth.toLocaleString("ko-KR")}건
         </p>
       </Link>
 

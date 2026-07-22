@@ -75,16 +75,32 @@ export async function excludeContactsNotInBaseline(
   supabase: SupabaseClient,
   syncedContactIds: Set<string>
 ): Promise<Array<{ id: string; source_file: string | null; role_raw: string | null; review_reason: string | null }>> {
-  const { data: allContacts, error: fetchError } = await supabase
-    .from("partner_contacts")
-    .select("id, source_file, role_raw, review_reason")
-    .is("deleted_at", null)
-    .is("merged_into_contact_id", null);
+  const allContacts: Array<{
+    id: string;
+    source_file: string | null;
+    role_raw: string | null;
+    review_reason: string | null;
+  }> = [];
 
-  if (fetchError) throw new Error(fetchError.message);
+  // PostgREST 기본 1000행 제한 — 반드시 페이지네이션
+  const pageSize = 1000;
+  let from = 0;
+  for (;;) {
+    const { data, error: fetchError } = await supabase
+      .from("partner_contacts")
+      .select("id, source_file, role_raw, review_reason")
+      .is("deleted_at", null)
+      .is("merged_into_contact_id", null)
+      .range(from, from + pageSize - 1);
+    if (fetchError) throw new Error(fetchError.message);
+    const rows = (data ?? []) as typeof allContacts;
+    allContacts.push(...rows);
+    if (rows.length < pageSize) break;
+    from += pageSize;
+  }
 
-  const toExcludeIds = (allContacts ?? [])
-    .map((row) => row.id as string)
+  const toExcludeIds = allContacts
+    .map((row) => row.id)
     .filter((id) => !syncedContactIds.has(id));
 
   if (toExcludeIds.length === 0) return [];

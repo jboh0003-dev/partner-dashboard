@@ -1,11 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { syncContactDetails } from "@/lib/contacts/contact-details";
 import { mergeContactsIntoMaster } from "@/lib/contacts/contact-merge";
 import { buildPersonKey, normalizePersonName } from "@/lib/contacts/person-key";
-import {
-  normalizeSanitizedContactFields,
-  sanitizeContactEmailPhone
-} from "@/lib/contacts/contact-field-sanitize";
 import {
   activateBaselineContacts,
   chunkArray,
@@ -31,6 +26,9 @@ import {
   isImportJobCancelled,
   updateImportJobProgress
 } from "@/lib/imports/import-jobs";
+
+/** baseline 전환 전 최소 반영 비율 (actionable 대비) */
+const MIN_BASELINE_COVERAGE = 0.9;
 
 export type CommitContactRow = {
   row_number: number;
@@ -76,6 +74,10 @@ export type CommitContactsResult = {
   results: CommitRowResult[];
   analysis: ReturnType<typeof analyzePartnerContactRows>;
   cancelled: boolean;
+  sourceRowCount: number;
+  dedupedPersonCount: number;
+  actionableCount: number;
+  syncedCount: number;
 };
 
 type StagingRow = {
@@ -237,9 +239,13 @@ export async function commitPartnerContactsFullDb(
 
   const contactIndex = buildContactIndex(input.contacts);
   let processed = 0;
+  const actionableItems = primaryItems.filter(
+    (item) => item.action === "create" || item.action === "update" || item.action === "merge"
+  );
+  const actionableCount = actionableItems.length;
 
   for (const item of primaryItems) {
-    if (processed > 0 && processed % 25 === 0) {
+    if (processed > 0 && processed % 40 === 0) {
       if (await isImportJobCancelled(supabase, input.importJobId)) {
         cancelled = true;
         break;
@@ -360,17 +366,14 @@ export async function commitPartnerContactsFullDb(
             `${item.reason} (${mergeResult.merged_ids.length}건 병합)`
           )
         );
+      } else if (item.action === "create") {
+        stats.updated += 1;
+        results.push(
+          rowResult(row, "updated", item.matched_partner_id, "기존 담당자 재사용 (중복 방지)")
+        );
       } else {
-        // 분석은 create였지만 메모리/인덱스에서 기존을 찾은 경우 update로 집계
-        if (item.action === "create") {
-          stats.updated += 1;
-          results.push(
-            rowResult(row, "updated", item.matched_partner_id, "기존 담당자 재사용 (중복 방지)")
-          );
-        } else {
-          stats.updated += 1;
-          results.push(rowResult(row, "updated", item.matched_partner_id, item.reason));
-        }
+        stats.updated += 1;
+        results.push(rowResult(row, "updated", item.matched_partner_id, item.reason));
       }
     }
 
@@ -378,23 +381,8 @@ export async function commitPartnerContactsFullDb(
       syncedContactIds.add(contactId);
       for (const dupId of item.manual_duplicate_ids) syncedContactIds.add(dupId);
       baselinePersonKeys.add(personKey);
-
-      const sanitizedFields = normalizeSanitizedContactFields(
-        sanitizeContactEmailPhone({ email: row.email, phone: row.phone })
-      );
-
-      const detailStats = await syncContactDetails(supabase, {
-        contact_id: contactId,
-        email: sanitizedFields.email,
-        phone: sanitizedFields.phone,
-        role_labels: buildRoleLabelsFromImportRow(importRow),
-        source: row.source_file,
-        prefer_upload_email_as_primary: Boolean(row.email),
-        prefer_upload_phone_as_primary: Boolean(row.phone)
-      });
-      stats.emails_added += detailStats.emails_added;
-      stats.phones_added += detailStats.phones_added;
-      stats.roles_added += detailStats.roles_added;
+      // email/phone 은 partner_contacts 컬럼에 이미 반영.
+      // contact_emails/phones 행단위 sync 는 생략 (Vercel timeout → 부분 baseline 원인).
     }
   }
 
@@ -416,7 +404,11 @@ export async function commitPartnerContactsFullDb(
       reviewCount,
       results,
       analysis,
-      cancelled: true
+      cancelled: true,
+      sourceRowCount: input.rows.length,
+      dedupedPersonCount: primaryItems.length - skippedDuplicates.length,
+      actionableCount,
+      syncedCount: syncedContactIds.size
     };
   }
 
@@ -426,7 +418,16 @@ export async function commitPartnerContactsFullDb(
     );
   }
 
-  // 성공 시에만 baseline 전환 (기존 목록 → 새 전체DB 일괄 전환)
+  // 부분 반영 방지: actionable 대비 synced 비율이 낮으면 baseline 전환 금지
+  const coverage = actionableCount > 0 ? syncedContactIds.size / actionableCount : 1;
+  if (actionableCount >= 50 && coverage < MIN_BASELINE_COVERAGE) {
+    throw new Error(
+      `전체DB baseline 전환 중단: 저장 대상 ${actionableCount}명 중 ${syncedContactIds.size}명만 반영됨 (` +
+        `${Math.round(coverage * 100)}%). 기존 current baseline을 유지합니다. 재시도하거나 강제 재실행하세요.`
+    );
+  }
+
+  // 성공 시에만 baseline 전환
   await activateBaselineContacts(supabase, [...syncedContactIds], reviewRequiredIds);
 
   const excludedRows = await excludeContactsNotInBaseline(supabase, syncedContactIds);
@@ -461,6 +462,17 @@ export async function commitPartnerContactsFullDb(
     );
   }
 
+  // 전환 후 검증: 화면 표시 수와 synced 수가 크게 다르면 실패
+  if (
+    actionableCount >= 50 &&
+    stats.active_current_count < Math.floor(actionableCount * MIN_BASELINE_COVERAGE)
+  ) {
+    throw new Error(
+      `baseline 검증 실패: synced ${syncedContactIds.size} / actionable ${actionableCount} 이지만 ` +
+        `active_current=${stats.active_current_count}. completed 처리하지 않습니다.`
+    );
+  }
+
   for (const excluded of analysis.baselineExcluded) {
     results.push({
       company_name: excluded.partner_name,
@@ -477,7 +489,11 @@ export async function commitPartnerContactsFullDb(
     reviewCount,
     results,
     analysis,
-    cancelled: false
+    cancelled: false,
+    sourceRowCount: input.rows.length,
+    dedupedPersonCount: primaryItems.length - skippedDuplicates.length,
+    actionableCount,
+    syncedCount: syncedContactIds.size
   };
 }
 

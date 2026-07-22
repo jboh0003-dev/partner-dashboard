@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { fetchAllCanonicalContacts, fetchAllPartners } from "@/lib/imports/fetch-all-rows";
 import {
   analyzePartnerContactRows,
   type PartnerContactsDbRow,
@@ -40,28 +41,15 @@ export async function POST(request: Request) {
     const parsed = MatchPayloadSchema.parse(json);
     const supabase = createAdminClient();
 
-    const [{ data: partners, error: partnerError }, { data: contacts, error: contactError }] =
-      await Promise.all([
-        supabase
-          .from("partners")
-          .select("id, company_name, external_no")
-          .is("deleted_at", null),
-        supabase
-          .from("partner_contacts")
-          .select(
-            "id, partner_id, name, department, position, role_type, role_raw, email, phone, is_primary, is_contract_contact, is_active, in_current_full_db, deleted_at, merged_into_contact_id, review_required, review_reason, source_file, created_at"
-          )
-          .is("deleted_at", null)
-          .is("merged_into_contact_id", null)
-      ]);
-
-    if (partnerError) throw new Error(partnerError.message);
-    if (contactError) throw new Error(contactError.message);
+    const [partners, contacts] = await Promise.all([
+      fetchAllPartners(supabase),
+      fetchAllCanonicalContacts(supabase)
+    ]);
 
     const analysis = analyzePartnerContactRows(
       parsed.rows,
-      ((partners ?? []) as unknown) as PartnerContactsPartnerRow[],
-      ((contacts ?? []) as unknown) as PartnerContactsDbRow[]
+      partners as unknown as PartnerContactsPartnerRow[],
+      contacts as unknown as PartnerContactsDbRow[]
     );
 
     return NextResponse.json({

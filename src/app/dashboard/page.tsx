@@ -49,9 +49,9 @@ export default async function DashboardPage() {
 
       <ExecutivePipelineSummarySection stats={performanceStats} />
 
-      <PartnerCompositionSection stats={stats} />
-
       <ExecutivePipelineTrendSection stats={performanceStats} />
+
+      <PartnerCompositionSection stats={stats} />
 
       <ExecutiveTopPartnersSection stats={performanceStats} />
     </>

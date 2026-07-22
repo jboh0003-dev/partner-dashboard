@@ -3,6 +3,10 @@ import { PageHeader } from "@/components/layout/page-header";
 import { PartnerAdminTable } from "@/components/partners/partner-admin-table";
 import { EmptyState } from "@/components/common/empty-state";
 import { createClient } from "@/lib/supabase/server";
+import {
+  filterOfficialPartnerStatsPartners,
+  isExcludedFromOfficialPartnerStats
+} from "@/lib/partners/official-stats-exclude";
 import { filterSamplePartners } from "@/lib/partners/sample-filter";
 import {
   getDisplayPartnerGrade,
@@ -20,6 +24,8 @@ type SearchParams = {
   grade?: string;
   contractYear?: string;
   contractMonth?: string;
+  /** 1이면 통계 제외(딜 전용) 회사도 목록에 포함 */
+  includeExcluded?: string;
 };
 
 function parseContractDate(value: string | null | undefined): Date | null {
@@ -73,16 +79,24 @@ export default async function PartnersPage({
 }) {
   const params = await searchParams;
   const supabase = await createClient();
+  const includeExcluded =
+    params.includeExcluded === "1" || params.includeExcluded === "true";
 
   const { data: partnersData, error: partnersError } = await supabase
     .from("partners")
     .select("*")
     .is("deleted_at", null);
 
-  const allPartners = filterSamplePartners((partnersData ?? []) as Partner[]).filter(
+  const activePartners = filterSamplePartners((partnersData ?? []) as Partner[]).filter(
     (partner) => partner.is_active !== false
   );
-  const partners = filterPartnersByQuery(allPartners, params);
+  const officialPartners = includeExcluded
+    ? activePartners
+    : filterOfficialPartnerStatsPartners(activePartners);
+  const excludedCount = activePartners.filter((partner) =>
+    isExcludedFromOfficialPartnerStats(partner)
+  ).length;
+  const partners = filterPartnersByQuery(officialPartners, params);
 
   const partnerIds = partners.map((partner) => partner.id);
   let contacts: PartnerContact[] = [];
@@ -136,12 +150,22 @@ export default async function PartnersPage({
           <option value="strategic">Strategic</option>
           <option value="none">미분류</option>
         </select>
+        <label className="flex shrink-0 items-center gap-2 text-xs text-slate-600">
+          <input
+            type="checkbox"
+            name="includeExcluded"
+            value="1"
+            defaultChecked={includeExcluded}
+            className="rounded border-slate-300"
+          />
+          통계 제외 포함
+        </label>
         <button type="submit" className="ui-btn-accent shrink-0">
           검색
         </button>
       </form>
 
-      {(params.contractYear || params.contractMonth || gradeToken) && (
+      {(params.contractYear || params.contractMonth || gradeToken || includeExcluded) && (
         <div className="mb-3 flex flex-wrap items-center gap-2 text-xs text-slate-600">
           <span>필터 적용:</span>
           {gradeToken ? (
@@ -157,6 +181,11 @@ export default async function PartnersPage({
           {params.contractMonth ? (
             <span className="rounded-full bg-slate-100 px-2 py-0.5 font-semibold">
               {params.contractMonth} 신규 계약
+            </span>
+          ) : null}
+          {includeExcluded ? (
+            <span className="rounded-full bg-amber-50 px-2 py-0.5 font-semibold text-amber-800">
+              통계 제외 포함{excludedCount > 0 ? ` (${excludedCount})` : ""}
             </span>
           ) : null}
           <Link href="/dashboard/partners" className="font-semibold text-okestro-600 hover:underline">

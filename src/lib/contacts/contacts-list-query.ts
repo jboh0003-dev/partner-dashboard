@@ -7,6 +7,7 @@ import {
   type ContactListDbRow
 } from "@/lib/contacts/map-contact-list-row";
 import type { PersonContactRow } from "@/lib/contacts/person-groups";
+import { normalizeCompanyName } from "@/lib/partner-match";
 
 /** 기본 목록은 페이지네이션 없이 전체 조회 (현재 전체DB ~600명 수준) */
 export const CONTACTS_LIST_MAX = 5000;
@@ -25,6 +26,8 @@ export type ContactsListQueryInput = {
   q?: string;
   role?: string;
   bouncedContactIds?: string[];
+  /** 회사명 검색으로 매칭된 partner_id (inner join 없이 or 조건에 사용) */
+  companyMatchPartnerIds?: string[];
 };
 
 export type ContactsListQueryResult = {
@@ -115,9 +118,17 @@ function applyListFilters(query: any, input: ContactsListQueryInput, useBaseline
   const q = input.q?.trim();
   if (q) {
     const escaped = q.replace(/[%_,]/g, "");
-    filtered = filtered.or(
-      `name.ilike.%${escaped}%,email.ilike.%${escaped}%,phone.ilike.%${escaped}%,department.ilike.%${escaped}%,position.ilike.%${escaped}%`
-    );
+    const clauses = [
+      `name.ilike.%${escaped}%`,
+      `email.ilike.%${escaped}%`,
+      `phone.ilike.%${escaped}%`,
+      `department.ilike.%${escaped}%`,
+      `position.ilike.%${escaped}%`
+    ];
+    if (input.companyMatchPartnerIds && input.companyMatchPartnerIds.length > 0) {
+      clauses.push(`partner_id.in.(${input.companyMatchPartnerIds.join(",")})`);
+    }
+    filtered = filtered.or(clauses.join(","));
   }
 
   const role = normalizeContactsRoleFilter(input.role);
@@ -170,6 +181,38 @@ async function attachPartnersToRows(
   }));
 }
 
+async function resolveCompanyMatchPartnerIds(
+  supabase: SupabaseClient,
+  q: string
+): Promise<string[]> {
+  const trimmed = q.trim();
+  if (!trimmed) return [];
+
+  const { data, error } = await supabase
+    .from("partners")
+    .select("id, company_name")
+    .is("deleted_at", null)
+    .limit(2000);
+
+  if (error) throw new Error(error.message);
+
+  const needleRaw = trimmed.toLowerCase();
+  const needleCompact = needleRaw.replace(/\s+/g, "");
+  const needleNorm = normalizeCompanyName(trimmed) ?? needleCompact;
+
+  return (data ?? [])
+    .filter((partner) => {
+      const name = String(partner.company_name ?? "");
+      if (!name) return false;
+      const lower = name.toLowerCase();
+      if (lower.includes(needleRaw)) return true;
+      if (lower.replace(/\s+/g, "").includes(needleCompact)) return true;
+      const norm = normalizeCompanyName(name);
+      return Boolean(norm && needleNorm && norm.includes(needleNorm));
+    })
+    .map((partner) => String(partner.id));
+}
+
 async function runListQuery(
   supabase: SupabaseClient,
   input: ContactsListQueryInput,
@@ -184,15 +227,25 @@ async function runListQuery(
     };
   }
 
+  const q = input.q?.trim();
+  const companyMatchPartnerIds = q
+    ? await resolveCompanyMatchPartnerIds(supabase, q)
+    : [];
+
+  const queryInput: ContactsListQueryInput = {
+    ...input,
+    companyMatchPartnerIds
+  };
+
   let query = applyListFilters(
     supabase.from("partner_contacts").select(CONTACT_LIST_SELECT),
-    input,
+    queryInput,
     useBaselineColumns
   );
 
   const countQuery = applyListFilters(
     supabase.from("partner_contacts").select("id", { count: "exact", head: true }),
-    input,
+    queryInput,
     useBaselineColumns
   );
 

@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { PARTNER_GRADE_LABEL, PARTNER_GRADE_ORDER } from "@/lib/constants";
 import { getDisplayPartnerGrade } from "@/lib/partners/grade";
+import { filterOfficialPartnerStatsPartners } from "@/lib/partners/official-stats-exclude";
 import { filterSamplePartners } from "@/lib/partners/sample-filter";
 import type { Partner } from "@/types/partner";
 
@@ -33,8 +34,11 @@ export type DashboardStats = {
   silverCount: number;
   newContractsThisYear: number;
   newContractsThisMonth: number;
+  newContractsPreviousMonth: number;
   thisMonthLabel: string;
   thisMonthKey: string;
+  previousMonthLabel: string;
+  previousMonthKey: string;
   contactCount: number;
   trainingAttendeeCount: number;
   gradeDist: Array<{ key: string; label: string; value: number; color: string }>;
@@ -72,6 +76,16 @@ function getCurrentMonth(now = new Date()) {
   };
 }
 
+function getPreviousMonth(now = new Date()) {
+  const cursor = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  return {
+    year: cursor.getFullYear(),
+    month: cursor.getMonth() + 1,
+    label: `${cursor.getFullYear()}년 ${cursor.getMonth() + 1}월`,
+    key: `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}`
+  };
+}
+
 function getQuarter(month: number): 1 | 2 | 3 | 4 {
   return (Math.ceil(month / 3) as 1 | 2 | 3 | 4);
 }
@@ -94,8 +108,10 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
     supabase.from("training_attendance").select("id, partner_id")
   ]);
 
-  const partners = filterSamplePartners((partnersData ?? []) as Partner[]).filter(
-    (partner) => partner.is_active !== false
+  const partners = filterOfficialPartnerStatsPartners(
+    filterSamplePartners((partnersData ?? []) as Partner[]).filter(
+      (partner) => partner.is_active !== false
+    )
   );
   const realPartnerIds = new Set(partners.map((partner) => partner.id));
 
@@ -110,6 +126,7 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
   const now = new Date();
   const thisYear = now.getFullYear();
   const thisMonth = getCurrentMonth(now);
+  const previousMonth = getPreviousMonth(now);
 
   let platinumCount = 0;
   let servicePartnerCount = 0;
@@ -117,6 +134,7 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
   let silverCount = 0;
   let newContractsThisYear = 0;
   let newContractsThisMonth = 0;
+  let newContractsPreviousMonth = 0;
 
   for (const partner of partners) {
     const grade = getDisplayPartnerGrade(partner);
@@ -138,6 +156,13 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
     ) {
       newContractsThisMonth += 1;
     }
+
+    if (
+      contractDate.getFullYear() === previousMonth.year &&
+      contractDate.getMonth() + 1 === previousMonth.month
+    ) {
+      newContractsPreviousMonth += 1;
+    }
   }
 
   return {
@@ -148,8 +173,11 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
     silverCount,
     newContractsThisYear,
     newContractsThisMonth,
+    newContractsPreviousMonth,
     thisMonthLabel: thisMonth.label,
     thisMonthKey: thisMonth.key,
+    previousMonthLabel: previousMonth.label,
+    previousMonthKey: previousMonth.key,
     contactCount,
     trainingAttendeeCount,
     gradeDist: computeGradeDistribution(partners),

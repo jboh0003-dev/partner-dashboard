@@ -12,7 +12,7 @@ import {
 import type { ExecutivePerformanceStats } from "@/types/partner-performance";
 
 const PIPELINE_CARD_CLASS =
-  "flex h-full min-h-[9rem] flex-col rounded-xl border border-slate-200 bg-white p-4 shadow-sm";
+  "flex h-full min-h-[10rem] flex-col rounded-xl border border-slate-200 bg-white p-5 shadow-sm ring-1 ring-slate-100";
 
 export function ExecutivePerformanceSection({ stats }: { stats: ExecutivePerformanceStats }) {
   return (
@@ -29,7 +29,7 @@ export function ExecutivePipelineSummarySection({ stats }: { stats: ExecutivePer
 
   if (!latest) {
     return (
-      <section className="mt-8 space-y-3">
+      <section className="mt-6 space-y-3">
         <SectionHeader title="2026 파이프라인 요약" href="/dashboard/performance/upload" hrefLabel="업로드" />
         <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-6 text-sm text-slate-600">
           아직 업로드된 파이프라인 스냅샷이 없습니다.{" "}
@@ -56,10 +56,10 @@ export function ExecutivePipelineSummarySection({ stats }: { stats: ExecutivePer
       : null;
 
   return (
-    <section className="mt-8 space-y-3">
+    <section className="mt-6 space-y-3">
       <SectionHeader title="2026 파이프라인 요약" href="/dashboard/performance" hrefLabel="파이프라인 상세" />
       <div
-        className={`grid gap-3 md:grid-cols-2 ${hasRevenueData ? "xl:grid-cols-4" : "xl:grid-cols-3"}`}
+        className={`grid grid-cols-1 gap-3 sm:grid-cols-2 ${hasRevenueData ? "xl:grid-cols-4" : "xl:grid-cols-3"}`}
       >
         <PipelineCard
           title="2026 수주예상 파트너 파이프라인"
@@ -93,7 +93,7 @@ export function ExecutivePipelineTrendSection({ stats }: { stats: ExecutivePerfo
   const showLineCharts = trendCount >= 3;
 
   return (
-    <section className="mt-8 space-y-3">
+    <section className="mt-6 space-y-3">
       <SectionHeader title="파이프라인 추이" href="/dashboard/performance" hrefLabel="파이프라인 상세" />
       {showLineCharts ? (
         <div className="grid gap-4 lg:grid-cols-2">
@@ -209,7 +209,7 @@ function PipelineCard({
   return (
     <div className={PIPELINE_CARD_CLASS}>
       <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{title}</p>
-      <p className="mt-2 text-3xl font-bold tabular-nums text-slate-950">
+      <p className="mt-2 text-3xl font-bold tabular-nums leading-none text-slate-950">
         {formatEokExecutive(amount)}
       </p>
       <p className="mt-1 text-xs text-slate-500">
@@ -273,14 +273,14 @@ function TopPartnerCard({
     <div className={PIPELINE_CARD_CLASS}>
       <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{title}</p>
       <p
-        className="mt-1 truncate text-sm font-medium text-slate-700"
+        className="mt-2 truncate text-base font-semibold text-slate-900"
         title={partnerName && partnerName !== "-" ? partnerName : undefined}
       >
         {emptyWhenNoData ? subtitleNote ?? "-" : partnerName ?? "-"}
       </p>
-      <p className="mt-2 text-3xl font-bold tabular-nums text-slate-950">{displayAmount}</p>
+      <p className="mt-2 text-3xl font-bold tabular-nums leading-none text-slate-950">{displayAmount}</p>
       {!emptyWhenNoData && count != null ? (
-        <p className="mt-1 text-xs text-slate-500">{formatCount(count)}</p>
+        <p className="mt-auto pt-2 text-xs text-slate-500">{formatCount(count)}</p>
       ) : (
         <div className="mt-auto" />
       )}

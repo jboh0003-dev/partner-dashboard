@@ -9,6 +9,7 @@ import {
 } from "@/lib/imports/partner-contacts";
 import { FULL_SYNC_IMPORT_TYPE } from "@/lib/imports/partner-contacts-sync";
 import { commitPartnerContactsFullDb } from "@/lib/imports/partner-contacts-commit";
+import { fetchAllCanonicalContacts, fetchAllPartners } from "@/lib/imports/fetch-all-rows";
 import {
   buildContactFullDbIdempotencyKey,
   cancelStaleImportJobs,
@@ -125,29 +126,16 @@ export async function POST(request: Request) {
 
     importJobId = importJob.id;
 
-    const [{ data: partners, error: partnerError }, { data: contacts, error: contactError }] =
-      await Promise.all([
-        supabase
-          .from("partners")
-          .select("id, company_name, external_no")
-          .is("deleted_at", null),
-        supabase
-          .from("partner_contacts")
-          .select(
-            "id, partner_id, name, department, position, role_type, role_raw, email, phone, is_primary, is_contract_contact, is_active, in_current_full_db, deleted_at, merged_into_contact_id, review_required, review_reason, source_file, created_at"
-          )
-          .is("deleted_at", null)
-          .is("merged_into_contact_id", null)
-      ]);
-
-    if (partnerError) throw new Error(partnerError.message);
-    if (contactError) throw new Error(contactError.message);
+    const [partners, contacts] = await Promise.all([
+      fetchAllPartners(supabase),
+      fetchAllCanonicalContacts(supabase)
+    ]);
 
     const commitResult = await commitPartnerContactsFullDb(supabase, {
       importJobId,
       rows: parsed.rows,
-      partners: ((partners ?? []) as unknown) as PartnerContactsPartnerRow[],
-      contacts: ((contacts ?? []) as unknown) as PartnerContactsDbRow[]
+      partners: partners as unknown as PartnerContactsPartnerRow[],
+      contacts: contacts as unknown as PartnerContactsDbRow[]
     });
 
     if (commitResult.cancelled) {
@@ -236,6 +224,10 @@ export async function POST(request: Request) {
       import_job_id: importJobId,
       summary: {
         total: parsed.rows.length,
+        source_rows: commitResult.sourceRowCount,
+        deduped_persons: commitResult.dedupedPersonCount,
+        actionable: commitResult.actionableCount,
+        synced: commitResult.syncedCount,
         current_baseline_count: stats.current_baseline_count,
         active_current_count: stats.active_current_count,
         created: stats.created,
@@ -250,7 +242,10 @@ export async function POST(request: Request) {
         review_missing: stats.baseline_excluded,
         skipped: skippedCount,
         review: reviewCount,
-        errors: 0
+        errors: 0,
+        baseline_ok:
+          stats.active_current_count >=
+          Math.floor(commitResult.actionableCount * 0.9)
       },
       baselineExcluded: analysis.baselineExcluded,
       results

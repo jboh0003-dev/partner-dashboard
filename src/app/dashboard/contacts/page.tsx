@@ -213,8 +213,8 @@ export default async function ContactsPage({
               defaultValue={q}
               placeholder={
                 filterLabel
-                  ? `${filterLabel} · 이름, 이메일, 연락처 검색`
-                  : "이름, 이메일, 연락처, 부서/직급 검색"
+                  ? `${filterLabel} · 회사명, 이름, 이메일, 연락처 검색`
+                  : "회사명, 이름, 이메일, 연락처, 부서/직급 검색"
               }
               className="min-w-[220px] flex-1 rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none focus:border-blue-600"
             />

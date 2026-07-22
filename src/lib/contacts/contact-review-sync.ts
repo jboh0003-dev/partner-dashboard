@@ -59,17 +59,33 @@ export async function fetchContactTrainingHistory(
     attendance_status: string | null;
   }>
 > {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("training_attendance")
-    .select("id, training_name, training_date, attendance_status")
+    .select(
+      "id, attendance_status, training:trainings(training_name, start_date, training_year, training_month)"
+    )
     .eq("contact_id", contactId)
-    .order("training_date", { ascending: false })
+    .is("deleted_at", null)
+    .order("created_at", { ascending: false })
     .limit(50);
 
-  return (data ?? []) as Array<{
-    id: string;
-    training_name: string | null;
-    training_date: string | null;
-    attendance_status: string | null;
-  }>;
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return (data ?? []).map((row) => {
+    const training = Array.isArray(row.training) ? row.training[0] : row.training;
+    const startDate =
+      (training?.start_date as string | null | undefined) ??
+      (training?.training_year && training?.training_month
+        ? `${training.training_year}-${String(training.training_month).padStart(2, "0")}-01`
+        : null);
+
+    return {
+      id: String(row.id),
+      training_name: (training?.training_name as string | null | undefined) ?? null,
+      training_date: startDate,
+      attendance_status: (row.attendance_status as string | null | undefined) ?? null
+    };
+  });
 }
