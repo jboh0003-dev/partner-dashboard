@@ -38,7 +38,7 @@ export default async function DashboardPage() {
         description="파트너 운영 핵심 지표와 2026 파이프라인 현황을 한눈에 확인합니다."
         action={
           dataAsOf ? (
-            <p className="rounded-lg bg-white/10 px-3 py-2 text-xs font-medium text-slate-100 ring-1 ring-inset ring-white/20">
+            <p className="rounded-lg bg-white/15 px-3 py-2 text-xs font-semibold text-white ring-1 ring-inset ring-white/30">
               데이터 기준일 {dataAsOf}
             </p>
           ) : null

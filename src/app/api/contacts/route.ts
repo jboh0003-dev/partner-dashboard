@@ -1,10 +1,9 @@
 import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { requireUser, unauthorizedJson } from "@/lib/auth/require-user";
 import { createPartnerContact } from "@/lib/contacts/mutations";
 import { createAdminClient } from "@/lib/supabase/admin";
-
-// TODO(auth): 추후 admin/user 권한 적용 예정 — requireAdmin() 검증 추가
 
 const ContactCreateSchema = z.object({
   partner_id: z.string().uuid("파트너를 선택해 주세요."),
@@ -22,6 +21,9 @@ const ContactCreateSchema = z.object({
 
 export async function POST(request: Request) {
   try {
+    const auth = await requireUser();
+    if (!auth.ok) return unauthorizedJson(auth.message);
+
     const body = ContactCreateSchema.parse(await request.json());
     const supabase = createAdminClient();
 

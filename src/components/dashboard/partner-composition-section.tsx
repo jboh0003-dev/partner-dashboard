@@ -74,10 +74,10 @@ function SectionHeading({
   hrefLabel?: string;
 }) {
   return (
-    <div className="flex flex-wrap items-end justify-between gap-3">
-      <h2 className="text-lg font-bold text-slate-900">{title}</h2>
+    <div className="flex flex-wrap items-end justify-between gap-3 border-b border-slate-200 pb-2">
+      <h2 className="text-xl font-bold tracking-tight text-slate-950">{title}</h2>
       {href ? (
-        <Link href={href} className="text-sm font-semibold text-okestro-600 hover:underline">
+        <Link href={href} className="text-sm font-bold text-okestro-700 hover:underline">
           {hrefLabel} →
         </Link>
       ) : null}
@@ -95,10 +95,10 @@ function CompositionCard({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex min-h-[280px] flex-col rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-      <div className="mb-3">
-        <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
-        {subtitle ? <p className="mt-1 text-xs text-slate-500">{subtitle}</p> : null}
+    <div className="flex min-h-[280px] flex-col rounded-xl border border-slate-300/90 bg-white p-5 shadow-sm">
+      <div className="mb-4">
+        <h3 className="text-sm font-bold text-slate-950">{title}</h3>
+        {subtitle ? <p className="mt-1 text-xs font-medium text-slate-600">{subtitle}</p> : null}
       </div>
       <div className="min-h-0 flex-1">{children}</div>
     </div>
@@ -107,7 +107,7 @@ function CompositionCard({
 
 function EmptyChart({ message }: { message: string }) {
   return (
-    <div className="flex h-[220px] items-center justify-center rounded-lg border border-dashed border-slate-200 bg-slate-50/50 text-xs text-slate-400">
+    <div className="flex h-[220px] items-center justify-center rounded-lg border border-dashed border-slate-300 bg-slate-50 text-sm font-medium text-slate-600">
       {message}
     </div>
   );

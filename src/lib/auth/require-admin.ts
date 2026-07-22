@@ -120,7 +120,11 @@ export async function requireAdmin(): Promise<AdminAuthResult> {
   }
 
   if (authError || !user) {
-    return { ok: false, status: 401, message: "로그인이 필요합니다." };
+    return {
+      ok: false,
+      status: 401,
+      message: "로그인이 필요합니다. 다시 로그인해주세요."
+    };
   }
 
   return { ok: false, status: 403, message: "관리자 권한이 필요합니다." };

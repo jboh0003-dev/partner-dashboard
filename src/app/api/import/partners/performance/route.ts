@@ -1,6 +1,7 @@
 import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { requireUser, unauthorizedJson } from "@/lib/auth/require-user";
 import { deleteTempImportFile, writeImportLog } from "@/lib/imports/import-logs";
 import {
   refreshPipelineCurrentSnapshot,
@@ -110,6 +111,9 @@ const SaveSchema = z.object({
 });
 
 export async function POST(request: Request) {
+  const auth = await requireUser();
+  if (!auth.ok) return unauthorizedJson(auth.message);
+
   const supabase = createAdminClient();
   let importJobId: string | null = null;
 

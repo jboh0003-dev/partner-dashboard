@@ -42,12 +42,12 @@ export function PageHero({
         ].join(" ")}
       >
         <div className="max-w-3xl">
-          <p className="text-2xs font-semibold uppercase tracking-[0.2em] text-slate-300/90">
+          <p className="text-2xs font-bold uppercase tracking-[0.18em] text-slate-100">
             OKESTRO Partner Portal
           </p>
           <h1
             className={[
-              "font-semibold tracking-tight text-white",
+              "font-bold tracking-tight text-white",
               compact ? "mt-1.5 text-xl md:text-2xl" : "mt-2 text-2xl md:text-[1.75rem]"
             ].join(" ")}
           >
@@ -56,7 +56,7 @@ export function PageHero({
           {description ? (
             <p
               className={[
-                "max-w-2xl leading-relaxed text-slate-200/90",
+                "max-w-2xl leading-relaxed text-slate-100",
                 compact ? "mt-1.5 text-sm" : "mt-2 text-sm"
               ].join(" ")}
             >

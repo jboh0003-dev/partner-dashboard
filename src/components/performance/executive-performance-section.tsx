@@ -12,7 +12,7 @@ import {
 import type { ExecutivePerformanceStats } from "@/types/partner-performance";
 
 const PIPELINE_CARD_CLASS =
-  "flex h-full min-h-[10rem] flex-col rounded-xl border border-slate-200 bg-white p-5 shadow-sm ring-1 ring-slate-100";
+  "flex h-full min-h-[10.5rem] flex-col rounded-xl border border-slate-300/90 bg-white p-5 shadow-sm";
 
 export function ExecutivePerformanceSection({ stats }: { stats: ExecutivePerformanceStats }) {
   return (
@@ -31,9 +31,9 @@ export function ExecutivePipelineSummarySection({ stats }: { stats: ExecutivePer
     return (
       <section className="mt-6 space-y-3">
         <SectionHeader title="2026 파이프라인 요약" href="/dashboard/performance/upload" hrefLabel="업로드" />
-        <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-6 text-sm text-slate-600">
+        <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-6 text-sm font-medium text-slate-700">
           아직 업로드된 파이프라인 스냅샷이 없습니다.{" "}
-          <Link href="/dashboard/performance/upload" className="font-semibold text-okestro-600 hover:underline">
+          <Link href="/dashboard/performance/upload" className="font-bold text-okestro-700 hover:underline">
             실적/파이프라인 업로드
           </Link>
           에서 엑셀을 등록해 주세요.
@@ -184,10 +184,10 @@ function SectionHeader({
   hrefLabel?: string;
 }) {
   return (
-    <div className="flex flex-wrap items-end justify-between gap-3">
-      <h2 className="text-lg font-bold text-slate-900">{title}</h2>
+    <div className="flex flex-wrap items-end justify-between gap-3 border-b border-slate-200 pb-2">
+      <h2 className="text-xl font-bold tracking-tight text-slate-950">{title}</h2>
       {href ? (
-        <Link href={href} className="text-sm font-semibold text-okestro-600 hover:underline">
+        <Link href={href} className="text-sm font-bold text-okestro-700 hover:underline">
           {hrefLabel} →
         </Link>
       ) : null}
@@ -208,16 +208,18 @@ function PipelineCard({
 }) {
   return (
     <div className={PIPELINE_CARD_CLASS}>
-      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{title}</p>
-      <p className="mt-2 text-3xl font-bold tabular-nums leading-none text-slate-950">
+      <p className="text-[11px] font-bold uppercase tracking-wide text-slate-600">{title}</p>
+      <p className="mt-2.5 text-3xl font-bold tabular-nums leading-none tracking-tight text-slate-950 md:text-4xl">
         {formatEokExecutive(amount)}
       </p>
-      <p className="mt-1 text-xs text-slate-500">
+      <p className="mt-2 text-xs font-medium text-slate-600">
         {formatCount(count)}
         {amount != null ? ` · ${formatMillion(amount)}` : ""}
       </p>
       {share != null ? (
-        <p className="mt-auto pt-2 text-xs text-slate-500">전체 대비 {formatPercent(share)}</p>
+        <p className="mt-auto pt-3 text-xs font-semibold text-slate-700">
+          전체 대비 {formatPercent(share)}
+        </p>
       ) : (
         <div className="mt-auto" />
       )}
@@ -228,16 +230,16 @@ function PipelineCard({
 function RevenueSummaryCard({ revenue }: { revenue: ExecutivePerformanceStats["revenue_summary"] }) {
   return (
     <div className={PIPELINE_CARD_CLASS}>
-      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">2025 파트너 매출</p>
-      <p className="mt-2 text-3xl font-bold tabular-nums text-slate-950">
+      <p className="text-[11px] font-bold uppercase tracking-wide text-slate-600">2025 파트너 매출</p>
+      <p className="mt-2.5 text-3xl font-bold tabular-nums tracking-tight text-slate-950 md:text-4xl">
         {formatEokExecutive(revenue.total_million)}
       </p>
-      <p className="mt-1 text-xs text-slate-500">
+      <p className="mt-2 text-xs font-medium text-slate-600">
         {formatCount(revenue.total_project_count)} · {formatMillion(revenue.total_million)}
       </p>
       {revenue.top_partner_name ? (
         <p
-          className="mt-auto truncate pt-2 text-xs text-slate-500"
+          className="mt-auto truncate pt-3 text-xs font-semibold text-slate-700"
           title={revenue.top_partner_name}
         >
           TOP {revenue.top_partner_name}{" "}
@@ -271,16 +273,18 @@ function TopPartnerCard({
 
   return (
     <div className={PIPELINE_CARD_CLASS}>
-      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{title}</p>
+      <p className="text-[11px] font-bold uppercase tracking-wide text-slate-600">{title}</p>
       <p
-        className="mt-2 truncate text-base font-semibold text-slate-900"
+        className="mt-2 truncate text-base font-bold text-slate-900"
         title={partnerName && partnerName !== "-" ? partnerName : undefined}
       >
         {emptyWhenNoData ? subtitleNote ?? "-" : partnerName ?? "-"}
       </p>
-      <p className="mt-2 text-3xl font-bold tabular-nums leading-none text-slate-950">{displayAmount}</p>
+      <p className="mt-2 text-3xl font-bold tabular-nums leading-none tracking-tight text-slate-950 md:text-4xl">
+        {displayAmount}
+      </p>
       {!emptyWhenNoData && count != null ? (
-        <p className="mt-auto pt-2 text-xs text-slate-500">{formatCount(count)}</p>
+        <p className="mt-auto pt-3 text-xs font-medium text-slate-600">{formatCount(count)}</p>
       ) : (
         <div className="mt-auto" />
       )}
@@ -296,8 +300,8 @@ function TrendChartCard({
   data: { label: string; value: number }[];
 }) {
   return (
-    <div className="flex min-h-[280px] flex-col rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-      <h3 className="mb-3 text-sm font-semibold text-slate-900">{title}</h3>
+    <div className="flex min-h-[280px] flex-col rounded-xl border border-slate-300/90 bg-white p-5 shadow-sm">
+      <h3 className="mb-3 text-sm font-bold text-slate-950">{title}</h3>
       <div className="min-h-0 flex-1">
         <LineChart data={data} height={240} />
       </div>
@@ -326,12 +330,12 @@ function TrendComparisonCard({
     const current = trend[0]!;
     const value = current[valueKey];
     return (
-      <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-        <p className="text-sm font-semibold text-slate-900">{title}</p>
-        <p className="mt-3 text-2xl font-bold tabular-nums text-slate-950">
+      <div className="rounded-xl border border-slate-300/90 bg-white p-5 shadow-sm">
+        <p className="text-sm font-bold text-slate-950">{title}</p>
+        <p className="mt-3 text-3xl font-bold tabular-nums tracking-tight text-slate-950">
           {formatEokExecutive(value)}
         </p>
-        <p className="mt-1 text-xs text-slate-500">
+        <p className="mt-1.5 text-xs font-medium text-slate-600">
           기준 {formatSnapshotLabelShort(current.snapshot_label, current.snapshot_date)}
         </p>
       </div>
@@ -347,19 +351,19 @@ function TrendComparisonCard({
     prevValue > 0 ? Math.round(((currValue - prevValue) / prevValue) * 1000) / 10 : null;
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-      <p className="text-sm font-semibold text-slate-900">{title}</p>
+    <div className="rounded-xl border border-slate-300/90 bg-white p-5 shadow-sm">
+      <p className="text-sm font-bold text-slate-950">{title}</p>
       <div className="mt-3 flex flex-wrap items-baseline gap-2 text-2xl font-bold tabular-nums text-slate-950">
         <span>{formatEokExecutive(prevValue)}</span>
-        <span className="text-lg text-slate-400">→</span>
+        <span className="text-lg text-slate-500">→</span>
         <span className="text-okestro-700">{formatEokExecutive(currValue)}</span>
       </div>
-      <p className="mt-2 text-xs text-slate-500">
+      <p className="mt-2 text-xs font-medium text-slate-600">
         {formatSnapshotLabelShort(prev.snapshot_label, prev.snapshot_date)} →{" "}
         {formatSnapshotLabelShort(curr.snapshot_label, curr.snapshot_date)}
       </p>
       <p
-        className={`mt-3 text-sm font-semibold ${deltaMillion >= 0 ? "text-emerald-700" : "text-red-600"}`}
+        className={`mt-3 text-sm font-bold ${deltaMillion >= 0 ? "text-emerald-700" : "text-red-700"}`}
       >
         전월 대비 {formatEokDelta(deltaMillion)}
         {deltaPct != null ? ` (${deltaMillion >= 0 ? "+" : ""}${deltaPct}%)` : ""}
@@ -370,8 +374,8 @@ function TrendComparisonCard({
 
 function RankCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-      <h3 className="mb-3 text-sm font-semibold text-slate-900">{title}</h3>
+    <div className="rounded-xl border border-slate-300/90 bg-white p-5 shadow-sm">
+      <h3 className="mb-4 text-sm font-bold text-slate-950">{title}</h3>
       {children}
     </div>
   );

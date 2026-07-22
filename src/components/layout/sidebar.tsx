@@ -1,9 +1,8 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { BrandLogo } from "@/components/layout/brand-logo";
 import { GlobalPartnerSearch } from "@/components/layout/global-partner-search";
+import { SidebarUserFooter } from "@/components/layout/sidebar-user-footer";
 import { useOkePanel } from "@/components/search/oke-panel-context";
 import { OKE_MENU_LABEL } from "@/lib/search/oke-branding";
 import {
@@ -17,6 +16,8 @@ import {
   Upload,
   Users
 } from "lucide-react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 type NavItem = {
   href: string;
@@ -88,7 +89,7 @@ function navIconClass(isActive: boolean): string {
   return isActive ? "text-okestro-600" : "text-slate-400 group-hover:text-slate-500";
 }
 
-export function Sidebar() {
+export function Sidebar({ userEmail = null }: { userEmail?: string | null }) {
   const pathname = usePathname();
   const { openPanel, open } = useOkePanel();
   const okeActive = open || isOkeNavActive(pathname);
@@ -155,9 +156,7 @@ export function Sidebar() {
         ))}
       </nav>
 
-      <div className="border-t border-slate-100 px-5 py-4">
-        <p className="text-2xs text-slate-400">OKESTRO Partner Portal</p>
-      </div>
+      <SidebarUserFooter email={userEmail} />
     </aside>
   );
 }

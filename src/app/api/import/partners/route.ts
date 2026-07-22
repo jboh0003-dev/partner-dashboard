@@ -1,6 +1,7 @@
 import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { requireUser, unauthorizedJson } from "@/lib/auth/require-user";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getPartnerMatchKey, normalizeMatchKey } from "@/lib/partner-match";
 
@@ -42,6 +43,9 @@ type RowResult = {
 
 export async function POST(request: Request) {
   try {
+    const auth = await requireUser();
+    if (!auth.ok) return unauthorizedJson(auth.message);
+
     const json = await request.json();
     const parsed = ImportPayloadSchema.parse(json);
     const supabase = createAdminClient();

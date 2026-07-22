@@ -8,19 +8,19 @@ type HorizontalBarChartItem = {
 export function HorizontalBarChart({ data }: { data: HorizontalBarChartItem[] }) {
   const max = Math.max(1, ...data.map((d) => d.value));
   return (
-    <div className="space-y-3">
+    <div className="space-y-3.5">
       {data.map((item) => {
         const pct = Math.round((item.value / max) * 100);
         return (
           <div key={item.label}>
-            <div className="mb-1 flex items-center justify-between text-xs">
-              <span className="font-medium text-slate-700">{item.label}</span>
-              <span className="tabular-nums text-slate-500">{item.value}</span>
+            <div className="mb-1.5 flex items-center justify-between text-sm">
+              <span className="font-semibold text-slate-800">{item.label}</span>
+              <span className="tabular-nums font-bold text-slate-900">{item.value}</span>
             </div>
-            <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-100">
+            <div className="h-3 w-full overflow-hidden rounded-full bg-slate-200">
               <div
                 style={{ width: `${pct}%` }}
-                className={["h-full rounded-full", item.color ?? "bg-blue-500"].join(" ")}
+                className={["h-full rounded-full", item.color ?? "bg-blue-600"].join(" ")}
               />
             </div>
           </div>
@@ -42,30 +42,30 @@ export function ExecutiveRankBarChart({
 
   if (data.length === 0) {
     return (
-      <div className="flex h-[200px] items-center justify-center rounded-lg border border-dashed border-slate-200 text-xs text-slate-400">
+      <div className="flex h-[200px] items-center justify-center rounded-lg border border-dashed border-slate-300 text-sm font-medium text-slate-600">
         데이터 없음
       </div>
     );
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3.5">
       {data.map((item) => {
         const pct = Math.round((item.value / max) * 100);
         return (
           <div key={item.label}>
-            <div className="mb-1 flex items-center justify-between gap-3 text-xs">
-              <span className="min-w-0 flex-1 truncate font-medium text-slate-700" title={item.label}>
+            <div className="mb-1.5 flex items-center justify-between gap-3 text-sm">
+              <span className="min-w-0 flex-1 truncate font-semibold text-slate-800" title={item.label}>
                 {item.label}
               </span>
-              <span className="shrink-0 tabular-nums font-semibold text-slate-800">
+              <span className="shrink-0 tabular-nums font-bold text-slate-950">
                 {formatValue(item.value)}
               </span>
             </div>
-            <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-100">
+            <div className="h-3 w-full overflow-hidden rounded-full bg-slate-200">
               <div
                 style={{ width: `${pct}%` }}
-                className={["h-full rounded-full", item.color ?? "bg-blue-500"].join(" ")}
+                className={["h-full rounded-full", item.color ?? "bg-blue-600"].join(" ")}
               />
             </div>
           </div>
@@ -161,7 +161,7 @@ export function GradeDistributionChart({ data }: { data: HorizontalBarChartItem[
           >
             {total}
           </text>
-          <text x={cx} y={cy + 14} textAnchor="middle" className="fill-slate-500 text-[11px]">
+          <text x={cx} y={cy + 14} textAnchor="middle" className="fill-slate-600 text-[11px] font-medium">
             전체 파트너
           </text>
         </svg>
@@ -208,8 +208,8 @@ export function GradeDistributionChart({ data }: { data: HorizontalBarChartItem[
                   </span>
                   <span
                     className={[
-                      "ml-2 text-xs font-medium",
-                      isMuted ? "text-slate-400" : "text-slate-500"
+                      "ml-2 text-xs font-semibold",
+                      isMuted ? "text-slate-500" : "text-slate-600"
                     ].join(" ")}
                   >
                     / {pct}%

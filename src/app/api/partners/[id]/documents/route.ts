@@ -1,13 +1,12 @@
 import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { requireUser, unauthorizedJson } from "@/lib/auth/require-user";
 import {
   checkExistingDocumentForType,
   uploadPartnerDocumentManual
 } from "@/lib/documents/manual-upload";
 import { createAdminClient } from "@/lib/supabase/admin";
-
-// TODO(auth): 추후 admin/user 권한 적용 예정 — requireAdmin() 검증 추가
 
 const UploadSchema = z.object({
   document_type: z.string().min(1),
@@ -23,6 +22,9 @@ export async function GET(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const auth = await requireUser();
+    if (!auth.ok) return unauthorizedJson(auth.message);
+
     const { id: partnerId } = await context.params;
     const url = new URL(_request.url);
     const documentType = url.searchParams.get("document_type") ?? "";
@@ -46,6 +48,9 @@ export async function POST(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const auth = await requireUser();
+    if (!auth.ok) return unauthorizedJson(auth.message);
+
     const { id: partnerId } = await context.params;
     const formData = await request.formData();
     const file = formData.get("file");

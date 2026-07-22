@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { requireUser, unauthorizedJson } from "@/lib/auth/require-user";
 import { parsePartnerApplicationBuffer } from "@/lib/partner-application/parse-application";
 import {
   findMatchingPartner,
@@ -24,6 +25,9 @@ function isXlsx(fileName: string, mime: string | null): boolean {
 
 export async function POST(request: Request) {
   try {
+    const auth = await requireUser();
+    if (!auth.ok) return unauthorizedJson(auth.message);
+
     const form = await request.formData();
     const file = form.get("file");
     if (!(file instanceof File)) {

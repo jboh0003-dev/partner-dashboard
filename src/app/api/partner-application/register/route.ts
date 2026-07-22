@@ -1,6 +1,7 @@
 import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { requireUser, unauthorizedJson } from "@/lib/auth/require-user";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   parsePartnerContractGrade,
@@ -52,6 +53,9 @@ const PayloadSchema = z.object({
 
 export async function POST(request: Request) {
   try {
+    const auth = await requireUser();
+    if (!auth.ok) return unauthorizedJson(auth.message);
+
     const form = await request.formData();
     const file = form.get("file");
     const payloadRaw = form.get("payload");

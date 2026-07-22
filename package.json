@@ -20,7 +20,8 @@
     "normalize:phones:run": "powershell -NoProfile -Command \"$env:CONFIRM_NORMALIZE='true'; npx tsx scripts/normalize-contact-phones.ts\"",
     "fixtures:partner-contracts": "node scripts/generate-partner-contract-fixtures.js",
     "test:partner-application": "npx tsx scripts/test-partner-application.ts",
-    "test:official-stats-exclude": "npx tsx scripts/test-official-stats-exclude.ts"
+    "test:official-stats-exclude": "npx tsx scripts/test-official-stats-exclude.ts",
+    "test:auth-redirect": "npx tsx scripts/test-auth-redirect.ts"
   },
   "dependencies": {
     "@supabase/ssr": "latest",

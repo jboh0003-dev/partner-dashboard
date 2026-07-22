@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { requireUser, unauthorizedJson } from "@/lib/auth/require-user";
 import {
   computeContractEndDate,
   parsePartnerContractGrade
@@ -18,6 +19,9 @@ const BodySchema = z.object({
 
 export async function POST(request: Request) {
   try {
+    const auth = await requireUser();
+    if (!auth.ok) return unauthorizedJson(auth.message);
+
     const json = await request.json();
     const body = BodySchema.parse(json);
     const grade = parsePartnerContractGrade(body.grade);
