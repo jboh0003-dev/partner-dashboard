@@ -80,9 +80,10 @@ async function main() {
       break;
     }
     for (const path of batch) {
-      results.push({ path, ok: true });
-      // 성공한 path의 DB 레코드는 soft-mark만 (hard delete 금지)
-      await supabase
+      // 성공한 path의 DB 레코드는 soft-mark만 (hard delete 금지).
+      // PostgREST .or() 값에 / 등 특수문자가 있으면 반드시 double-quote 필요.
+      const quoted = `"${path.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+      const { error: markError } = await supabase
         .from("partner_documents")
         .update({
           is_duplicate: true,
@@ -90,7 +91,18 @@ async function main() {
           is_active: false,
           note: "storage cleanup: exact duplicate removed via Storage API"
         })
-        .or(`storage_path.eq.${path},file_path.eq.${path}`);
+        .or(`storage_path.eq.${quoted},file_path.eq.${quoted}`);
+
+      if (markError) {
+        results.push({
+          path,
+          ok: false,
+          error: `storage removed but DB mark failed: ${markError.message}`
+        });
+        console.error("DB soft-mark 실패:", path, markError.message);
+        continue;
+      }
+      results.push({ path, ok: true });
     }
   }
 
