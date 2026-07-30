@@ -1,5 +1,7 @@
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { PARTNER_GRADE_LABEL, PARTNER_GRADE_ORDER } from "@/lib/constants";
+import { fetchAllRows } from "@/lib/imports/fetch-all-rows";
 import { getDisplayPartnerGrade } from "@/lib/partners/grade";
 import { filterOfficialPartnerStatsPartners } from "@/lib/partners/official-stats-exclude";
 import { filterSamplePartners } from "@/lib/partners/sample-filter";
@@ -7,6 +9,10 @@ import type { Partner } from "@/types/partner";
 
 const CUMULATIVE_START_YEAR = 2024;
 const CUMULATIVE_START_MONTH = 7;
+
+/** KPI/차트에 필요한 최소 컬럼 */
+const DASHBOARD_PARTNER_SELECT =
+  "id, company_name, contract_display_name, external_no, memo, is_active, deleted_at, grade, grade_override, grade_change_raw, grade_original, contract_start_date, region_group";
 
 export type RecentContractPartner = {
   id: string;
@@ -87,41 +93,62 @@ function getPreviousMonth(now = new Date()) {
 }
 
 function getQuarter(month: number): 1 | 2 | 3 | 4 {
-  return (Math.ceil(month / 3) as 1 | 2 | 3 | 4);
+  return Math.ceil(month / 3) as 1 | 2 | 3 | 4;
 }
 
-export async function fetchDashboardStats(): Promise<DashboardStats> {
+async function countByPartnerIds(
+  table: "partner_contacts" | "training_attendance",
+  partnerIds: string[]
+): Promise<number> {
+  if (partnerIds.length === 0) return 0;
   const supabase = await createClient();
 
-  const [
-    { data: partnersData },
-    { data: contactRows },
-    { data: trainingRows }
-  ] = await Promise.all([
-    supabase.from("partners").select("*").is("deleted_at", null),
+  // IN 절 URL 길이 제한 대비 청크
+  const chunkSize = 150;
+  let total = 0;
+  for (let i = 0; i < partnerIds.length; i += chunkSize) {
+    const chunk = partnerIds.slice(i, i + chunkSize);
+    let query = supabase
+      .from(table)
+      .select("id", { count: "exact", head: true })
+      .in("partner_id", chunk);
+
+    if (table === "partner_contacts") {
+      query = query
+        .eq("is_active", true)
+        .eq("in_current_full_db", true)
+        .is("deleted_at", null);
+    }
+
+    const { count, error } = await query;
+    if (error) throw new Error(error.message);
+    total += count ?? 0;
+  }
+  return total;
+}
+
+export const fetchDashboardStats = cache(async (): Promise<DashboardStats> => {
+  const supabase = await createClient();
+
+  const partnersData = await fetchAllRows<Record<string, unknown>>((from, to) =>
     supabase
-      .from("partner_contacts")
-      .select("partner_id")
-      .eq("is_active", true)
-      .eq("in_current_full_db", true)
-      .is("deleted_at", null),
-    supabase.from("training_attendance").select("id, partner_id")
-  ]);
+      .from("partners")
+      .select(DASHBOARD_PARTNER_SELECT)
+      .is("deleted_at", null)
+      .range(from, to)
+  );
 
   const partners = filterOfficialPartnerStatsPartners(
-    filterSamplePartners((partnersData ?? []) as Partner[]).filter(
+    filterSamplePartners((partnersData as unknown as Partner[]) ?? []).filter(
       (partner) => partner.is_active !== false
     )
   );
-  const realPartnerIds = new Set(partners.map((partner) => partner.id));
+  const realPartnerIds = partners.map((partner) => partner.id);
 
-  const contactCount = (contactRows ?? []).filter((row) =>
-    realPartnerIds.has(String(row.partner_id))
-  ).length;
-
-  const trainingAttendeeCount = (trainingRows ?? []).filter((row) =>
-    row.partner_id ? realPartnerIds.has(String(row.partner_id)) : false
-  ).length;
+  const [contactCount, trainingAttendeeCount] = await Promise.all([
+    countByPartnerIds("partner_contacts", realPartnerIds),
+    countByPartnerIds("training_attendance", realPartnerIds)
+  ]);
 
   const now = new Date();
   const thisYear = now.getFullYear();
@@ -186,6 +213,45 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
     cumulativePartners: computeCumulativePartners(partners),
     recentContracts: computeRecentContracts(partners)
   };
+});
+
+/** KPI 카드만 빠르게 채우기 위한 요약 (차트 제외) */
+export async function fetchDashboardKpiStats(): Promise<
+  Pick<
+    DashboardStats,
+    | "partnerCount"
+    | "platinumCount"
+    | "servicePartnerCount"
+    | "goldCount"
+    | "silverCount"
+    | "newContractsThisYear"
+    | "newContractsThisMonth"
+    | "newContractsPreviousMonth"
+    | "thisMonthLabel"
+    | "thisMonthKey"
+    | "previousMonthLabel"
+    | "previousMonthKey"
+    | "contactCount"
+    | "trainingAttendeeCount"
+  >
+> {
+  const full = await fetchDashboardStats();
+  return {
+    partnerCount: full.partnerCount,
+    platinumCount: full.platinumCount,
+    servicePartnerCount: full.servicePartnerCount,
+    goldCount: full.goldCount,
+    silverCount: full.silverCount,
+    newContractsThisYear: full.newContractsThisYear,
+    newContractsThisMonth: full.newContractsThisMonth,
+    newContractsPreviousMonth: full.newContractsPreviousMonth,
+    thisMonthLabel: full.thisMonthLabel,
+    thisMonthKey: full.thisMonthKey,
+    previousMonthLabel: full.previousMonthLabel,
+    previousMonthKey: full.previousMonthKey,
+    contactCount: full.contactCount,
+    trainingAttendeeCount: full.trainingAttendeeCount
+  };
 }
 
 function parseContractDate(value: string | null): Date | null {
@@ -206,8 +272,7 @@ function computeRecentContracts(partners: Partner[], limit = 8): RecentContractP
     .map((partner) => ({
       id: partner.id,
       company_name: partner.company_name,
-      grade_label:
-        PARTNER_GRADE_LABEL[getDisplayPartnerGrade(partner)] ?? "미분류",
+      grade_label: PARTNER_GRADE_LABEL[getDisplayPartnerGrade(partner)] ?? "미분류",
       contract_start_date: partner.contract_start_date!
     }));
 }
@@ -311,9 +376,7 @@ function computeCumulativePartners(partners: Partner[]): CumulativePartnerPoint[
 
   return buckets.map((bucket) => {
     const monthlyNew = contractDates.filter(
-      (date) =>
-        date >= bucket.startDate &&
-        date <= bucket.endDate
+      (date) => date >= bucket.startDate && date <= bucket.endDate
     ).length;
 
     return {

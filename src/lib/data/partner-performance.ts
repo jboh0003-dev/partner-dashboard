@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isFy26, isRegisteredYear2026 } from "@/lib/performance/format";
 import { needsPerformanceReview } from "@/lib/performance/match-status";
@@ -178,11 +179,20 @@ function isNewRegPipelineRow(row: PartnerPipelineOpportunity): boolean {
   );
 }
 
+const SNAPSHOT_SELECT =
+  "id, snapshot_date, snapshot_label, source_file_name, total_pipeline_amount_million, total_pipeline_count, partner_pipeline_amount_million, partner_pipeline_count, new_total_pipeline_amount_million, new_total_pipeline_count, new_partner_pipeline_amount_million, new_partner_pipeline_count, is_current, uploaded_at, uploaded_by, version, created_at, updated_at";
+
+const OPPORTUNITY_EXEC_SELECT =
+  "id, snapshot_id, snapshot_date, project_code, customer_name, project_name, project_registered_year, division, expected_win_year, win_probability_label, is_partner_deal, partner_grade, partner_name, raw_partner_name, matched_partner_id, matched_partner_name, match_status, is_product_revenue, product_amount_million";
+
+const REVENUE_EXEC_SELECT =
+  "id, partner_name, matched_partner_id, partner_grade, match_status, product_revenue_million, project_count, revenue_year";
+
 export async function fetchSnapshotTimeline(limit = 50): Promise<PartnerPerformanceSnapshot[]> {
   const supabase = createAdminClient();
   const { data } = await supabase
     .from("partner_performance_snapshots")
-    .select("*")
+    .select(SNAPSHOT_SELECT)
     .order("snapshot_date", { ascending: true })
     .order("uploaded_at", { ascending: true })
     .limit(limit);
@@ -194,7 +204,7 @@ export async function fetchCurrentSnapshot(): Promise<PartnerPerformanceSnapshot
 
   const { data: current } = await supabase
     .from("partner_performance_snapshots")
-    .select("*")
+    .select(SNAPSHOT_SELECT)
     .eq("is_current", true)
     .maybeSingle();
 
@@ -204,7 +214,7 @@ export async function fetchCurrentSnapshot(): Promise<PartnerPerformanceSnapshot
 
   const { data: latest } = await supabase
     .from("partner_performance_snapshots")
-    .select("*")
+    .select(SNAPSHOT_SELECT)
     .order("snapshot_date", { ascending: false })
     .order("uploaded_at", { ascending: false })
     .limit(1)
@@ -218,10 +228,13 @@ export async function fetchLatestSnapshots(limit = 12): Promise<PartnerPerforman
   return fetchSnapshotTimeline(limit);
 }
 
-export async function fetchExecutivePerformanceStats(): Promise<ExecutivePerformanceStats> {
+export const fetchExecutivePerformanceStats = cache(
+  async (): Promise<ExecutivePerformanceStats> => {
   const supabase = createAdminClient();
+  // timeline 한 번으로 current/previous 결정 (중복 select 제거)
   const timeline = await fetchSnapshotTimeline(50);
-  const latest = (await fetchCurrentSnapshot()) ?? timeline.at(-1) ?? null;
+  const latest =
+    timeline.find((row) => row.is_current) ?? timeline.at(-1) ?? null;
   const latestIndex = latest ? timeline.findIndex((row) => row.id === latest.id) : -1;
   const previous =
     latestIndex > 0 ? timeline[latestIndex - 1]! : timeline.length > 1 ? timeline.at(-2)! : null;
@@ -253,11 +266,11 @@ export async function fetchExecutivePerformanceStats(): Promise<ExecutivePerform
   const [{ data: opportunities }, { data: revenueRows }] = await Promise.all([
     supabase
       .from("partner_pipeline_opportunities")
-      .select("*")
+      .select(OPPORTUNITY_EXEC_SELECT)
       .eq("snapshot_id", latest.id),
     supabase
       .from("partner_revenue_records")
-      .select("*")
+      .select(REVENUE_EXEC_SELECT)
       .eq("revenue_year", 2025)
       .order("product_revenue_million", { ascending: false })
       .limit(200)
@@ -367,7 +380,8 @@ export async function fetchExecutivePerformanceStats(): Promise<ExecutivePerform
     review_count: partnerDealRows.filter(needsPerformanceReview).length,
     unmatched_partner_count
   };
-}
+  }
+);
 
 export async function fetchPartnerPerformanceBundle(partnerId: string) {
   const supabase = createAdminClient();

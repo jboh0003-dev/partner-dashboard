@@ -2,9 +2,13 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { buildLoginRedirectUrl, getSafeRedirectPath } from "@/lib/auth/redirect";
 
+function isPublicApiPath(pathname: string): boolean {
+  return pathname.startsWith("/api/public/");
+}
+
 function isProtectedPath(pathname: string): boolean {
   if (pathname === "/dashboard" || pathname.startsWith("/dashboard/")) return true;
-  if (pathname.startsWith("/api/")) return true;
+  if (pathname.startsWith("/api/") && !isPublicApiPath(pathname)) return true;
   return false;
 }
 

@@ -39,6 +39,7 @@ const NAV_GROUPS: NavGroup[] = [
     title: "Partner",
     items: [
       { href: "/dashboard/partners", label: "파트너사", icon: Building2 },
+      { href: "/dashboard/partner-applications", label: "파트너 신청관리", icon: FileText },
       { href: "/dashboard/contacts", label: "인력·담당자", icon: Users },
       { href: "/dashboard/performance", label: "실적/파이프라인", icon: TrendingUp },
       { href: "/dashboard/documents", label: "문서 관리", icon: FileText }
@@ -60,7 +61,8 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: "/dashboard/upload", label: "데이터 업로드", icon: Upload },
       { href: "/dashboard/performance/upload", label: "실적/파이프라인 업로드", icon: TrendingUp },
-      { href: "/dashboard/trainings/tech-partner-upload", label: "기술파트너 교육 업로드", icon: GraduationCap }
+      { href: "/dashboard/trainings/tech-partner-upload", label: "기술파트너 교육 업로드", icon: GraduationCap },
+      { href: "/dashboard/storage-audit", label: "Storage 진단", icon: FileText }
     ]
   }
 ];

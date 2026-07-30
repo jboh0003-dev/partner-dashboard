@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -84,10 +85,12 @@ export async function getViewerAuthContext(): Promise<ViewerAuthContext> {
 }
 
 export async function getViewerRole(): Promise<string | null> {
-  const context = await getViewerAuthContext();
+  const context = await getViewerAuthContextCached();
   if (context.isAdmin) return "admin";
   return context.role;
 }
+
+const getViewerAuthContextCached = cache(getViewerAuthContext);
 
 export async function requireAdmin(): Promise<AdminAuthResult> {
   const supabase = await createClient();

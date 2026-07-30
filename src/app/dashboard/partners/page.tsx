@@ -84,7 +84,9 @@ export default async function PartnersPage({
 
   const { data: partnersData, error: partnersError } = await supabase
     .from("partners")
-    .select("*")
+    .select(
+      "id, company_name, external_no, grade, grade_override, grade_change_raw, grade_original, contract_start_date, region_group, status, is_active, deleted_at, memo, ceo_name, business_number, main_phone, primary_email, sales_owner, okestro_owner, contract_contact_name, contract_contact_phone, contract_contact_email, created_at, updated_at"
+    )
     .is("deleted_at", null);
 
   const activePartners = filterSamplePartners((partnersData ?? []) as Partner[]).filter(
@@ -104,7 +106,9 @@ export default async function PartnersPage({
   if (partnerIds.length > 0) {
     const { data: contactsData } = await supabase
       .from("partner_contacts")
-      .select("*")
+      .select(
+        "id, partner_id, name, department, position, email, phone, is_primary, is_contract_contact, is_active, deleted_at"
+      )
       .in("partner_id", partnerIds)
       .eq("is_active", true)
       .is("deleted_at", null);

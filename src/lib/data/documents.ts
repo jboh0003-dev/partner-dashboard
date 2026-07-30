@@ -38,12 +38,43 @@ function searchScore(row: PartnerDocumentWithPartner, query: string, advanced: b
   return score;
 }
 
+const DOCUMENT_LIST_SELECT = [
+  "id",
+  "partner_id",
+  "partner_name_raw",
+  "document_type",
+  "document_status",
+  "original_filename",
+  "display_name",
+  "file_name",
+  "file_ext",
+  "file_size",
+  "file_path",
+  "storage_path",
+  "file_url",
+  "is_primary",
+  "is_active",
+  "is_duplicate",
+  "duplicate_reason",
+  "match_status",
+  "match_method",
+  "match_confidence",
+  "review_status",
+  "extracted_partner_name",
+  "contract_date",
+  "period_year",
+  "summary",
+  "created_at",
+  "updated_at",
+  "partners!inner(company_name)"
+].join(", ");
+
 export async function fetchDocumentList(filters: DocumentListFilters = {}) {
   const supabase = await createClient();
 
   let query = supabase
     .from("partner_documents")
-    .select("*, partners!inner(company_name)")
+    .select(DOCUMENT_LIST_SELECT)
     .is("deleted_at", null)
     .order("is_primary", { ascending: false })
     .order("created_at", { ascending: false });
@@ -74,7 +105,7 @@ export async function fetchDocumentList(filters: DocumentListFilters = {}) {
   }
 
   const { data, error } = await query;
-  let rows: PartnerDocumentWithPartner[] = (data ?? [])
+  let rows: PartnerDocumentWithPartner[] = ((data ?? []) as unknown as Record<string, unknown>[])
     .map((row) => mapDocumentRow(row))
     .filter((row) => !isSamplePartnerName(row.partner_name))
     .filter((row) => (visibility !== "active" && visibility !== "current") || !isExcludedReview(row.review_status));
