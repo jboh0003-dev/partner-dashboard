@@ -179,7 +179,7 @@ export function PartnerDetailTabs({
         })}
       </div>
 
-      <div className="p-6">
+      <div key={active} className="ui-tab-panel-enter p-6">
         {active === "basic" ? <BasicInfoTab partner={partner} isAdmin={isAdmin} /> : null}
         {active === "organization" ? (
           <OrganizationTab

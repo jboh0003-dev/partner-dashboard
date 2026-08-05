@@ -8,6 +8,7 @@ export const PARTNER_DOCUMENT_TAB_ORDER = [
   "bank_account",
   "credit_rating",
   "partner_contract",
+  "platinum_agreement",
   "other_generic",
   "security_commitment",
   "tech_profile"
@@ -23,6 +24,7 @@ export const PARTNER_DOCUMENT_TAB_TYPE_LABEL: Record<string, string> = {
   credit_rating: "신용평가서",
   partner_contract: "파트너 계약서",
   partner_contract_group: "파트너 계약서",
+  platinum_agreement: "플래티넘 부속합의서",
   security_commitment: "보안확약서",
   other: "기타 문서",
   other_generic: "기타 문서",
@@ -59,6 +61,7 @@ export function getPartnerDocumentTabSortKey(doc: {
 
   const type = normalizeDocumentTypeKey(doc.document_type) ?? "other";
   if (type === "security_commitment") return "security_commitment";
+  if (type === "platinum_agreement") return "platinum_agreement";
   if (type === "other" || type === "etc" || type === "proposal" || type === "report") {
     return "other_generic";
   }

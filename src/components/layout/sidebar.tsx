@@ -6,7 +6,9 @@ import { SidebarUserFooter } from "@/components/layout/sidebar-user-footer";
 import { useOkePanel } from "@/components/search/oke-panel-context";
 import { OKE_MENU_LABEL } from "@/lib/search/oke-branding";
 import {
+  ArrowUpCircle,
   Building2,
+  ChevronDown,
   FileText,
   GraduationCap,
   LayoutDashboard,
@@ -14,21 +16,44 @@ import {
   Sparkles,
   TrendingUp,
   Upload,
+  UserPlus,
   Users
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 
-type NavItem = {
+type NavLeaf = {
   href: string;
   label: string;
   icon: typeof LayoutDashboard;
 };
 
+type NavAccordion = {
+  type: "accordion";
+  id: string;
+  /** 메뉴명/아이콘 클릭 시 이동하는 기존 목록 경로 */
+  href: string;
+  label: string;
+  icon: typeof LayoutDashboard;
+  children: NavLeaf[];
+};
+
+type NavEntry = NavLeaf | NavAccordion;
+
 type NavGroup = {
   title: string;
-  items: NavItem[];
+  items: NavEntry[];
 };
+
+const PARTNER_ACCORDION_ID = "partner";
+
+const PARTNER_CHILD_PREFIXES = [
+  "/dashboard/partner-applications",
+  "/dashboard/contacts",
+  "/dashboard/documents",
+  "/dashboard/platinum-upgrade"
+] as const;
 
 const NAV_GROUPS: NavGroup[] = [
   {
@@ -38,11 +63,36 @@ const NAV_GROUPS: NavGroup[] = [
   {
     title: "Partner",
     items: [
-      { href: "/dashboard/partners", label: "파트너사", icon: Building2 },
-      { href: "/dashboard/partner-applications", label: "파트너 신청관리", icon: FileText },
-      { href: "/dashboard/contacts", label: "인력·담당자", icon: Users },
-      { href: "/dashboard/performance", label: "실적/파이프라인", icon: TrendingUp },
-      { href: "/dashboard/documents", label: "문서 관리", icon: FileText }
+      {
+        type: "accordion",
+        id: PARTNER_ACCORDION_ID,
+        href: "/dashboard/partners",
+        label: "파트너",
+        icon: Building2,
+        children: [
+          {
+            href: "/dashboard/partner-applications",
+            label: "파트너 등록",
+            icon: UserPlus
+          },
+          {
+            href: "/dashboard/contacts",
+            label: "인력·담당자",
+            icon: Users
+          },
+          {
+            href: "/dashboard/documents",
+            label: "파트너 문서",
+            icon: FileText
+          },
+          {
+            href: "/dashboard/platinum-upgrade",
+            label: "플래티넘 승급",
+            icon: ArrowUpCircle
+          }
+        ]
+      },
+      { href: "/dashboard/performance", label: "실적/파이프라인", icon: TrendingUp }
     ]
   },
   {
@@ -74,8 +124,18 @@ function isNavActive(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
+function isPartnerSectionPath(pathname: string): boolean {
+  return PARTNER_CHILD_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
+  );
+}
+
 function isOkeNavActive(pathname: string): boolean {
   return pathname === "/dashboard/chat" || pathname.startsWith("/dashboard/chat/");
+}
+
+function isAccordion(entry: NavEntry): entry is NavAccordion {
+  return "type" in entry && entry.type === "accordion";
 }
 
 function navItemClass(isActive: boolean): string {
@@ -87,8 +147,108 @@ function navItemClass(isActive: boolean): string {
   ].join(" ");
 }
 
+function navChildClass(isActive: boolean): string {
+  return [
+    "relative flex items-center gap-2.5 rounded-lg py-2 pl-10 pr-3 text-sm font-medium transition",
+    isActive
+      ? "bg-okestro-50 font-semibold text-okestro-800 before:absolute before:left-0 before:top-1/2 before:h-5 before:w-1 before:-translate-y-1/2 before:rounded-r before:bg-okestro-600"
+      : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+  ].join(" ");
+}
+
 function navIconClass(isActive: boolean): string {
   return isActive ? "text-okestro-600" : "text-slate-400 group-hover:text-slate-500";
+}
+
+function PartnerAccordion({
+  item,
+  pathname
+}: {
+  item: NavAccordion;
+  pathname: string;
+}) {
+  const listActive = isNavActive(pathname, item.href);
+  const childSectionActive = isPartnerSectionPath(pathname);
+  const shouldStayOpen = listActive || childSectionActive;
+  const [open, setOpen] = useState(shouldStayOpen);
+
+  useEffect(() => {
+    if (shouldStayOpen) setOpen(true);
+  }, [shouldStayOpen, pathname]);
+
+  const Icon = item.icon;
+  const parentToneActive = listActive || childSectionActive;
+
+  return (
+    <div>
+      <div className="flex items-center gap-0.5">
+        <Link
+          href={item.href}
+          className={[
+            "group min-w-0 flex-1",
+            listActive
+              ? navItemClass(true)
+              : [
+                  "relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition",
+                  childSectionActive
+                    ? "text-okestro-800"
+                    : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                ].join(" ")
+          ].join(" ")}
+        >
+          <Icon
+            size={17}
+            strokeWidth={parentToneActive ? 2.25 : 2}
+            className={navIconClass(parentToneActive)}
+          />
+          <span className="truncate">{item.label}</span>
+        </Link>
+        <button
+          type="button"
+          aria-expanded={open}
+          aria-label={`${item.label} 하위 메뉴 ${open ? "접기" : "펼치기"}`}
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            setOpen((prev) => !prev);
+          }}
+          className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+        >
+          <ChevronDown
+            size={16}
+            className={[
+              "transition-transform duration-200",
+              open ? "rotate-180" : "rotate-0"
+            ].join(" ")}
+            aria-hidden
+          />
+        </button>
+      </div>
+
+      {open ? (
+        <div className="mt-0.5 space-y-0.5" role="group" aria-label={`${item.label} 하위 메뉴`}>
+          {item.children.map((child) => {
+            const ChildIcon = child.icon;
+            const isActive = isNavActive(pathname, child.href);
+            return (
+              <Link
+                key={child.href}
+                href={child.href}
+                className={["group", navChildClass(isActive)].join(" ")}
+              >
+                <ChildIcon
+                  size={15}
+                  strokeWidth={isActive ? 2.25 : 2}
+                  className={navIconClass(isActive)}
+                />
+                {child.label}
+              </Link>
+            );
+          })}
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 export function Sidebar({ userEmail = null }: { userEmail?: string | null }) {
@@ -116,6 +276,12 @@ export function Sidebar({ userEmail = null }: { userEmail?: string | null }) {
             </p>
             <div className="space-y-0.5">
               {group.items.map((item) => {
+                if (isAccordion(item)) {
+                  return (
+                    <PartnerAccordion key={item.id} item={item} pathname={pathname} />
+                  );
+                }
+
                 const Icon = item.icon;
                 const isOke = item.href === "__oke__";
                 const isActive = isOke ? okeActive : isNavActive(pathname, item.href);

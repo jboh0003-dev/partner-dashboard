@@ -46,7 +46,7 @@ export default async function PartnerApplicationsAdminPage({
   return (
     <div className="space-y-6 p-6">
       <div>
-        <h1 className="text-2xl font-semibold text-slate-900">파트너 신청관리</h1>
+        <h1 className="text-2xl font-semibold text-slate-900">파트너 등록</h1>
         <p className="mt-1 text-sm text-slate-600">
           외부 신청 포털 제출 건을 검토·승인합니다. 승인 전까지 partners DB에 반영되지 않습니다.
         </p>

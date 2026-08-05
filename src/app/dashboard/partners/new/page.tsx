@@ -36,7 +36,7 @@ async function createPartner(formData: FormData) {
 export default function NewPartnerPage() {
   return (
     <>
-      <PageHeader title="파트너 등록" description="파트너사 기본정보를 신규 등록합니다." />
+      <PageHeader title="파트너 수동 등록" description="파트너사 기본정보를 신규 등록합니다." />
 
       <form action={createPartner} className="max-w-4xl rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="grid grid-cols-2 gap-4">

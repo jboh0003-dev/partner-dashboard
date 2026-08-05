@@ -18,6 +18,7 @@ export const PROTECTED_DOCUMENT_TYPES = new Set([
   "bank_account",
   "credit_rating",
   "security_commitment",
+  "platinum_agreement",
   "contract"
 ]);
 

@@ -88,7 +88,7 @@ export default async function DocumentsPage({
   return (
     <>
       <PageHeader
-        title="문서 관리"
+        title="파트너 문서"
         description="파트너 계약서, 신청서, 사업자등록증 등 운영 문서를 조회·다운로드합니다."
         action={<CsvDownloadButton rows={exportRows} filenamePrefix="partner-documents" />}
       />

@@ -51,7 +51,6 @@ const DOCUMENT_LIST_SELECT = [
   "file_size",
   "file_path",
   "storage_path",
-  "file_url",
   "is_primary",
   "is_active",
   "is_duplicate",
@@ -64,6 +63,8 @@ const DOCUMENT_LIST_SELECT = [
   "contract_date",
   "period_year",
   "summary",
+  "note",
+  "grade_from_file",
   "created_at",
   "updated_at",
   "partners!inner(company_name)"
@@ -210,7 +211,8 @@ function mapDocumentRow(row: Record<string, unknown>): PartnerDocumentWithPartne
     file_name: String(doc.file_name ?? doc.original_filename ?? ""),
     file_path: (doc.file_path as string | null) ?? null,
     storage_path: (doc.storage_path as string | null) ?? null,
-    file_url: (doc.file_url as string | null) ?? null,
+    // live DB에 file_url 컬럼 없음 — storage_path/file_path 기반 다운로드 사용
+    file_url: null,
     file_ext: (doc.file_ext as string | null) ?? null,
     file_size: (doc.file_size as number | null) ?? null,
     source_folder: (doc.source_folder as string | null) ?? null,

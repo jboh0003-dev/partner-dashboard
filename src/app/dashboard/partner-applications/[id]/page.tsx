@@ -100,9 +100,9 @@ export default function PartnerApplicationDetailPage() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <Link href="/dashboard/partner-applications" className="text-sm text-blue-700">
-            ← 목록
+            ← 파트너 등록
           </Link>
-          <h1 className="mt-2 text-2xl font-semibold">{String(app.company_name || "신청 상세")}</h1>
+          <h1 className="mt-2 text-2xl font-semibold">{String(app.company_name || "등록 상세")}</h1>
           <p className="text-sm text-slate-600">
             {String(app.application_number)} · {String(app.status)}
           </p>

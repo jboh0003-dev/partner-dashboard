@@ -80,15 +80,15 @@ export async function DELETE(
     const result = await deletePartnerDocumentHard(supabase, id);
 
     if (!result.ok) {
-      console.error("[document-delete] failed", { documentId: id, errors: result.errors, deletedStorage: result.deletedStorage });
+      console.error("[document-delete] failed", {
+        documentId: id,
+        errors: result.errors,
+        deletedStorage: result.deletedStorage
+      });
       return NextResponse.json(
         { ok: false, message: result.errors.join(" / ") || "삭제 실패" },
         { status: 400 }
       );
-    }
-
-    if (result.errors.length > 0) {
-      console.warn("[document-delete] partial warnings", { documentId: id, errors: result.errors });
     }
 
     revalidatePath("/dashboard/documents");
@@ -98,8 +98,7 @@ export async function DELETE(
 
     return NextResponse.json({
       ok: true,
-      deleted_storage: result.deletedStorage,
-      warnings: result.errors
+      deleted_storage: result.deletedStorage
     });
   } catch (error) {
     return NextResponse.json(

@@ -218,3 +218,75 @@ body {
     @apply rounded-xl border border-slate-200/90 bg-white p-4 shadow-card;
   }
 }
+
+/* Entrance motion — short, admin-dashboard appropriate */
+@keyframes ui-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes ui-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.ui-enter,
+.ui-enter-surface {
+  animation: ui-fade-up 220ms ease-out both;
+  animation-delay: var(--enter-delay, 0ms);
+}
+
+.ui-enter-item {
+  animation: ui-fade-up 200ms ease-out both;
+  animation-delay: calc(
+    var(--stagger-base, 0ms) + (var(--enter-index, 0) * var(--stagger-step, 60ms))
+  );
+}
+
+.ui-stagger > .ui-enter-item:nth-child(1) {
+  --enter-index: 0;
+}
+.ui-stagger > .ui-enter-item:nth-child(2) {
+  --enter-index: 1;
+}
+.ui-stagger > .ui-enter-item:nth-child(3) {
+  --enter-index: 2;
+}
+.ui-stagger > .ui-enter-item:nth-child(4) {
+  --enter-index: 3;
+}
+.ui-stagger > .ui-enter-item:nth-child(5) {
+  --enter-index: 4;
+}
+.ui-stagger > .ui-enter-item:nth-child(6) {
+  --enter-index: 5;
+}
+.ui-stagger > .ui-enter-item:nth-child(7) {
+  --enter-index: 6;
+}
+.ui-stagger > .ui-enter-item:nth-child(8) {
+  --enter-index: 7;
+}
+
+.ui-tab-panel-enter {
+  animation: ui-fade-in 180ms ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-enter,
+  .ui-enter-surface,
+  .ui-enter-item,
+  .ui-tab-panel-enter {
+    animation: none !important;
+  }
+}

@@ -13,3 +13,4 @@ scripts/output/
 .vercel/
 scripts/output/*.csv
 tmp-policy.pptx
+tmp-platinum-verify/

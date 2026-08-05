@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { AnimatedSection } from "@/components/common/animated-section";
 import { PageHeader } from "@/components/layout/page-header";
 import { PartnerDetailTabs } from "@/components/partners/partner-detail-tabs";
 import { fetchPartnerDetailBundle } from "@/lib/data/partner-detail";
@@ -32,37 +33,50 @@ export default async function PartnerDetailPage({
 
   return (
     <>
-      <PageHeader
-        title={p.company_name}
-        description="파트너 통합 정보 — 기본정보, 이력, PoC, 장비, 문서를 한곳에서 조회합니다."
-      />
-
-      <section className="mb-6 grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-4">
-        <SummaryCard label="파트너번호" value={formatPartnerNo(p)} />
-        <SummaryCard
-          label="등급"
-          value={getDisplayPartnerGradeLabel(p)}
+      <AnimatedSection>
+        <PageHeader
+          title={p.company_name}
+          description="파트너 통합 정보 — 기본정보, 이력, PoC, 장비, 문서를 한곳에서 조회합니다."
         />
+      </AnimatedSection>
+
+      <section className="ui-stagger mb-6 grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-4">
+        <SummaryCard label="파트너번호" value={formatPartnerNo(p)} index={0} />
+        <SummaryCard label="등급" value={getDisplayPartnerGradeLabel(p)} index={1} />
         <SummaryCard
           label="계약일자"
           value={p.contract_start_date ? formatDate(p.contract_start_date) : "-"}
+          index={2}
         />
-        <SummaryCard label={fourthCardLabel} value={fourthCardValue} />
+        <SummaryCard label={fourthCardLabel} value={fourthCardValue} index={3} />
       </section>
 
-      <PartnerDetailTabs
-        bundle={bundle}
-        addNoteAction={addPartnerNote}
-        initialTab={tab}
-        isAdmin={isAdmin}
-      />
+      <AnimatedSection delayMs={120}>
+        <PartnerDetailTabs
+          bundle={bundle}
+          addNoteAction={addPartnerNote}
+          initialTab={tab}
+          isAdmin={isAdmin}
+        />
+      </AnimatedSection>
     </>
   );
 }
 
-function SummaryCard({ label, value }: { label: string; value: React.ReactNode }) {
+function SummaryCard({
+  label,
+  value,
+  index
+}: {
+  label: string;
+  value: React.ReactNode;
+  index: number;
+}) {
   return (
-    <div className="ui-card min-w-[200px] p-4">
+    <div
+      className="ui-enter-item ui-card min-w-[200px] p-4"
+      style={{ ["--enter-index" as string]: index }}
+    >
       <div className="text-2xs font-semibold uppercase tracking-wider text-slate-500">{label}</div>
       <div className="mt-2 truncate text-lg font-semibold tracking-tight text-slate-950">
         {value}

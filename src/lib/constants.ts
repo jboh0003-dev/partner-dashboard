@@ -72,6 +72,7 @@ export const DOCUMENT_TYPE_LABEL: Record<string, string> = {
   bank_account: "통장사본",
   credit_rating: "신용평가서",
   security_commitment: "보안확약서",
+  platinum_agreement: "플래티넘 부속합의서",
   other: "기타",
   contract: "계약서",
   proposal: "제안서",

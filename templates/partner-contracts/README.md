@@ -5,9 +5,15 @@
 - `silver.docx`
 - `gold.docx`
 - `platinum.docx`
+- `platinum-agreement-v1.1.docx` — 플래티넘 부속합의서 (승급용)
 
 애플리케이션은 원본을 복제한 뒤 치환 토큰만 교체합니다.
 HTML→DOCX 재작성, 조항 문구 변경, Storage 저장은 하지 않습니다.
+
+부속합의서(`platinum-agreement-v1.1.docx`) 치환:
+- 본문 `OOOOO` → 파트너 상호
+- `2026년 01월 20일` → 문서 마지막 계약일
+- 파트너 서명란 `상호` / `사업자등록번호` / `대표이사`
 
 ## 치환 토큰 (템플릿에 포함)
 

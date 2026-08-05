@@ -15,7 +15,7 @@ export type Partner = {
   address: string | null;
   website: string | null;
   main_phone: string | null;
-  primary_email: string | null;
+  primary_email?: string | null;
   contract_start_date: string | null;
   contract_end_date: string | null;
   sales_owner: string | null;

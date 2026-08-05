@@ -64,7 +64,7 @@ export function DocumentFileNameLink({
       type="button"
       onClick={() => void handleDownload()}
       disabled={downloading}
-      className="text-left text-sm font-medium text-okestro-600 hover:text-okestro-700 hover:underline disabled:opacity-50"
+      className="text-left text-sm font-medium text-slate-800 underline decoration-slate-400 underline-offset-2 hover:text-slate-900 hover:decoration-slate-700 disabled:opacity-50"
       title={label}
     >
       {downloading ? "다운로드 중..." : label}

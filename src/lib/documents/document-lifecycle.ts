@@ -31,19 +31,46 @@ export function pickDocumentStoragePath(row: Pick<DocumentStorageRow, "storage_p
   return null;
 }
 
+/** 삭제용: DB에 저장된 경로를 우선 사용 (업로드용 safe-key보다 관대) */
+export function pickDocumentStoragePathForDelete(
+  row: Pick<DocumentStorageRow, "storage_path" | "file_path">
+): string | null {
+  const safe = pickDocumentStoragePath(row);
+  if (safe) return safe;
+
+  const candidate = (row.storage_path ?? row.file_path ?? "").trim();
+  if (!candidate) return null;
+  if (candidate.includes("..") || candidate.startsWith("/") || candidate.includes("\\")) {
+    return null;
+  }
+  return candidate;
+}
+
+function isStorageNotFoundError(message: string | undefined): boolean {
+  if (!message) return false;
+  return /not\s*found|does\s*not\s*exist|no\s*such\s*(object|file)|404/i.test(message);
+}
+
 export async function removeDocumentStorage(
   supabase: SupabaseClient,
   storagePath: string | null | undefined
 ): Promise<{ ok: boolean; path: string | null; error?: string }> {
-  if (!storagePath || !isSafeStorageObjectKey(storagePath)) {
-    return { ok: true, path: storagePath ?? null };
+  const path = (storagePath ?? "").trim();
+  if (!path) {
+    return { ok: true, path: null };
+  }
+  if (path.includes("..") || path.startsWith("/") || path.includes("\\")) {
+    return { ok: false, path, error: "유효하지 않은 Storage 경로입니다." };
   }
 
-  const { error } = await supabase.storage.from(PARTNER_DOCUMENTS_BUCKET).remove([storagePath]);
+  const { error } = await supabase.storage.from(PARTNER_DOCUMENTS_BUCKET).remove([path]);
   if (error) {
-    return { ok: false, path: storagePath, error: error.message };
+    if (isStorageNotFoundError(error.message)) {
+      return { ok: true, path };
+    }
+    return { ok: false, path, error: error.message };
   }
-  return { ok: true, path: storagePath };
+  return { ok: true, path };
 }
 
 export async function deletePartnerDocumentHard(
@@ -60,14 +87,55 @@ export async function deletePartnerDocumentHard(
     return { ok: false, deletedStorage: [], errors: [error?.message ?? "문서를 찾을 수 없습니다."] };
   }
 
-  const storagePath = pickDocumentStoragePath(data);
   const deletedStorage: string[] = [];
   const errors: string[] = [];
+
+  // duplicate_of FK(ON DELETE NO ACTION) 때문에 자식이 있으면 대표 문서 DB 삭제가 실패함
+  const { data: dupChildren, error: dupError } = await supabase
+    .from("partner_documents")
+    .select("id, storage_path, file_path")
+    .eq("duplicate_of", documentId);
+
+  if (dupError) {
+    return {
+      ok: false,
+      deletedStorage: [],
+      errors: [`중복 문서 조회 실패: ${dupError.message}`]
+    };
+  }
+
+  for (const child of dupChildren ?? []) {
+    const childPath = pickDocumentStoragePathForDelete(child);
+    if (childPath) {
+      const removedChild = await removeDocumentStorage(supabase, childPath);
+      if (removedChild.ok) deletedStorage.push(childPath);
+      else {
+        errors.push(
+          `중복 문서 Storage 삭제 실패 (${childPath}): ${removedChild.error ?? "알 수 없는 오류"}`
+        );
+        return { ok: false, deletedStorage, errors };
+      }
+    }
+
+    const { error: childDeleteError } = await supabase
+      .from("partner_documents")
+      .delete()
+      .eq("id", child.id);
+    if (childDeleteError) {
+      errors.push(`중복 문서 DB 삭제 실패: ${childDeleteError.message}`);
+      return { ok: false, deletedStorage, errors };
+    }
+  }
+
+  const storagePath = pickDocumentStoragePathForDelete(data);
 
   if (storagePath) {
     const removed = await removeDocumentStorage(supabase, storagePath);
     if (removed.ok) deletedStorage.push(storagePath);
-    else if (removed.error) errors.push(`Storage 삭제 실패 (${storagePath}): ${removed.error}`);
+    else {
+      errors.push(`Storage 삭제 실패 (${storagePath}): ${removed.error ?? "알 수 없는 오류"}`);
+      return { ok: false, deletedStorage, errors };
+    }
   }
 
   const { error: deleteError } = await supabase.from("partner_documents").delete().eq("id", documentId);

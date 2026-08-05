@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   DocumentDownloadButton,
@@ -41,9 +41,21 @@ function toDuplicateRow(doc: PartnerDocument) {
 
 export function PartnerDocumentsTab({ partnerId, documents }: PartnerDocumentsTabProps) {
   const [addOpen, setAddOpen] = useState(false);
+  const [removedIds, setRemovedIds] = useState<Set<string>>(() => new Set());
+  const [tabError, setTabError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setRemovedIds(new Set());
+    setTabError(null);
+  }, [documents]);
+
+  const workingDocuments = useMemo(
+    () => documents.filter((doc) => !removedIds.has(doc.id)),
+    [documents, removedIds]
+  );
 
   const visibleDocuments = useMemo(() => {
-    const active = documents.filter((doc) => !doc.deleted_at && isVisibleDocument(doc));
+    const active = workingDocuments.filter((doc) => !doc.deleted_at && isVisibleDocument(doc));
     const groups = groupDocumentsForPartnerTab(active.map(toDuplicateRow));
     const byId = new Map(active.map((doc) => [doc.id, doc]));
 
@@ -52,7 +64,7 @@ export function PartnerDocumentsTab({ partnerId, documents }: PartnerDocumentsTa
       .filter((doc): doc is PartnerDocument => !!doc);
 
     return [...representatives].sort(comparePartnerDocumentsForTab);
-  }, [documents]);
+  }, [workingDocuments]);
 
   return (
     <div className="space-y-4">
@@ -63,7 +75,13 @@ export function PartnerDocumentsTab({ partnerId, documents }: PartnerDocumentsTa
         </button>
       </div>
 
-      {documents.filter((doc) => !doc.deleted_at).length === 0 ? (
+      {tabError ? (
+        <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm text-rose-800">
+          {tabError}
+        </div>
+      ) : null}
+
+      {workingDocuments.filter((doc) => !doc.deleted_at).length === 0 ? (
         <div className="rounded-xl border border-dashed border-slate-200 px-6 py-10 text-center">
           <p className="text-sm font-medium text-slate-700">등록된 문서가 없습니다.</p>
           <p className="mt-2 text-sm text-slate-500">문서 추가 버튼으로 계약서, 사업자등록증 등을 등록할 수 있습니다.</p>
@@ -84,7 +102,15 @@ export function PartnerDocumentsTab({ partnerId, documents }: PartnerDocumentsTa
 
           <div className="divide-y divide-slate-100">
             {visibleDocuments.map((document) => (
-              <DocumentRow key={document.id} document={document} />
+              <DocumentRow
+                key={document.id}
+                document={document}
+                onDeleted={(id) => {
+                  setTabError(null);
+                  setRemovedIds((prev) => new Set(prev).add(id));
+                }}
+                onError={(message) => setTabError(message || null)}
+              />
             ))}
           </div>
         </div>
@@ -99,11 +125,19 @@ export function PartnerDocumentsTab({ partnerId, documents }: PartnerDocumentsTa
   );
 }
 
-function DocumentRow({ document }: { document: PartnerDocument }) {
+function DocumentRow({
+  document,
+  onDeleted,
+  onError
+}: {
+  document: PartnerDocument;
+  onDeleted: (id: string) => void;
+  onError: (message: string) => void;
+}) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [isPending, startTransition] = useTransition();
-  const [message, setMessage] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [rowMessage, setRowMessage] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmReplace, setConfirmReplace] = useState(false);
   const [pendingReplaceFile, setPendingReplaceFile] = useState<File | null>(null);
@@ -119,24 +153,35 @@ function DocumentRow({ document }: { document: PartnerDocument }) {
   const displayName =
     document.display_name ?? document.file_name ?? document.original_filename ?? "문서";
 
-  function refresh() {
-    router.refresh();
-  }
-
-  function runDelete() {
-    startTransition(async () => {
-      setMessage(null);
+  async function runDelete() {
+    setLoading(true);
+    setRowMessage(null);
+    onError("");
+    try {
       const response = await fetch(`/api/partners/documents/${document.id}`, {
         method: "DELETE"
       });
-      const json = (await response.json().catch(() => null)) as { ok?: boolean; message?: string } | null;
-      setConfirmDelete(false);
+      const json = (await response.json().catch(() => null)) as
+        | { ok?: boolean; message?: string }
+        | null;
       if (!response.ok || !json?.ok) {
-        setMessage(json?.message ?? "삭제에 실패했습니다.");
+        const message = json?.message ?? "삭제에 실패했습니다.";
+        setRowMessage(message);
+        onError(message);
+        setConfirmDelete(false);
         return;
       }
-      refresh();
-    });
+      setConfirmDelete(false);
+      onDeleted(document.id);
+      router.refresh();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "삭제에 실패했습니다.";
+      setRowMessage(message);
+      onError(message);
+      setConfirmDelete(false);
+    } finally {
+      setLoading(false);
+    }
   }
 
   function handleReplaceClick() {
@@ -151,11 +196,12 @@ function DocumentRow({ document }: { document: PartnerDocument }) {
     setConfirmReplace(true);
   }
 
-  function runReplace() {
+  async function runReplace() {
     if (!pendingReplaceFile) return;
 
-    startTransition(async () => {
-      setMessage(null);
+    setLoading(true);
+    setRowMessage(null);
+    try {
       const formData = new FormData();
       formData.set("file", pendingReplaceFile);
 
@@ -163,15 +209,27 @@ function DocumentRow({ document }: { document: PartnerDocument }) {
         method: "POST",
         body: formData
       });
-      const json = (await response.json().catch(() => null)) as { ok?: boolean; message?: string } | null;
+      const json = (await response.json().catch(() => null)) as
+        | { ok?: boolean; message?: string }
+        | null;
       setConfirmReplace(false);
       setPendingReplaceFile(null);
       if (!response.ok || !json?.ok) {
-        setMessage(json?.message ?? "교체에 실패했습니다.");
+        const message = json?.message ?? "교체에 실패했습니다.";
+        setRowMessage(message);
+        onError(message);
         return;
       }
-      refresh();
-    });
+      router.refresh();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "교체에 실패했습니다.";
+      setRowMessage(message);
+      onError(message);
+      setConfirmReplace(false);
+      setPendingReplaceFile(null);
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -182,7 +240,7 @@ function DocumentRow({ document }: { document: PartnerDocument }) {
         </div>
         <div className="text-sm">
           <DocumentFileNameLink documentId={document.id} document={documentSource} />
-          {message ? <p className="mt-1 text-xs text-rose-600">{message}</p> : null}
+          {rowMessage ? <p className="mt-1 text-xs text-rose-600">{rowMessage}</p> : null}
         </div>
         <div className="text-sm tabular-nums text-slate-700">
           {document.contract_date ? formatDate(document.contract_date) : "-"}
@@ -194,7 +252,7 @@ function DocumentRow({ document }: { document: PartnerDocument }) {
           <input ref={fileInputRef} type="file" className="hidden" onChange={handleReplaceFile} />
           <button
             type="button"
-            disabled={isPending}
+            disabled={loading}
             onClick={handleReplaceClick}
             className="rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-800 hover:bg-blue-100 disabled:opacity-50"
           >
@@ -202,7 +260,7 @@ function DocumentRow({ document }: { document: PartnerDocument }) {
           </button>
           <button
             type="button"
-            disabled={isPending}
+            disabled={loading}
             onClick={() => setConfirmDelete(true)}
             className="rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-800 hover:bg-rose-100 disabled:opacity-50"
           >
@@ -217,9 +275,13 @@ function DocumentRow({ document }: { document: PartnerDocument }) {
         message={`「${displayName}」 문서를 삭제하시겠습니까?\n\nStorage 파일과 DB 레코드가 함께 삭제됩니다.`}
         confirmLabel="삭제"
         danger
-        loading={isPending}
-        onCancel={() => setConfirmDelete(false)}
-        onConfirm={runDelete}
+        loading={loading}
+        onCancel={() => {
+          if (!loading) setConfirmDelete(false);
+        }}
+        onConfirm={() => {
+          void runDelete();
+        }}
       />
 
       <ConfirmDialog
@@ -227,12 +289,15 @@ function DocumentRow({ document }: { document: PartnerDocument }) {
         title="문서 교체"
         message={`「${displayName}」 문서를 새 파일로 교체하시겠습니까?\n\n기존 Storage 파일은 삭제됩니다.`}
         confirmLabel="교체"
-        loading={isPending}
+        loading={loading}
         onCancel={() => {
+          if (loading) return;
           setConfirmReplace(false);
           setPendingReplaceFile(null);
         }}
-        onConfirm={runReplace}
+        onConfirm={() => {
+          void runReplace();
+        }}
       />
     </>
   );
