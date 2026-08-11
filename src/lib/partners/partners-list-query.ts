@@ -191,35 +191,36 @@ export async function fetchPartnersList(
       };
     }
 
-    const { data: partnersData, error: partnersError } = await supabase
-      .from("partners")
-      .select(PARTNER_LIST_SELECT)
-      .in("id", matchedIds)
-      .is("deleted_at", null)
-      .limit(PARTNERS_LIST_MAX);
+    // 파트너 상세 행과 담당자 목록은 서로 독립적이므로 병렬 조회한다.
+    const [partnersRes, contactsRes] = await Promise.all([
+      supabase
+        .from("partners")
+        .select(PARTNER_LIST_SELECT)
+        .in("id", matchedIds)
+        .is("deleted_at", null)
+        .limit(PARTNERS_LIST_MAX),
+      supabase
+        .from("partner_contacts")
+        .select(
+          "id, partner_id, name, department, position, email, phone, is_primary, is_contract_contact, is_active, deleted_at"
+        )
+        .in("partner_id", matchedIds)
+        .eq("is_active", true)
+        .is("deleted_at", null)
+        .limit(PARTNERS_LIST_MAX)
+    ]);
 
-    if (partnersError) throw new Error(partnersError.message);
+    if (partnersRes.error) throw new Error(partnersRes.error.message);
+    if (contactsRes.error) throw new Error(contactsRes.error.message);
 
     const partnerMap = new Map(
-      ((partnersData ?? []) as Partner[]).map((partner) => [partner.id, partner])
+      ((partnersRes.data ?? []) as Partner[]).map((partner) => [partner.id, partner])
     );
     const partners = matchedIds
       .map((id) => partnerMap.get(id))
       .filter((partner): partner is Partner => Boolean(partner) && !isSamplePartner(partner));
 
-    const { data: contactsData, error: contactsError } = await supabase
-      .from("partner_contacts")
-      .select(
-        "id, partner_id, name, department, position, email, phone, is_primary, is_contract_contact, is_active, deleted_at"
-      )
-      .in("partner_id", matchedIds)
-      .eq("is_active", true)
-      .is("deleted_at", null)
-      .limit(PARTNERS_LIST_MAX);
-
-    if (contactsError) throw new Error(contactsError.message);
-
-    const contacts = (contactsData ?? []) as PartnerContact[];
+    const contacts = (contactsRes.data ?? []) as PartnerContact[];
     const rows = buildPartnerListRows(partners, contacts);
 
     return {
