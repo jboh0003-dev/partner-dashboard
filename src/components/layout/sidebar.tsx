@@ -91,7 +91,7 @@ const NAV_GROUPS: NavGroup[] = [
   },
   {
     title: "Admin",
-    items: [{ href: "/dashboard/upload", label: "데이터 업로드", icon: Upload }]
+    items: [{ href: "/dashboard/upload-hub", label: "데이터 업로드", icon: Upload }]
   }
 ];
 
