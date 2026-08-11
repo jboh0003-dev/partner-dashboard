@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ExternalLink, Plus } from "lucide-react";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
@@ -45,11 +46,27 @@ export default async function PartnerApplicationsAdminPage({
 
   return (
     <div className="space-y-6 p-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-slate-900">파트너 등록</h1>
-        <p className="mt-1 text-sm text-slate-600">
-          외부 신청 포털 제출 건을 검토·승인합니다. 승인 전까지 partners DB에 반영되지 않습니다.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold text-slate-900">파트너 등록</h1>
+          <p className="mt-1 text-sm text-slate-600">
+            신규 파트너 신청과 제출된 신청서 검토를 한 곳에서 진행합니다.
+          </p>
+        </div>
+        <Link
+          href="/partner-apply"
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
+        >
+          <Plus size={16} />
+          신규 파트너 신청
+          <ExternalLink size={14} />
+        </Link>
+      </div>
+
+      <div className="rounded-xl border border-blue-100 bg-blue-50/70 px-4 py-3 text-sm text-blue-950">
+        <span className="font-semibold">신청 방법:</span> 우측 상단의 「신규 파트너 신청」을 누르면 실제 파트너 신청서 작성 화면이 새 탭으로 열립니다. 제출된 건은 아래 목록에서 검토·승인할 수 있습니다.
       </div>
 
       <form className="flex flex-wrap gap-2">
@@ -118,7 +135,7 @@ export default async function PartnerApplicationsAdminPage({
             {!data?.length && !error ? (
               <tr>
                 <td colSpan={8} className="px-3 py-8 text-center text-slate-500">
-                  신청 내역이 없습니다.
+                  신청 내역이 없습니다. 신규 신청은 우측 상단 버튼에서 시작할 수 있습니다.
                 </td>
               </tr>
             ) : null}
