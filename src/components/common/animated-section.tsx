@@ -1,16 +1,20 @@
 import type { CSSProperties, ReactNode } from "react";
+import {
+  UI_ENTER_DELAY_CAP_MS,
+  UI_STAGGER_STEP_CAP_MS
+} from "@/lib/performance/ui-tuning";
 
 type AnimatedSectionProps = {
   children: ReactNode;
   className?: string;
-  /** Stagger delay in ms (50–80 typical) */
+  /** Stagger delay in ms */
   delayMs?: number;
   as?: "div" | "section" | "header" | "article";
 };
 
 /**
  * Server-safe entrance animation wrapper.
- * Uses CSS only — no client JS. Honors prefers-reduced-motion via globals.css.
+ * Desktop navigation should feel immediate, so stagger delays are intentionally capped.
  */
 export function AnimatedSection({
   children,
@@ -18,9 +22,10 @@ export function AnimatedSection({
   delayMs = 0,
   as: Tag = "div"
 }: AnimatedSectionProps) {
+  const effectiveDelay = Math.min(Math.max(delayMs, 0), UI_ENTER_DELAY_CAP_MS);
   const style =
-    delayMs > 0
-      ? ({ "--enter-delay": `${delayMs}ms` } as CSSProperties)
+    effectiveDelay > 0
+      ? ({ "--enter-delay": `${effectiveDelay}ms` } as CSSProperties)
       : undefined;
 
   return (
@@ -33,18 +38,11 @@ export function AnimatedSection({
 type StaggerContainerProps = {
   children: ReactNode;
   className?: string;
-  /** Base delay before first child (ms) */
   baseDelayMs?: number;
-  /** Gap between children (ms) */
   stepMs?: number;
   as?: "div" | "section";
 };
 
-/**
- * Applies increasing --enter-delay to direct children that use ui-enter / ui-enter-item.
- * Prefer wrapping each child with AnimatedSection when possible; this helper
- * sets CSS variables for children using ui-enter-item.
- */
 export function StaggerContainer({
   children,
   className = "",
@@ -52,13 +50,16 @@ export function StaggerContainer({
   stepMs = 60,
   as: Tag = "div"
 }: StaggerContainerProps) {
+  const effectiveBase = Math.min(Math.max(baseDelayMs, 0), UI_ENTER_DELAY_CAP_MS);
+  const effectiveStep = Math.min(Math.max(stepMs, 0), UI_STAGGER_STEP_CAP_MS);
+
   return (
     <Tag
       className={`ui-stagger ${className}`.trim()}
       style={
         {
-          "--stagger-base": `${baseDelayMs}ms`,
-          "--stagger-step": `${stepMs}ms`
+          "--stagger-base": `${effectiveBase}ms`,
+          "--stagger-step": `${effectiveStep}ms`
         } as CSSProperties
       }
     >
@@ -70,11 +71,9 @@ export function StaggerContainer({
 type FadeSurfaceProps = {
   children: ReactNode;
   className?: string;
-  /** Re-trigger key (e.g. page number) — changes remount animation via key on parent */
   surfaceKey?: string | number;
 };
 
-/** Whole-table / panel fade — not per-row. */
 export function FadeSurface({ children, className = "", surfaceKey }: FadeSurfaceProps) {
   return (
     <div key={surfaceKey} className={`ui-enter-surface ${className}`.trim()}>
