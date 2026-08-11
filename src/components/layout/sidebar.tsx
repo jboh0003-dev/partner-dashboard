@@ -32,7 +32,6 @@ type NavLeaf = {
 type NavAccordion = {
   type: "accordion";
   id: string;
-  /** 메뉴명/아이콘 클릭 시 이동하는 기존 목록 경로 */
   href: string;
   label: string;
   icon: typeof LayoutDashboard;
@@ -70,26 +69,10 @@ const NAV_GROUPS: NavGroup[] = [
         label: "파트너",
         icon: Building2,
         children: [
-          {
-            href: "/dashboard/partner-applications",
-            label: "파트너 등록",
-            icon: UserPlus
-          },
-          {
-            href: "/dashboard/contacts",
-            label: "인력·담당자",
-            icon: Users
-          },
-          {
-            href: "/dashboard/documents",
-            label: "파트너 문서",
-            icon: FileText
-          },
-          {
-            href: "/dashboard/platinum-upgrade",
-            label: "플래티넘 승급",
-            icon: ArrowUpCircle
-          }
+          { href: "/dashboard/partner-applications", label: "파트너 등록", icon: UserPlus },
+          { href: "/dashboard/contacts", label: "인력·담당자", icon: Users },
+          { href: "/dashboard/documents", label: "파트너 문서", icon: FileText },
+          { href: "/dashboard/platinum-upgrade", label: "플래티넘 승급", icon: ArrowUpCircle }
         ]
       },
       { href: "/dashboard/performance", label: "실적/파이프라인", icon: TrendingUp }
@@ -108,19 +91,12 @@ const NAV_GROUPS: NavGroup[] = [
   },
   {
     title: "Admin",
-    items: [
-      { href: "/dashboard/upload", label: "데이터 업로드", icon: Upload },
-      { href: "/dashboard/performance/upload", label: "실적/파이프라인 업로드", icon: TrendingUp },
-      { href: "/dashboard/trainings/tech-partner-upload", label: "기술파트너 교육 업로드", icon: GraduationCap },
-      { href: "/dashboard/storage-audit", label: "Storage 진단", icon: FileText }
-    ]
+    items: [{ href: "/dashboard/upload", label: "데이터 업로드", icon: Upload }]
   }
 ];
 
 function isNavActive(pathname: string, href: string): boolean {
-  if (href === "/dashboard") {
-    return pathname === "/dashboard";
-  }
+  if (href === "/dashboard") return pathname === "/dashboard";
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
@@ -160,13 +136,7 @@ function navIconClass(isActive: boolean): string {
   return isActive ? "text-okestro-600" : "text-slate-400 group-hover:text-slate-500";
 }
 
-function PartnerAccordion({
-  item,
-  pathname
-}: {
-  item: NavAccordion;
-  pathname: string;
-}) {
+function PartnerAccordion({ item, pathname }: { item: NavAccordion; pathname: string }) {
   const listActive = isNavActive(pathname, item.href);
   const childSectionActive = isPartnerSectionPath(pathname);
   const shouldStayOpen = listActive || childSectionActive;
@@ -196,11 +166,7 @@ function PartnerAccordion({
                 ].join(" ")
           ].join(" ")}
         >
-          <Icon
-            size={17}
-            strokeWidth={parentToneActive ? 2.25 : 2}
-            className={navIconClass(parentToneActive)}
-          />
+          <Icon size={17} strokeWidth={parentToneActive ? 2.25 : 2} className={navIconClass(parentToneActive)} />
           <span className="truncate">{item.label}</span>
         </Link>
         <button
@@ -214,14 +180,7 @@ function PartnerAccordion({
           }}
           className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600"
         >
-          <ChevronDown
-            size={16}
-            className={[
-              "transition-transform duration-200",
-              open ? "rotate-180" : "rotate-0"
-            ].join(" ")}
-            aria-hidden
-          />
+          <ChevronDown size={16} className={["transition-transform duration-200", open ? "rotate-180" : "rotate-0"].join(" ")} aria-hidden />
         </button>
       </div>
 
@@ -231,16 +190,8 @@ function PartnerAccordion({
             const ChildIcon = child.icon;
             const isActive = isNavActive(pathname, child.href);
             return (
-              <Link
-                key={child.href}
-                href={child.href}
-                className={["group", navChildClass(isActive)].join(" ")}
-              >
-                <ChildIcon
-                  size={15}
-                  strokeWidth={isActive ? 2.25 : 2}
-                  className={navIconClass(isActive)}
-                />
+              <Link key={child.href} href={child.href} className={["group", navChildClass(isActive)].join(" ")}>
+                <ChildIcon size={15} strokeWidth={isActive ? 2.25 : 2} className={navIconClass(isActive)} />
                 {child.label}
               </Link>
             );
@@ -262,24 +213,18 @@ export function Sidebar({ userEmail = null }: { userEmail?: string | null }) {
         <Link href="/dashboard" className="inline-flex">
           <BrandLogo className="h-8 w-auto object-contain" priority />
         </Link>
-        <p className="mt-2.5 text-2xs font-medium uppercase tracking-wider text-slate-400">
-          Enterprise Partner Portal
-        </p>
+        <p className="mt-2.5 text-2xs font-medium uppercase tracking-wider text-slate-400">Enterprise Partner Portal</p>
         <GlobalPartnerSearch />
       </div>
 
       <nav className="flex-1 overflow-y-auto px-3 py-4">
         {NAV_GROUPS.map((group) => (
           <div key={group.title} className="mb-5 last:mb-0">
-            <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-widest text-slate-400">
-              {group.title}
-            </p>
+            <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-widest text-slate-400">{group.title}</p>
             <div className="space-y-0.5">
               {group.items.map((item) => {
                 if (isAccordion(item)) {
-                  return (
-                    <PartnerAccordion key={item.id} item={item} pathname={pathname} />
-                  );
+                  return <PartnerAccordion key={item.id} item={item} pathname={pathname} />;
                 }
 
                 const Icon = item.icon;
@@ -291,30 +236,18 @@ export function Sidebar({ userEmail = null }: { userEmail?: string | null }) {
                     <button
                       key={item.href}
                       type="button"
-                      onClick={() => openPanel({ fullscreen: okeActive })}
+                      onClick={() => openPanel({ fullscreen: true })}
                       className={["group w-full", navItemClass(isActive)].join(" ")}
                     >
-                      <Icon
-                        size={17}
-                        strokeWidth={isActive ? 2.25 : 2}
-                        className={navIconClass(isActive)}
-                      />
+                      <Icon size={17} strokeWidth={isActive ? 2.25 : 2} className={navIconClass(isActive)} />
                       {item.label}
                     </button>
                   );
                 }
 
                 return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={["group", navItemClass(isActive)].join(" ")}
-                  >
-                    <Icon
-                      size={17}
-                      strokeWidth={isActive ? 2.25 : 2}
-                      className={navIconClass(isActive)}
-                    />
+                  <Link key={item.href} href={item.href} className={["group", navItemClass(isActive)].join(" ")}>
+                    <Icon size={17} strokeWidth={isActive ? 2.25 : 2} className={navIconClass(isActive)} />
                     {item.label}
                   </Link>
                 );
