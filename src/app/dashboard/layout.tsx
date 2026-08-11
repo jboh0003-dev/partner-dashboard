@@ -1,3 +1,4 @@
+import "./oke-answer.css";
 import { OkePanelProvider } from "@/components/search/oke-panel-context";
 import { DashboardContent } from "@/components/search/dashboard-content";
 import { Sidebar } from "@/components/layout/sidebar";
