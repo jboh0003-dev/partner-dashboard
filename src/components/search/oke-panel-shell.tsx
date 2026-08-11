@@ -1,6 +1,7 @@
 "use client";
 
 import { Maximize2, Minimize2, X } from "lucide-react";
+import { useEffect, useRef } from "react";
 import { SearchChat } from "@/components/search/search-chat";
 import { OkeAvatar } from "@/components/search/oke-avatar";
 import { useOkePanel } from "@/components/search/oke-panel-context";
@@ -18,6 +19,36 @@ export function OkePanelShell({
   showFullscreenToggle = true
 }: OkePanelShellProps) {
   const { closePanel, toggleFullscreen, fullscreen } = useOkePanel();
+  const bodyRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const root = bodyRef.current;
+    if (!root) return;
+
+    const findScroller = () =>
+      Array.from(root.querySelectorAll<HTMLElement>("div")).find((element) => {
+        const style = window.getComputedStyle(element);
+        return (style.overflowY === "auto" || style.overflowY === "scroll") && element.scrollHeight > element.clientHeight;
+      });
+
+    let frame = 0;
+    const scrollToLatest = () => {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(() => {
+        const scroller = findScroller();
+        if (!scroller) return;
+        scroller.scrollTo({ top: scroller.scrollHeight, behavior: "smooth" });
+      });
+    };
+
+    const observer = new MutationObserver(() => scrollToLatest());
+    observer.observe(root, { childList: true, subtree: true, characterData: true });
+
+    return () => {
+      observer.disconnect();
+      window.cancelAnimationFrame(frame);
+    };
+  }, []);
 
   return (
     <aside
@@ -31,9 +62,7 @@ export function OkePanelShell({
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <h2 className="text-lg font-bold text-slate-950">{OKE_NAME}</h2>
-              <span className="rounded-md bg-slate-900 px-1.5 py-0.5 text-[10px] font-bold tracking-wider text-white">
-                AI
-              </span>
+              <span className="rounded-md bg-slate-900 px-1.5 py-0.5 text-[10px] font-bold tracking-wider text-white">AI</span>
             </div>
             <p className="mt-1 text-sm text-slate-600">{OKE_SUBTITLE}</p>
           </div>
@@ -69,7 +98,7 @@ export function OkePanelShell({
         </div>
       </header>
 
-      <div className="min-h-0 flex-1 overflow-hidden">
+      <div ref={bodyRef} className="min-h-0 flex-1 overflow-hidden">
         <SearchChat variant="panel" />
       </div>
     </aside>

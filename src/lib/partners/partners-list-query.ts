@@ -1,12 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
-  DEFAULT_PAGE_SIZE,
-  clampPage,
-  parsePageParam,
-  rangeForPage,
-  totalPagesFor
-} from "@/components/common/list-pagination";
-import {
   buildPartnerListRows,
   type PartnerListRow
 } from "@/lib/partners/list";
@@ -21,7 +14,7 @@ import {
 import { filterSamplePartners, isSamplePartner } from "@/lib/partners/sample-filter";
 import type { Partner, PartnerContact } from "@/types/partner";
 
-export const PARTNERS_PAGE_SIZE = DEFAULT_PAGE_SIZE;
+export const PARTNERS_LIST_MAX = 5000;
 
 export const PARTNER_LIST_SELECT =
   "id, company_name, external_no, grade, grade_override, grade_change_raw, grade_original, contract_start_date, region_group, status, is_active, deleted_at, memo, ceo_name, business_number, main_phone, sales_owner, okestro_owner, contract_contact_name, contract_contact_phone, contract_contact_email, created_at, updated_at";
@@ -32,7 +25,6 @@ export type PartnersListSearchParams = {
   contractYear?: string;
   contractMonth?: string;
   includeExcluded?: string;
-  page?: string;
 };
 
 function parseContractDate(value: string | null | undefined): Date | null {
@@ -81,41 +73,29 @@ async function findPartnerIdsMatchingContactQuery(
     .or(
       `name.ilike.%${escaped}%,email.ilike.%${escaped}%,phone.ilike.%${escaped}%,department.ilike.%${escaped}%,position.ilike.%${escaped}%`
     )
-    .limit(2000);
+    .limit(PARTNERS_LIST_MAX);
 
   if (error) return [];
   return [...new Set((data ?? []).map((row) => String(row.partner_id)))];
 }
 
-/**
- * Partners list with server-side page window.
- *
- * Filter semantics (sample / official-exclude / display grade / contact search)
- * are preserved. When filters need display-grade or contact matching, we resolve
- * matching IDs first, then `range` the page of full rows + contacts for that page only.
- */
-export async function fetchPartnersListPage(
+export async function fetchPartnersList(
   supabase: SupabaseClient,
   params: PartnersListSearchParams
 ): Promise<{
   rows: PartnerListRow[];
   totalCount: number;
-  page: number;
-  pageSize: number;
-  totalPages: number;
   includeExcluded: boolean;
   excludedCount: number;
   error: string | null;
   gradeToken: string | null;
 }> {
-  const pageSize = PARTNERS_PAGE_SIZE;
   const includeExcluded =
     params.includeExcluded === "1" || params.includeExcluded === "true";
   const gradeToken = parseGradeQueryParam(params.grade);
   const q = (params.q ?? "").trim();
 
   try {
-    // Lightweight identity + filter/search fields (not full contact join)
     let query = supabase
       .from("partners")
       .select(
@@ -123,10 +103,8 @@ export async function fetchPartnersListPage(
       )
       .is("deleted_at", null)
       .order("company_name", { ascending: true })
-      .order("id", { ascending: true });
-
-    // Prefer active (null treated as active in UI)
-    query = query.or("is_active.is.null,is_active.eq.true");
+      .order("id", { ascending: true })
+      .or("is_active.is.null,is_active.eq.true");
 
     if (params.contractYear && Number.isFinite(Number(params.contractYear))) {
       const year = Number(params.contractYear);
@@ -145,76 +123,67 @@ export async function fetchPartnersListPage(
       }
     }
 
-    const { data: lightRows, error: lightError } = await query.limit(5000);
+    const { data: lightRows, error: lightError } = await query.limit(PARTNERS_LIST_MAX);
     if (lightError) throw new Error(lightError.message);
 
     let candidates = filterSamplePartners(
       (lightRows ?? []) as unknown as Partner[]
-    ).filter((p) => p.is_active !== false);
+    ).filter((partner) => partner.is_active !== false);
 
-    const excludedCount = candidates.filter((p) =>
-      isExcludedFromOfficialPartnerStats(p)
+    const excludedCount = candidates.filter((partner) =>
+      isExcludedFromOfficialPartnerStats(partner)
     ).length;
 
     if (!includeExcluded) {
       candidates = filterOfficialPartnerStatsPartners(candidates);
     }
 
-    candidates = candidates.filter((p) => matchesContractFilters(p, params));
+    candidates = candidates.filter((partner) => matchesContractFilters(partner, params));
 
     if (gradeToken) {
-      candidates = candidates.filter((p) => getDisplayPartnerGrade(p) === gradeToken);
+      candidates = candidates.filter(
+        (partner) => getDisplayPartnerGrade(partner) === gradeToken
+      );
     }
 
     let contactMatchIds: Set<string> | null = null;
     if (q) {
-      const ids = await findPartnerIdsMatchingContactQuery(supabase, q);
-      contactMatchIds = new Set(ids);
+      contactMatchIds = new Set(await findPartnerIdsMatchingContactQuery(supabase, q));
     }
 
-    // Apply text search on partner fields (+ contact match ids) using list helpers
-    // by building temporary rows without contacts first, then refining with contacts for matches.
-    let matchedIds = candidates.map((p) => p.id);
+    let matchedIds = candidates.map((partner) => partner.id);
 
     if (q) {
       const qLower = q.toLowerCase();
       matchedIds = candidates
-        .filter((p) => {
-          if (contactMatchIds?.has(p.id)) return true;
+        .filter((partner) => {
+          if (contactMatchIds?.has(partner.id)) return true;
           const haystack = [
-            p.company_name,
-            p.external_no,
-            p.ceo_name,
-            p.sales_owner,
-            p.okestro_owner,
-            p.main_phone,
-            p.business_number,
-            p.contract_contact_name,
-            p.contract_contact_email,
-            p.contract_contact_phone,
-            getDisplayPartnerGrade(p)
+            partner.company_name,
+            partner.external_no,
+            partner.ceo_name,
+            partner.sales_owner,
+            partner.okestro_owner,
+            partner.main_phone,
+            partner.business_number,
+            partner.contract_contact_name,
+            partner.contract_contact_email,
+            partner.contract_contact_phone,
+            getDisplayPartnerGrade(partner)
           ]
             .filter(Boolean)
             .join(" ")
             .toLowerCase();
           return haystack.includes(qLower);
         })
-        .map((p) => p.id);
+        .map((partner) => partner.id);
     }
 
     const totalCount = matchedIds.length;
-    const totalPages = totalPagesFor(totalCount, pageSize);
-    const page = clampPage(parsePageParam(params.page), totalPages || 1);
-    const { from, to } = rangeForPage(page, pageSize);
-    const pageIds = matchedIds.slice(from, to + 1);
-
-    if (pageIds.length === 0) {
+    if (matchedIds.length === 0) {
       return {
         rows: [],
         totalCount,
-        page,
-        pageSize,
-        totalPages,
         includeExcluded,
         excludedCount,
         error: null,
@@ -225,42 +194,37 @@ export async function fetchPartnersListPage(
     const { data: partnersData, error: partnersError } = await supabase
       .from("partners")
       .select(PARTNER_LIST_SELECT)
-      .in("id", pageIds)
+      .in("id", matchedIds)
       .is("deleted_at", null)
-      // Page-sized fetch equivalent to range over the filtered id window
-      .range(0, pageIds.length - 1);
+      .limit(PARTNERS_LIST_MAX);
 
     if (partnersError) throw new Error(partnersError.message);
 
     const partnerMap = new Map(
-      ((partnersData ?? []) as Partner[]).map((p) => [p.id, p])
+      ((partnersData ?? []) as Partner[]).map((partner) => [partner.id, partner])
     );
-    // Preserve sort order of pageIds
-    const partners = pageIds
+    const partners = matchedIds
       .map((id) => partnerMap.get(id))
-      .filter((p): p is Partner => Boolean(p) && !isSamplePartner(p));
+      .filter((partner): partner is Partner => Boolean(partner) && !isSamplePartner(partner));
 
     const { data: contactsData, error: contactsError } = await supabase
       .from("partner_contacts")
       .select(
         "id, partner_id, name, department, position, email, phone, is_primary, is_contract_contact, is_active, deleted_at"
       )
-      .in("partner_id", pageIds)
+      .in("partner_id", matchedIds)
       .eq("is_active", true)
-      .is("deleted_at", null);
+      .is("deleted_at", null)
+      .limit(PARTNERS_LIST_MAX);
 
     if (contactsError) throw new Error(contactsError.message);
 
     const contacts = (contactsData ?? []) as PartnerContact[];
-    // Page IDs already reflect search (partner fields + contact matches)
     const rows = buildPartnerListRows(partners, contacts);
 
     return {
       rows,
       totalCount,
-      page,
-      pageSize,
-      totalPages,
       includeExcluded,
       excludedCount,
       error: null,
@@ -270,30 +234,10 @@ export async function fetchPartnersListPage(
     return {
       rows: [],
       totalCount: 0,
-      page: 1,
-      pageSize,
-      totalPages: 0,
       includeExcluded,
       excludedCount: 0,
       error: error instanceof Error ? error.message : "파트너 목록 조회 실패",
       gradeToken
     };
   }
-}
-
-export function buildPartnersListHref(
-  params: PartnersListSearchParams,
-  page: number
-): string {
-  const sp = new URLSearchParams();
-  if (params.q?.trim()) sp.set("q", params.q.trim());
-  if (params.grade && params.grade !== "all") sp.set("grade", params.grade);
-  if (params.contractYear) sp.set("contractYear", params.contractYear);
-  if (params.contractMonth) sp.set("contractMonth", params.contractMonth);
-  if (params.includeExcluded === "1" || params.includeExcluded === "true") {
-    sp.set("includeExcluded", "1");
-  }
-  if (page > 1) sp.set("page", String(page));
-  const qs = sp.toString();
-  return qs ? `/dashboard/partners?${qs}` : "/dashboard/partners";
 }
