@@ -1,0 +1,9 @@
+.ui-oke-result > div:first-child + p {
+  white-space: pre-line;
+  line-height: 1.75;
+  max-width: 96ch;
+}
+
+.ui-oke-result > div:first-child + p::first-line {
+  font-weight: 700;
+}
