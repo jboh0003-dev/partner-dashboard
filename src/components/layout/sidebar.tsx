@@ -20,7 +20,7 @@ import {
   Users
 } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 type NavLeaf = {
@@ -95,6 +95,19 @@ const NAV_GROUPS: NavGroup[] = [
   }
 ];
 
+const PREFETCH_ROUTES = [
+  "/dashboard",
+  "/dashboard/partners",
+  "/dashboard/partner-applications",
+  "/dashboard/contacts",
+  "/dashboard/documents",
+  "/dashboard/platinum-upgrade",
+  "/dashboard/performance",
+  "/dashboard/trainings",
+  "/dashboard/assets",
+  "/dashboard/upload-hub"
+] as const;
+
 function isNavActive(pathname: string, href: string): boolean {
   if (href === "/dashboard") return pathname === "/dashboard";
   return pathname === href || pathname.startsWith(`${href}/`);
@@ -154,6 +167,7 @@ function PartnerAccordion({ item, pathname }: { item: NavAccordion; pathname: st
       <div className="flex items-center gap-0.5">
         <Link
           href={item.href}
+          prefetch
           className={[
             "group min-w-0 flex-1",
             listActive
@@ -190,7 +204,7 @@ function PartnerAccordion({ item, pathname }: { item: NavAccordion; pathname: st
             const ChildIcon = child.icon;
             const isActive = isNavActive(pathname, child.href);
             return (
-              <Link key={child.href} href={child.href} className={["group", navChildClass(isActive)].join(" ")}>
+              <Link key={child.href} href={child.href} prefetch className={["group", navChildClass(isActive)].join(" ")}>
                 <ChildIcon size={15} strokeWidth={isActive ? 2.25 : 2} className={navIconClass(isActive)} />
                 {child.label}
               </Link>
@@ -204,13 +218,30 @@ function PartnerAccordion({ item, pathname }: { item: NavAccordion; pathname: st
 
 export function Sidebar({ userEmail = null }: { userEmail?: string | null }) {
   const pathname = usePathname();
+  const router = useRouter();
   const { openPanel, open } = useOkePanel();
   const okeActive = open || isOkeNavActive(pathname);
+
+  useEffect(() => {
+    const warmRoutes = () => {
+      for (const route of PREFETCH_ROUTES) {
+        if (route !== pathname) router.prefetch(route);
+      }
+    };
+
+    if (typeof window !== "undefined" && "requestIdleCallback" in window) {
+      const id = window.requestIdleCallback(warmRoutes, { timeout: 1200 });
+      return () => window.cancelIdleCallback(id);
+    }
+
+    const timer = window.setTimeout(warmRoutes, 250);
+    return () => window.clearTimeout(timer);
+  }, [pathname, router]);
 
   return (
     <aside className="fixed left-0 top-0 z-10 flex h-screen w-64 flex-col border-r border-slate-200/90 bg-white">
       <div className="border-b border-slate-100 px-5 py-5">
-        <Link href="/dashboard" className="inline-flex">
+        <Link href="/dashboard" prefetch className="inline-flex">
           <BrandLogo className="h-8 w-auto object-contain" priority />
         </Link>
         <p className="mt-2.5 text-2xs font-medium uppercase tracking-wider text-slate-400">Enterprise Partner Portal</p>
@@ -246,7 +277,7 @@ export function Sidebar({ userEmail = null }: { userEmail?: string | null }) {
                 }
 
                 return (
-                  <Link key={item.href} href={item.href} className={["group", navItemClass(isActive)].join(" ")}>
+                  <Link key={item.href} href={item.href} prefetch className={["group", navItemClass(isActive)].join(" ")}>
                     <Icon size={17} strokeWidth={isActive ? 2.25 : 2} className={navIconClass(isActive)} />
                     {item.label}
                   </Link>
