@@ -21,32 +21,14 @@ function SectionSkeleton({ height = "h-40" }: { height?: string }) {
   );
 }
 
-function formatDataAsOf(snapshotDate: string | null | undefined): string | null {
-  if (!snapshotDate) return null;
-  const date = new Date(snapshotDate);
-  if (Number.isNaN(date.getTime())) return null;
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}.${m}.${d}`;
-}
-
-async function DashboardHero() {
-  const performanceStats = await fetchExecutivePerformanceStats();
-  const dataAsOf = formatDataAsOf(performanceStats.latest_snapshot?.snapshot_date);
+function DashboardHero() {
   return (
     <AnimatedSection>
       <PageHero
         compact
-        title="파트너 운영 현황"
-        description="파트너 운영 핵심 지표와 2026 파이프라인 현황을 한눈에 확인합니다."
-        action={
-          dataAsOf ? (
-            <p className="rounded-lg bg-white/15 px-3 py-2 text-xs font-semibold text-white ring-1 ring-inset ring-white/30">
-              데이터 기준일 {dataAsOf}
-            </p>
-          ) : null
-        }
+        eyebrow={null}
+        prominentTitle
+        title="OKESTRO PARTNER PORTAL"
       />
     </AnimatedSection>
   );
