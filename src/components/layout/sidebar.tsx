@@ -213,7 +213,7 @@ export function Sidebar({ userEmail = null }: { userEmail?: string | null }) {
         <Link href="/dashboard" className="inline-flex">
           <BrandLogo className="h-8 w-auto object-contain" priority />
         </Link>
-        <p className="mt-2.5 text-2xs font-medium uppercase tracking-wider text-slate-400">Enterprise Partner Portal</p>
+        <p className="mt-2.5 text-2xs font-medium uppercase tracking-wider text-slate-400">OKESTRO Partner Portal</p>
         <GlobalPartnerSearch />
       </div>
 
