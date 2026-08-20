@@ -47,8 +47,8 @@ export async function handlePipelineLookup(
     const bundle = await fetchPartnerPerformanceBundle(partnerId);
     const answer = [
       `${partnerName} 파트너 실적/파이프라인 (${latest.snapshot_date} 스냅샷 기준)`,
-      `- 2026 수주예상 파이프라인: ${formatEok(bundle.win_forecast_amount_million)} / ${formatCount(bundle.win_forecast_count)}`,
-      `- 2026 신규등록 파이프라인: ${formatEok(bundle.new_reg_amount_million)} / ${formatCount(bundle.new_reg_count)}`,
+      `- 수주 예상 프로젝트: ${formatEok(bundle.win_forecast_amount_million)} / ${formatCount(bundle.win_forecast_count)}`,
+      `- 전체 영업기회: ${formatEok(bundle.all_opportunity_amount_million)} / ${formatCount(bundle.all_opportunity_count)}`,
       `- 2025 매출: ${formatEok(bundle.revenue_amount_million)} / ${formatCount(bundle.revenue_count)}`
     ].join("\n");
 
@@ -64,7 +64,7 @@ export async function handlePipelineLookup(
       ],
       summaryCards: [
         { label: "수주예상", value: formatEok(bundle.win_forecast_amount_million) },
-        { label: "신규등록", value: formatEok(bundle.new_reg_amount_million) },
+        { label: "전체 영업기회", value: formatEok(bundle.all_opportunity_amount_million) },
         { label: "2025 매출", value: formatEok(bundle.revenue_amount_million) }
       ]
     });

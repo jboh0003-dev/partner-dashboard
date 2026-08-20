@@ -1,6 +1,7 @@
 import { cache } from "react";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isFy26, isRegisteredYear2026 } from "@/lib/performance/format";
+import { isExpectedWinPartnerPipeline } from "@/lib/performance/expected-win";
 import { needsPerformanceReview } from "@/lib/performance/match-status";
 import type {
   ExecutivePerformanceStats,
@@ -391,6 +392,8 @@ export async function fetchPartnerPerformanceBundle(partnerId: string) {
       snapshot: null,
       win_forecast_amount_million: 0,
       win_forecast_count: 0,
+      all_opportunity_amount_million: 0,
+      all_opportunity_count: 0,
       new_reg_amount_million: 0,
       new_reg_count: 0,
       revenue_amount_million: 0,
@@ -417,7 +420,8 @@ export async function fetchPartnerPerformanceBundle(partnerId: string) {
     mapOpportunity(row as Record<string, unknown>)
   );
 
-  const winRows = rows.filter(isWinForecastPipelineRow);
+  const allOpportunityRows = rows.filter(isWinForecastPipelineRow);
+  const expectedWinRows = rows.filter(isExpectedWinPartnerPipeline);
   const newRows = rows.filter(isNewRegPipelineRow);
 
   const revenue_amount_million = (revenueRows ?? []).reduce(
@@ -428,9 +432,13 @@ export async function fetchPartnerPerformanceBundle(partnerId: string) {
   return {
     snapshot: latest,
     win_forecast_amount_million: Math.round(
-      winRows.reduce((sum, row) => sum + (row.product_amount_million ?? 0), 0)
-    ),
-    win_forecast_count: new Set(winRows.map((row) => row.project_code)).size,
+      expectedWinRows.reduce((sum, row) => sum + (row.product_amount_million ?? 0), 0) * 1000
+    ) / 1000,
+    win_forecast_count: new Set(expectedWinRows.map((row) => row.project_code)).size,
+    all_opportunity_amount_million: Math.round(
+      allOpportunityRows.reduce((sum, row) => sum + (row.product_amount_million ?? 0), 0) * 1000
+    ) / 1000,
+    all_opportunity_count: new Set(allOpportunityRows.map((row) => row.project_code)).size,
     new_reg_amount_million: Math.round(
       newRows.reduce((sum, row) => sum + (row.product_amount_million ?? 0), 0)
     ),
@@ -438,7 +446,7 @@ export async function fetchPartnerPerformanceBundle(partnerId: string) {
     revenue_amount_million: Math.round(revenue_amount_million),
     revenue_count: (revenueRows ?? []).length,
     opportunities: rows,
-    win_probability_breakdown: aggregateBreakdown(winRows, (row) => row.win_probability_label)
+    win_probability_breakdown: aggregateBreakdown(allOpportunityRows, (row) => row.win_probability_label)
   };
 }
 

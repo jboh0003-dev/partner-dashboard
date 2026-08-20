@@ -129,7 +129,7 @@ export function PartnerDetailTabs({
       assets: assets.length,
       documents: countVisiblePartnerDocuments(documents),
       performance:
-        performance.win_forecast_count + performance.new_reg_count + performance.revenue_count,
+        performance.all_opportunity_count + performance.win_forecast_count + performance.revenue_count,
       notes: notes.length
     }),
     [
@@ -142,7 +142,7 @@ export function PartnerDetailTabs({
       assets.length,
       documents,
       performance.win_forecast_count,
-      performance.new_reg_count,
+      performance.all_opportunity_count,
       performance.revenue_count,
       notes.length
     ]

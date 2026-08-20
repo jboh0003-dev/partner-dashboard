@@ -84,6 +84,8 @@ export type PartnerPerformanceBundle = {
   snapshot: { snapshot_date: string; snapshot_label: string } | null;
   win_forecast_amount_million: number;
   win_forecast_count: number;
+  all_opportunity_amount_million: number;
+  all_opportunity_count: number;
   new_reg_amount_million: number;
   new_reg_count: number;
   revenue_amount_million: number;

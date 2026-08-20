@@ -7,13 +7,13 @@ export const NEW_REG_SUMMARY_PATTERN = /신규등록\s*summary/i;
 export const REVENUE_PARTNER_SHEET_PATTERN = /25년\s*파트너\s*실적/i;
 export const REVENUE_PIVOT_SHEET_PATTERN = /25년\s*매출\s*pivot/i;
 
+/**
+ * 260805 인벤토리 rawdata 기준 참고값 (summary 시트는 260703이라 사용하지 않음).
+ * FY26 + 파트너딜 O + 제품매출 O, 프로젝트코드 unique.
+ */
 export const REFERENCE_VALIDATION = {
-  win_forecast_total_amount_million: 116047,
-  win_forecast_total_count: 634,
-  win_forecast_partner_amount_million: 19907,
-  win_forecast_partner_count: 154,
-  new_reg_total_amount_million: 41565,
-  new_reg_total_count: 266,
-  new_reg_partner_amount_million: 4910,
-  new_reg_partner_count: 60
+  partner_pipeline_amount_million: 17678.996,
+  partner_pipeline_count: 152,
+  expected_win_partner_amount_million: 7595.796,
+  expected_win_partner_count: 40
 } as const;

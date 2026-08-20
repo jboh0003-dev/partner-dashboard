@@ -14,6 +14,10 @@ export const DOCUMENT_PARTNER_ALIAS_GROUPS: Array<{
   {
     canonicalName: "아이윌아이엔씨",
     aliases: ["아이윌아이앤씨", "아이윌"]
+  },
+  {
+    canonicalName: "앤티에스",
+    aliases: ["엔티에스"]
   }
 ];
 

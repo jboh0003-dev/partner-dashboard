@@ -7,6 +7,7 @@ import {
   sumProductAmount,
   uniqueProjectCount
 } from "@/lib/excel/parse-partner-performance";
+import { isExpectedWinPartnerPipeline } from "@/lib/performance/expected-win";
 import {
   matchPerformancePartnerName,
   toImportMatchStatus,
@@ -62,6 +63,8 @@ export type PartnerPerformanceAnalysisSummary = {
   win_forecast_partner_count: number;
   win_forecast_total_amount_million: number;
   win_forecast_total_count: number;
+  expected_win_partner_amount_million: number;
+  expected_win_partner_count: number;
   new_reg_partner_amount_million: number;
   new_reg_partner_count: number;
   new_reg_total_amount_million: number;
@@ -188,6 +191,7 @@ export function analyzePartnerPerformanceUpload(input: {
 }): PartnerPerformanceAnalysisResult {
   const winForecastPartnerRows = input.inventory_rows.filter(isWinForecastPartnerPipeline);
   const winForecastTotalRows = input.inventory_rows.filter(isWinForecastTotalPipeline);
+  const expectedWinPartnerRows = input.inventory_rows.filter(isExpectedWinPartnerPipeline);
   const newRegPartnerRows = input.inventory_rows.filter(isNewRegPartnerPipeline);
   const newRegTotalRows = input.inventory_rows.filter(isNewRegTotalPipeline);
 
@@ -220,46 +224,40 @@ export function analyzePartnerPerformanceUpload(input: {
   const partner_match_review = partnerRowsNeedingReview.length;
 
   const validation_warnings: string[] = [];
-  const win_forecast_partner_amount_million = Math.round(sumProductAmount(winForecastPartnerRows));
+  const win_forecast_partner_amount_million = Math.round(sumProductAmount(winForecastPartnerRows) * 1000) / 1000;
   const win_forecast_partner_count = uniqueProjectCount(winForecastPartnerRows);
+  const expected_win_partner_amount_million =
+    Math.round(sumProductAmount(expectedWinPartnerRows) * 1000) / 1000;
+  const expected_win_partner_count = uniqueProjectCount(expectedWinPartnerRows);
   const new_reg_partner_amount_million = Math.round(sumProductAmount(newRegPartnerRows));
   const new_reg_partner_count = uniqueProjectCount(newRegPartnerRows);
 
   compareValidation(
     win_forecast_partner_amount_million,
-    REFERENCE_VALIDATION.win_forecast_partner_amount_million,
-    "2026 수주예상 파트너 파이프라인",
+    REFERENCE_VALIDATION.partner_pipeline_amount_million,
+    "FY26 전체 영업기회(파트너)",
     validation_warnings
   );
   compareValidation(
-    new_reg_partner_amount_million,
-    REFERENCE_VALIDATION.new_reg_partner_amount_million,
-    "2026 신규등록 파트너 파이프라인",
+    expected_win_partner_amount_million,
+    REFERENCE_VALIDATION.expected_win_partner_amount_million,
+    "FY26 수주 예상 프로젝트(F 기준)",
     validation_warnings
   );
 
-  if (input.summary_validation.win_forecast_partner_amount_million != null) {
-    compareValidation(
-      win_forecast_partner_amount_million,
-      input.summary_validation.win_forecast_partner_amount_million,
-      "summary 시트 수주예상 파트너",
-      validation_warnings
+  if (win_forecast_partner_count !== REFERENCE_VALIDATION.partner_pipeline_count) {
+    validation_warnings.push(
+      `FY26 전체 영업기회 건수: rawdata ${win_forecast_partner_count}건 vs 참고 ${REFERENCE_VALIDATION.partner_pipeline_count}건`
     );
   }
-  if (input.summary_validation.new_reg_partner_amount_million != null) {
-    compareValidation(
-      new_reg_partner_amount_million,
-      input.summary_validation.new_reg_partner_amount_million,
-      "summary 시트 신규등록 파트너",
-      validation_warnings
+  if (expected_win_partner_count !== REFERENCE_VALIDATION.expected_win_partner_count) {
+    validation_warnings.push(
+      `FY26 수주 예상 건수: rawdata ${expected_win_partner_count}건 vs 참고 ${REFERENCE_VALIDATION.expected_win_partner_count}건`
     );
   }
 
   if (win_forecast_partner_amount_million === 0) {
-    validation_warnings.push("2026 수주예상 파트너 파이프라인 금액이 0입니다.");
-  }
-  if (new_reg_partner_amount_million === 0) {
-    validation_warnings.push("2026 신규등록 파트너 파이프라인 금액이 0입니다.");
+    validation_warnings.push("FY26 전체 영업기회(파트너) 금액이 0입니다.");
   }
 
   const save_blockers = [...input.parse_errors];
@@ -313,6 +311,8 @@ export function analyzePartnerPerformanceUpload(input: {
       win_forecast_partner_count,
       win_forecast_total_amount_million: Math.round(sumProductAmount(winForecastTotalRows)),
       win_forecast_total_count: uniqueProjectCount(winForecastTotalRows),
+      expected_win_partner_amount_million,
+      expected_win_partner_count,
       new_reg_partner_amount_million,
       new_reg_partner_count,
       new_reg_total_amount_million: Math.round(sumProductAmount(newRegTotalRows)),
