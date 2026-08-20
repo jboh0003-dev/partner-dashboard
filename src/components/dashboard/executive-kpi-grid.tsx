@@ -26,7 +26,7 @@ export function ExecutiveKpiGrid({ stats, currentYear }: ExecutiveKpiGridProps) 
       </Link>
 
       <Link href={`/dashboard/partners?contractYear=${currentYear}`} className={CARD_CLASS}>
-        <p className="text-[11px] font-bold uppercase tracking-wide text-slate-600">신규 계약</p>
+        <p className="text-[11px] font-bold uppercase tracking-wide text-slate-600">신규 계약 _ {currentYear}년</p>
         <p className="mt-2.5 text-4xl font-bold tabular-nums leading-none tracking-tight text-slate-950">
           {stats.newContractsThisYear.toLocaleString("ko-KR")}
           <span className="ml-1 text-lg font-semibold text-slate-700">건</span>
@@ -48,7 +48,7 @@ export function ExecutiveKpiGrid({ stats, currentYear }: ExecutiveKpiGridProps) 
       </Link>
 
       <Link href="/dashboard/trainings" className={CARD_CLASS}>
-        <p className="text-[11px] font-bold uppercase tracking-wide text-slate-600">교육 참석 이력</p>
+        <p className="text-[11px] font-bold uppercase tracking-wide text-slate-600">교육 참석 이력 _ {currentYear}</p>
         <p className="mt-2.5 text-4xl font-bold tabular-nums leading-none tracking-tight text-slate-950">
           {stats.trainingAttendeeCount.toLocaleString("ko-KR")}
         </p>
