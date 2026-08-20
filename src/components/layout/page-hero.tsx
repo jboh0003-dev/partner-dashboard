@@ -7,6 +7,8 @@ type PageHeroProps = {
   action?: ReactNode;
   children?: ReactNode;
   compact?: boolean;
+  eyebrow?: string | null;
+  prominentTitle?: boolean;
 };
 
 export function PageHero({
@@ -14,7 +16,9 @@ export function PageHero({
   description,
   action,
   children,
-  compact = false
+  compact = false,
+  eyebrow = "OKESTRO Partner Portal",
+  prominentTitle = false
 }: PageHeroProps) {
   return (
     <section
@@ -42,13 +46,19 @@ export function PageHero({
         ].join(" ")}
       >
         <div className="max-w-3xl">
-          <p className="text-2xs font-bold uppercase tracking-[0.18em] text-slate-100">
-            OKESTRO Partner Portal
-          </p>
+          {eyebrow ? (
+            <p className="text-2xs font-bold uppercase tracking-[0.18em] text-slate-100">
+              {eyebrow}
+            </p>
+          ) : null}
           <h1
             className={[
               "font-bold tracking-tight text-white",
-              compact ? "mt-1.5 text-xl md:text-2xl" : "mt-2 text-2xl md:text-[1.75rem]"
+              prominentTitle
+                ? "text-2xl md:text-3xl"
+                : compact
+                  ? `${eyebrow ? "mt-1.5 " : ""}text-xl md:text-2xl`
+                  : `${eyebrow ? "mt-2 " : ""}text-2xl md:text-[1.75rem]`
             ].join(" ")}
           >
             {title}
