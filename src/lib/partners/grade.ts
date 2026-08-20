@@ -54,11 +54,23 @@ function resolveGradeToken(raw: string | null | undefined): string | null {
   return normalizePartnerGrade(raw);
 }
 
+function isServicePartnerCompany(companyName: string | null | undefined): boolean {
+  if (!companyName) return false;
+  const normalized = companyName
+    .replace(/주식회사|㈜|\(주\)/g, "")
+    .replace(/\s+/g, "")
+    .trim();
+  return normalized === "소클";
+}
+
 /**
  * 화면 표시·집계·필터용 최종 적용 등급.
- * 우선순위: grade_override → grade_change_raw → grade → grade_original
+ * 소클은 서비스 파트너로 고정하고, 그 외는
+ * grade_override → grade_change_raw → grade → grade_original 순서로 결정한다.
  */
 export function getDisplayPartnerGrade(partner: PartnerGradeSource): string {
+  if (isServicePartnerCompany(partner.company_name)) return "service_partner";
+
   const override = resolveGradeToken(partner.grade_override);
   if (override) return override;
 
