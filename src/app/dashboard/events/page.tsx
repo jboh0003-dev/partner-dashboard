@@ -9,6 +9,7 @@ import {
   fetchPartnerEvents,
   uniqueEventYears
 } from "@/lib/data/partner-events";
+import { getCachedViewerAuthContext } from "@/lib/auth/require-admin";
 
 type SearchParams = {
   q?: string;
@@ -22,6 +23,7 @@ export default async function EventsPage({
   searchParams: Promise<SearchParams>;
 }) {
   const params = await searchParams;
+  const { isAdmin } = await getCachedViewerAuthContext();
   const { events, error, documentsError, debug } = await fetchPartnerEvents({
     q: params.q,
     type: params.type,
@@ -55,12 +57,14 @@ export default async function EventsPage({
         description="연도별·행사유형별 파트너 행사 자료를 조회합니다."
         action={
           <div className="flex flex-wrap items-center gap-2">
-            <Link
-              href="/dashboard/events/upload"
-              className="inline-flex items-center rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:border-blue-300 hover:text-blue-700"
-            >
-              행사 자료 업로드
-            </Link>
+            {isAdmin ? (
+              <Link
+                href="/dashboard/events/upload"
+                className="inline-flex items-center rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:border-blue-300 hover:text-blue-700"
+              >
+                행사 자료 업로드
+              </Link>
+            ) : null}
             <CsvDownloadButton rows={exportRows} filenamePrefix="partner-events" />
           </div>
         }
@@ -115,9 +119,7 @@ export default async function EventsPage({
       ) : hasOrphanDocuments ? (
         <EmptyState
           title="행사 자료는 있으나 행사 마스터 조회를 확인해야 합니다."
-          description={`partner_event_documents ${debug.fetchedDocuments}건이 조회되었으나 partner_events는 0건입니다. RLS 정책 또는 인증 상태를 확인해 주세요.${
-            documentsError ? ` (자료 조회 오류: ${documentsError})` : ""
-          }`}
+          description="연결된 행사 자료를 찾았지만 행사 목록을 표시할 수 없습니다. 관리자에게 문의해 주세요."
         />
       ) : events.length === 0 ? (
         <div className="space-y-4">
@@ -125,15 +127,17 @@ export default async function EventsPage({
             title="등록된 행사가 없습니다."
             description={
               debug.fetchedEventsRaw > 0
-                ? `DB에 행사 ${debug.fetchedEventsRaw}건이 조회되었으나 필터 조건에 맞는 행사가 없습니다.`
+                ? "조건에 맞는 행사가 없습니다. 검색어나 연도를 바꿔 보세요."
                 : "행사 자료 업로드에서 폴더를 선택해 저장하면 이 화면에 행사가 표시됩니다."
             }
           />
+          {isAdmin ? (
           <div className="text-center">
             <Link href="/dashboard/events/upload" className="ui-btn-accent inline-flex">
               행사 자료 업로드
             </Link>
           </div>
+          ) : null}
         </div>
       ) : (
         <>
@@ -146,53 +150,7 @@ export default async function EventsPage({
           <EventCardGrid events={events} />
         </>
       )}
-
-      <EventsFetchDebugPanel debug={debug} documentsError={documentsError} />
     </>
-  );
-}
-
-function EventsFetchDebugPanel({
-  debug,
-  documentsError
-}: {
-  debug: {
-    fetchedEventsRaw: number;
-    fetchedEventsDisplay: number;
-    fetchedDocuments: number;
-    eventsError: string | null;
-    documentsError: string | null;
-  };
-  documentsError: string | null;
-}) {
-  return (
-    <details className="mt-8 rounded-lg border border-dashed border-slate-200 bg-slate-50/80 p-3 text-xs text-slate-500">
-      <summary className="cursor-pointer font-medium text-slate-600">조회 디버그</summary>
-      <dl className="mt-2 grid gap-1 sm:grid-cols-2">
-        <div>
-          <dt className="inline">fetchedEventsRaw: </dt>
-          <dd className="inline font-mono text-slate-700">{debug.fetchedEventsRaw}</dd>
-        </div>
-        <div>
-          <dt className="inline">fetchedEventsDisplay: </dt>
-          <dd className="inline font-mono text-slate-700">{debug.fetchedEventsDisplay}</dd>
-        </div>
-        <div>
-          <dt className="inline">fetchedDocuments: </dt>
-          <dd className="inline font-mono text-slate-700">{debug.fetchedDocuments}</dd>
-        </div>
-        <div>
-          <dt className="inline">eventsError: </dt>
-          <dd className="inline font-mono text-slate-700">{debug.eventsError ?? "null"}</dd>
-        </div>
-        <div className="sm:col-span-2">
-          <dt className="inline">documentsError: </dt>
-          <dd className="inline font-mono text-slate-700">
-            {documentsError ?? debug.documentsError ?? "null"}
-          </dd>
-        </div>
-      </dl>
-    </details>
   );
 }
 

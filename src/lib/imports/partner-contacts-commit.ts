@@ -9,7 +9,6 @@ import {
 } from "@/lib/imports/contact-baseline";
 import {
   analyzePartnerContactRows,
-  isEducationOrEventOnlyContact,
   type PartnerContactsAnalysisItem,
   type PartnerContactsDbRow,
   type PartnerContactsPartnerRow
@@ -299,7 +298,9 @@ export async function commitPartnerContactsFullDb(
         matchConfidence: item.match_confidence,
         matchMethod: item.match_method
       });
-      const fieldResult = applySanitizedEmailPhoneToPayload(payload, row.email, row.phone);
+      const fieldResult = applySanitizedEmailPhoneToPayload(payload, row.email, row.phone, {
+        clearEmptyFields: true
+      });
       if (fieldResult.corrected) stats.corrected_count += 1;
 
       const { data: created, error } = await supabase
@@ -322,7 +323,9 @@ export async function commitPartnerContactsFullDb(
         matchConfidence: item.match_confidence,
         matchMethod: item.match_method
       });
-      const fieldResult = applySanitizedEmailPhoneToPayload(payload, row.email, row.phone);
+      const fieldResult = applySanitizedEmailPhoneToPayload(payload, row.email, row.phone, {
+        clearEmptyFields: true
+      });
       if (fieldResult.corrected) stats.corrected_count += 1;
 
       const { error } = await supabase
@@ -430,29 +433,11 @@ export async function commitPartnerContactsFullDb(
   // 성공 시에만 baseline 전환
   await activateBaselineContacts(supabase, [...syncedContactIds], reviewRequiredIds);
 
-  const excludedRows = await excludeContactsNotInBaseline(supabase, syncedContactIds);
-  stats.baseline_excluded = excludedRows.length;
+  await excludeContactsNotInBaseline(supabase, syncedContactIds);
 
-  const excludedIds = excludedRows.map((row) => row.id);
-  const historyOnlyFromSource = excludedRows.filter((row) =>
-    isEducationOrEventOnlyContact(row as PartnerContactsDbRow)
-  ).length;
-
-  let historyOnlyFromTraining = 0;
-  if (excludedIds.length > 0) {
-    for (const chunk of chunkArray(excludedIds, 200)) {
-      const { data: trainingLinks } = await supabase
-        .from("training_attendance")
-        .select("contact_id")
-        .in("contact_id", chunk)
-        .not("contact_id", "is", null);
-      historyOnlyFromTraining += new Set(
-        (trainingLinks ?? []).map((row) => row.contact_id as string)
-      ).size;
-    }
-  }
-
-  stats.history_only_excluded = Math.max(historyOnlyFromSource, historyOnlyFromTraining);
+  // A/B 집계는 저장 전 분석 기준 (현재 명단 제외 = A만)
+  stats.baseline_excluded = analysis.baselineExcluded.length;
+  stats.history_only_excluded = analysis.historyOnlyPreserved.length;
   stats.current_baseline_count = baselinePersonKeys.size;
   stats.active_current_count = await countActiveBaselineContacts(supabase);
 

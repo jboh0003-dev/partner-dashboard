@@ -48,13 +48,7 @@ function filled(value: string | null | undefined): boolean {
   return Boolean(String(value ?? "").trim());
 }
 
-function needsTechExtras(form: PartnerApplicationFormPayload): boolean {
-  return (
-    form.flags.technical_collaboration_requested || form.flags.platinum_review_requested
-  );
-}
-
-/** Validate required fields for final submit. */
+/** Validate only fields that the public wizard marks as required (*). */
 export function collectMissingFields(
   form: PartnerApplicationFormPayload,
   options?: { hasBusinessRegistrationDoc?: boolean }
@@ -77,9 +71,6 @@ export function collectMissingFields(
   if (!filled(c.dedicated_sales_count)) {
     push("company", "dedicated_sales_count", "오케스트로 전담 영업인원 수");
   }
-  if (!filled(c.dedicated_technical_count)) {
-    push("company", "dedicated_technical_count", "오케스트로 전담 기술인원 수");
-  }
 
   const ct = form.contact;
   if (!filled(ct.name)) push("contact", "name", "담당자 성명");
@@ -96,37 +87,11 @@ export function collectMissingFields(
 
   const customers = form.customers.filter((row) => filled(row.customer_name));
   if (customers.length < 1) {
-    push("customers", "min", "주요고객 및 영업계획 (최소 1건)");
-  } else {
-    customers.forEach((row, i) => {
-      if (!filled(row.customer_name)) {
-        push("customers", `name_${i}`, `고객명 (${i + 1})`);
-      }
-      if (!filled(row.proposal_status)) {
-        push("customers", `proposal_${i}`, `제안 상황 (${i + 1})`);
-      }
-      if (!filled(row.business_timing)) {
-        push("customers", `timing_${i}`, `사업 시기 (${i + 1})`);
-      }
-      if (!filled(row.revenue_target)) {
-        push("customers", `revenue_${i}`, `매출 목표 (${i + 1})`);
-      }
-    });
+    push("customers", "min", "주요고객 및 영업계획 (최소 1건, 고객명)");
   }
 
   if (options?.hasBusinessRegistrationDoc === false) {
     push("documents", "business_registration", "사업자등록증");
-  }
-
-  if (needsTechExtras(form)) {
-    const engineers = form.people.engineer.filter((p) => filled(p.name));
-    if (engineers.length < 2) {
-      push("people", "engineer", "기술 전담인원 (최소 2명)");
-    }
-    const equipment = form.equipment.filter((e) => filled(e.equipment_name));
-    if (equipment.length < 1) push("equipment", "min", "장비현황");
-    const profiles = form.engineer_profiles.filter((e) => filled(e.name));
-    if (profiles.length < 1) push("engineers", "min", "기술인력 프로필");
   }
 
   return missing;
@@ -151,6 +116,10 @@ export function normalizeFormForStorage(
       office_phone: form.contact.office_phone
         ? formatPhoneInput(form.contact.office_phone)
         : ""
+    },
+    flags: {
+      technical_collaboration_requested: false,
+      platinum_review_requested: false
     },
     applicant: {
       name: form.applicant.name.trim(),

@@ -1,5 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { BASELINE_EXCLUDED_REASON } from "@/lib/imports/partner-contacts";
+import {
+  BASELINE_EXCLUDED_REASON,
+  isDashboardManualContact
+} from "@/lib/imports/partner-contacts";
 
 export const FULL_DB_CONTACT_SOURCE = "full_db";
 
@@ -78,6 +81,7 @@ export async function excludeContactsNotInBaseline(
   const allContacts: Array<{
     id: string;
     source_file: string | null;
+    contact_source: string | null;
     role_raw: string | null;
     review_reason: string | null;
   }> = [];
@@ -88,7 +92,7 @@ export async function excludeContactsNotInBaseline(
   for (;;) {
     const { data, error: fetchError } = await supabase
       .from("partner_contacts")
-      .select("id, source_file, role_raw, review_reason")
+      .select("id, source_file, contact_source, role_raw, review_reason")
       .is("deleted_at", null)
       .is("merged_into_contact_id", null)
       .range(from, from + pageSize - 1);
@@ -100,8 +104,8 @@ export async function excludeContactsNotInBaseline(
   }
 
   const toExcludeIds = allContacts
-    .map((row) => row.id)
-    .filter((id) => !syncedContactIds.has(id));
+    .filter((row) => !syncedContactIds.has(row.id) && !isDashboardManualContact(row))
+    .map((row) => row.id);
 
   if (toExcludeIds.length === 0) return [];
 

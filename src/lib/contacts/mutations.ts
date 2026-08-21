@@ -59,6 +59,7 @@ export async function createPartnerContact(
     memo: normalizeOptionalText(body.memo),
     is_active: true,
     in_current_full_db: true,
+    contact_source: "dashboard_manual",
     deleted_at: null,
     updated_at: new Date().toISOString(),
     updated_by: userId ?? null,

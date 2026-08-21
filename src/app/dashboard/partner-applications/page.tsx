@@ -1,18 +1,14 @@
 import Link from "next/link";
 import { ExternalLink, Plus } from "lucide-react";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { ApplicationAdminTable } from "@/components/partner-applications/application-admin-table";
+import { CopyApplyLinkButton } from "@/components/partner-applications/copy-apply-link-button";
+import { latestPreReviewFromEvents, type PreReviewResult } from "@/lib/partner-applications/pre-review";
+import { DB_STATUS_FILTER_LABEL } from "@/lib/partner-applications/status-display";
+import type { ApplicationStatus } from "@/lib/partner-applications/types";
+import { requireAdminPage } from "@/lib/auth/require-admin-page";
 
 export const dynamic = "force-dynamic";
-
-const STATUS_LABEL: Record<string, string> = {
-  draft: "작성중",
-  submitted: "제출",
-  under_review: "검토중",
-  revision_requested: "보완요청",
-  approved: "승인",
-  rejected: "반려",
-  contracted: "계약"
-};
 
 type Search = {
   status?: string;
@@ -25,11 +21,12 @@ export default async function PartnerApplicationsAdminPage({
   searchParams: Promise<Search>;
 }) {
   const sp = await searchParams;
+  await requireAdminPage();
   const supabase = createAdminClient();
   let query = supabase
     .from("partner_applications")
     .select(
-      "id, application_number, status, company_name, business_registration_number, applicant_name, contact_name, submitted_at, created_at, missing_required_count, technical_collaboration_requested"
+      "id, application_number, status, company_name, business_registration_number, applicant_name, contact_name, submitted_at, created_at, missing_required_count, approved_partner_id"
     )
     .order("created_at", { ascending: false })
     .limit(200);
@@ -44,29 +41,75 @@ export default async function PartnerApplicationsAdminPage({
 
   const { data, error } = await query;
 
+  const [{ count: totalCount }, { count: revisionCount }, { count: reviewCount }, { count: approvedCount }, { count: rejectedCount }] =
+    await Promise.all([
+      supabase.from("partner_applications").select("id", { count: "exact", head: true }),
+      supabase.from("partner_applications").select("id", { count: "exact", head: true }).eq("status", "revision_requested"),
+      supabase
+        .from("partner_applications")
+        .select("id", { count: "exact", head: true })
+        .in("status", ["submitted", "under_review"]),
+      supabase.from("partner_applications").select("id", { count: "exact", head: true }).in("status", ["approved", "contracted"]),
+      supabase.from("partner_applications").select("id", { count: "exact", head: true }).eq("status", "rejected")
+    ]);
+  const ids = (data ?? []).map((row) => row.id);
+  const reviewById = new Map<string, PreReviewResult | null>();
+  if (ids.length) {
+    const { data: events } = await supabase
+      .from("partner_application_events")
+      .select("application_id, event_type, payload, created_at")
+      .in("application_id", ids)
+      .in("event_type", ["ai_pre_review", "ai_pre_review_started"])
+      .order("created_at", { ascending: false });
+    const grouped = new Map<string, Array<{ event_type?: unknown; payload?: unknown; created_at?: unknown }>>();
+    for (const ev of events ?? []) {
+      const appId = String(ev.application_id);
+      const list = grouped.get(appId) ?? [];
+      list.push(ev);
+      grouped.set(appId, list);
+    }
+    for (const id of ids) {
+      reviewById.set(id, latestPreReviewFromEvents(grouped.get(id) ?? []));
+    }
+  }
+
   return (
     <div className="space-y-6 p-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-900">파트너 등록</h1>
-          <p className="mt-1 text-sm text-slate-600">
-            신규 파트너 신청과 제출된 신청서 검토를 한 곳에서 진행합니다.
+          <h1 className="ui-page-title">파트너 신청 관리</h1>
+          <p className="ui-page-desc">
+            제출·작성 중 신청서를 검토하고, 테스트 찌꺼기는 관리자가 직접 삭제할 수 있습니다. 승인으로 만든 파트너 DB는 신청서 삭제와 분리됩니다.
           </p>
         </div>
-        <Link
-          href="/partner-apply"
-          target="_blank"
-          rel="noreferrer"
-          className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
-        >
-          <Plus size={16} />
-          신규 파트너 신청
-          <ExternalLink size={14} />
-        </Link>
+        <div className="flex flex-wrap items-center gap-2">
+          <CopyApplyLinkButton />
+          <Link
+            href="/partner-apply"
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
+          >
+            <Plus size={16} />
+            신규 파트너 신청
+            <ExternalLink size={14} />
+          </Link>
+        </div>
       </div>
 
-      <div className="rounded-xl border border-blue-100 bg-blue-50/70 px-4 py-3 text-sm text-blue-950">
-        <span className="font-semibold">신청 방법:</span> 우측 상단의 「신규 파트너 신청」을 누르면 실제 파트너 신청서 작성 화면이 새 탭으로 열립니다. 제출된 건은 아래 목록에서 검토·승인할 수 있습니다.
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+        {[
+          ["전체 신청", totalCount ?? 0],
+          ["보완 필요", revisionCount ?? 0],
+          ["관리자 검토 대기", reviewCount ?? 0],
+          ["승인", approvedCount ?? 0],
+          ["반려", rejectedCount ?? 0]
+        ].map(([label, value]) => (
+          <div key={String(label)} className="ui-kpi">
+            <p className="text-xs text-slate-500">{label}</p>
+            <p className="mt-1 text-xl font-semibold tabular-nums text-slate-900">{Number(value).toLocaleString("ko-KR")}</p>
+          </div>
+        ))}
       </div>
 
       <form className="flex flex-wrap gap-2">
@@ -78,7 +121,7 @@ export default async function PartnerApplicationsAdminPage({
         />
         <select name="status" defaultValue={sp.status || ""} className="rounded-lg border px-3 py-2 text-sm">
           <option value="">전체 상태</option>
-          {Object.entries(STATUS_LABEL).map(([k, v]) => (
+          {(Object.entries(DB_STATUS_FILTER_LABEL) as Array<[ApplicationStatus, string]>).map(([k, v]) => (
             <option key={k} value={k}>
               {v}
             </option>
@@ -91,57 +134,32 @@ export default async function PartnerApplicationsAdminPage({
 
       {error ? (
         <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
-          신청 테이블을 조회할 수 없습니다. migration 043을 Supabase에 적용했는지 확인하세요.
+          신청 목록을 불러올 수 없습니다. 잠시 후 다시 시도하거나 관리자에게 문의해 주세요.
           <br />
           {error.message}
         </p>
       ) : null}
 
-      <div className="overflow-x-auto rounded-xl border bg-white">
-        <table className="min-w-full text-left text-sm">
-          <thead className="bg-slate-50 text-slate-600">
-            <tr>
-              <th className="px-3 py-2">신청번호</th>
-              <th className="px-3 py-2">기업명</th>
-              <th className="px-3 py-2">사업자등록번호</th>
-              <th className="px-3 py-2">신청자</th>
-              <th className="px-3 py-2">신청일</th>
-              <th className="px-3 py-2">상태</th>
-              <th className="px-3 py-2">누락</th>
-              <th className="px-3 py-2">기술협력</th>
-            </tr>
-          </thead>
-          <tbody>
-            {(data ?? []).map((row) => (
-              <tr key={row.id} className="border-t">
-                <td className="px-3 py-2">
-                  <Link className="text-blue-700 underline" href={`/dashboard/partner-applications/${row.id}`}>
-                    {row.application_number}
-                  </Link>
-                </td>
-                <td className="px-3 py-2">{row.company_name || "-"}</td>
-                <td className="px-3 py-2">{row.business_registration_number || "-"}</td>
-                <td className="px-3 py-2">{row.applicant_name || row.contact_name || "-"}</td>
-                <td className="px-3 py-2">
-                  {row.submitted_at
-                    ? new Date(row.submitted_at).toLocaleDateString("ko-KR")
-                    : "-"}
-                </td>
-                <td className="px-3 py-2">{STATUS_LABEL[row.status] || row.status}</td>
-                <td className="px-3 py-2">{row.missing_required_count}</td>
-                <td className="px-3 py-2">{row.technical_collaboration_requested ? "Y" : "-"}</td>
-              </tr>
-            ))}
-            {!data?.length && !error ? (
-              <tr>
-                <td colSpan={8} className="px-3 py-8 text-center text-slate-500">
-                  신청 내역이 없습니다. 신규 신청은 우측 상단 버튼에서 시작할 수 있습니다.
-                </td>
-              </tr>
-            ) : null}
-          </tbody>
-        </table>
-      </div>
+      <ApplicationAdminTable
+        rows={(data ?? []).map((row) => ({
+          id: String(row.id),
+          application_number: String(row.application_number),
+          company_name: row.company_name ? String(row.company_name) : null,
+          business_registration_number: row.business_registration_number
+            ? String(row.business_registration_number)
+            : null,
+          applicant_name: row.applicant_name ? String(row.applicant_name) : null,
+          contact_name: row.contact_name ? String(row.contact_name) : null,
+          submitted_at: row.submitted_at ? String(row.submitted_at) : null,
+          created_at: row.created_at ? String(row.created_at) : null,
+          status: String(row.status),
+          missing_required_count: row.missing_required_count != null ? Number(row.missing_required_count) : 0,
+          approved_partner_id: row.approved_partner_id ? String(row.approved_partner_id) : null
+        }))}
+        reviewById={Object.fromEntries(
+          ids.map((id) => [id, reviewById.get(id) ?? null])
+        )}
+      />
     </div>
   );
 }

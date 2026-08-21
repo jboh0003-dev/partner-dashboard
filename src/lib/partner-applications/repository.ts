@@ -188,3 +188,40 @@ export async function logApplicationEvent(
     actor_user_id: actorUserId ?? null
   });
 }
+
+export async function deletePartnerApplication(
+  supabase: SupabaseClient,
+  applicationId: string
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  const { data: app, error: fetchError } = await supabase
+    .from("partner_applications")
+    .select("id, approved_partner_id")
+    .eq("id", applicationId)
+    .maybeSingle();
+
+  if (fetchError) return { ok: false, message: fetchError.message };
+  if (!app) return { ok: false, message: "신청서를 찾을 수 없습니다." };
+
+  const { data: documents } = await supabase
+    .from("partner_application_documents")
+    .select("storage_path")
+    .eq("application_id", applicationId);
+
+  const storagePaths = [...new Set((documents ?? []).map((row) => String(row.storage_path ?? "").trim()).filter(Boolean))];
+  if (storagePaths.length > 0) {
+    const { error: storageError } = await supabase.storage
+      .from(PARTNER_APPLICATIONS_BUCKET)
+      .remove(storagePaths);
+    if (storageError) {
+      return { ok: false, message: "첨부파일 정리에 실패했습니다. 잠시 후 다시 시도해 주세요." };
+    }
+  }
+
+  const { error: deleteError } = await supabase
+    .from("partner_applications")
+    .delete()
+    .eq("id", applicationId);
+
+  if (deleteError) return { ok: false, message: deleteError.message };
+  return { ok: true };
+}

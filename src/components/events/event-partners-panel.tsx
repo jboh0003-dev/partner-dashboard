@@ -16,10 +16,12 @@ type PartnerOption = {
 
 export function EventPartnersPanel({
   eventId,
-  initialLinks
+  initialLinks,
+  isAdmin = false
 }: {
   eventId: string;
   initialLinks: EventPartnerLinkWithPartner[];
+  isAdmin?: boolean;
 }) {
   const [links, setLinks] = useState(initialLinks);
   const [query, setQuery] = useState("");
@@ -106,6 +108,7 @@ export function EventPartnersPanel({
         수동으로 연결한 파트너는 파트너 상세 &gt; 행사 이력 탭에 표시됩니다.
       </p>
 
+      {isAdmin ? (
       <div className="mt-4 grid gap-3 rounded-xl border border-slate-100 bg-slate-50 p-4 md:grid-cols-[1fr_auto_auto_auto]">
         <div>
           <label className="text-xs font-semibold text-slate-600">파트너 검색</label>
@@ -163,6 +166,7 @@ export function EventPartnersPanel({
           </button>
         </div>
       </div>
+      ) : null}
 
       {error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}
 
@@ -197,6 +201,7 @@ export function EventPartnersPanel({
                       >
                         파트너 상세
                       </Link>
+                      {isAdmin ? (
                       <button
                         type="button"
                         onClick={() => handleRemove(link.id)}
@@ -206,6 +211,7 @@ export function EventPartnersPanel({
                         <Trash2 size={12} />
                         연결 해제
                       </button>
+                      ) : null}
                     </div>
                   </td>
                 </tr>

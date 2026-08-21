@@ -41,8 +41,8 @@ export function summarizeContractContactWarnings(
   contacts: Array<{ is_contract_contact?: boolean | null }>
 ): string[] {
   const count = contacts.filter((contact) => contact.is_contract_contact).length;
-  if (count === 0) return ["계약담당자 미지정"];
-  if (count > 1) return ["계약담당자 복수 지정"];
+  if (count === 0) return ["담당자 미지정"];
+  if (count > 1) return ["담당자 복수 지정"];
   return [];
 }
 

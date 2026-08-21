@@ -62,10 +62,7 @@ export async function POST(request: Request) {
     .single();
 
   if (error || !data) {
-    return NextResponse.json(
-      { ok: false, message: error?.message ?? "신청서 생성 실패" },
-      { status: 500 }
-    );
+    return NextResponse.json({ ok: false, message: "신청서 생성에 실패했습니다. 다시 시도해 주세요." }, { status: 500 });
   }
 
   await logApplicationEvent(supabase, data.id, "created", "신청 초안 생성");

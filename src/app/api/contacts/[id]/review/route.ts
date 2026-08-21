@@ -5,6 +5,7 @@ import { mergeContactsIntoMaster } from "@/lib/contacts/contact-merge";
 import { softDeletePartnerContact } from "@/lib/contacts/mutations";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { rejectUnlessAdmin } from "@/lib/auth/require-admin";
 
 const ReviewActionSchema = z.object({
   action: z.enum(["keep_active", "deactivate", "merge", "delete"]),
@@ -15,6 +16,8 @@ export async function POST(
   request: Request,
   context: { params: Promise<{ id: string }> }
 ) {
+  const denied = await rejectUnlessAdmin();
+  if (denied) return denied;
   try {
     const { id } = await context.params;
     const json = await request.json();

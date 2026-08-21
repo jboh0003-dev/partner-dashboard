@@ -15,11 +15,13 @@ import {
   getPartnerDocumentTabTypeLabel
 } from "@/lib/documents/partner-tab-display";
 import { formatDate } from "@/lib/utils";
+import { getDocumentLastUploadedAt } from "@/lib/documents/display";
 import type { PartnerDocument } from "@/types/document";
 
 type PartnerDocumentsTabProps = {
   partnerId: string;
   documents: PartnerDocument[];
+  isAdmin?: boolean;
 };
 
 function toDuplicateRow(doc: PartnerDocument) {
@@ -39,7 +41,7 @@ function toDuplicateRow(doc: PartnerDocument) {
   };
 }
 
-export function PartnerDocumentsTab({ partnerId, documents }: PartnerDocumentsTabProps) {
+export function PartnerDocumentsTab({ partnerId, documents, isAdmin = false }: PartnerDocumentsTabProps) {
   const [addOpen, setAddOpen] = useState(false);
   const [removedIds, setRemovedIds] = useState<Set<string>>(() => new Set());
   const [tabError, setTabError] = useState<string | null>(null);
@@ -70,9 +72,11 @@ export function PartnerDocumentsTab({ partnerId, documents }: PartnerDocumentsTa
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-xs text-slate-500">파트너사별 주요 문서를 조회·관리할 수 있습니다.</p>
-        <button type="button" onClick={() => setAddOpen(true)} className="ui-btn-primary text-sm">
-          문서 추가
-        </button>
+        {isAdmin ? (
+          <button type="button" onClick={() => setAddOpen(true)} className="ui-btn-primary text-sm">
+            문서 추가
+          </button>
+        ) : null}
       </div>
 
       {tabError ? (
@@ -96,7 +100,7 @@ export function PartnerDocumentsTab({ partnerId, documents }: PartnerDocumentsTa
             <div>문서 구분</div>
             <div>파일명</div>
             <div>계약일</div>
-            <div>등록일</div>
+            <div>최종 업로드일</div>
             <div />
           </div>
 
@@ -105,6 +109,7 @@ export function PartnerDocumentsTab({ partnerId, documents }: PartnerDocumentsTa
               <DocumentRow
                 key={document.id}
                 document={document}
+                isAdmin={isAdmin}
                 onDeleted={(id) => {
                   setTabError(null);
                   setRemovedIds((prev) => new Set(prev).add(id));
@@ -116,21 +121,25 @@ export function PartnerDocumentsTab({ partnerId, documents }: PartnerDocumentsTa
         </div>
       )}
 
-      <PartnerDocumentAddModal
-        open={addOpen}
-        partnerId={partnerId}
-        onClose={() => setAddOpen(false)}
-      />
+      {isAdmin ? (
+        <PartnerDocumentAddModal
+          open={addOpen}
+          partnerId={partnerId}
+          onClose={() => setAddOpen(false)}
+        />
+      ) : null}
     </div>
   );
 }
 
 function DocumentRow({
   document,
+  isAdmin,
   onDeleted,
   onError
 }: {
   document: PartnerDocument;
+  isAdmin: boolean;
   onDeleted: (id: string) => void;
   onError: (message: string) => void;
 }) {
@@ -245,10 +254,14 @@ function DocumentRow({
         <div className="text-sm tabular-nums text-slate-700">
           {document.contract_date ? formatDate(document.contract_date) : "-"}
         </div>
-        <div className="text-sm tabular-nums text-slate-700">{formatDate(document.created_at)}</div>
+        <div className="text-sm tabular-nums text-slate-700">
+          {formatDate(getDocumentLastUploadedAt(document))}
+        </div>
         <div className="flex flex-wrap items-center gap-2 text-sm">
           <DocumentPreviewButton documentId={document.id} document={documentSource} />
           <DocumentDownloadButton documentId={document.id} document={documentSource} />
+          {isAdmin ? (
+            <>
           <input ref={fileInputRef} type="file" className="hidden" onChange={handleReplaceFile} />
           <button
             type="button"
@@ -266,6 +279,8 @@ function DocumentRow({
           >
             삭제
           </button>
+            </>
+          ) : null}
         </div>
       </div>
 

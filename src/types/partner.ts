@@ -54,6 +54,7 @@ export type PartnerContact = {
   role_raw: string | null;
   email: string | null;
   phone: string | null;
+  phone_normalized?: string | null;
   is_primary: boolean;
   is_contract_contact: boolean;
   source_file: string | null;

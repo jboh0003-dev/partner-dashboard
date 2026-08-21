@@ -3,6 +3,7 @@ import { AnimatedSection } from "@/components/common/animated-section";
 import { PageHeader } from "@/components/layout/page-header";
 import { PartnerDetailTabs } from "@/components/partners/partner-detail-tabs";
 import { fetchPartnerDetailBundle } from "@/lib/data/partner-detail";
+import { getCachedViewerAuthContext } from "@/lib/auth/require-admin";
 import { getDisplayPartnerGradeLabel } from "@/lib/partners/grade";
 import { formatPartnerNo } from "@/lib/partners/partner-no";
 import { formatDate } from "@/lib/utils";
@@ -18,8 +19,7 @@ export default async function PartnerDetailPage({
   const { id } = await params;
   const { tab } = await searchParams;
   const bundle = await fetchPartnerDetailBundle(id);
-  // TODO(auth): 추후 admin/user 권한 적용 예정
-  const isAdmin = true;
+  const { isAdmin } = await getCachedViewerAuthContext();
 
   if (!bundle) {
     notFound();

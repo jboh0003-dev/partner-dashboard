@@ -18,12 +18,17 @@ import { fetchRecruitmentSourceData } from "@/lib/data/training-recruitment";
 import {
   findLatestTrainingMonth,
   formatAttendanceStatus,
+  formatTrainingGroupLabel,
   formatTrainingProduct,
-  formatTrainingYearMonth,
-  parseYearMonthKey,
-  yearMonthKey
+  isTechPartnerTraining,
+  parseTrainingGroupKey,
+  trainingGroupKey
 } from "@/lib/training-display";
 import { formatTrainingTypeLabel } from "@/lib/training/constants";
+import {
+  isCountedTrainingAttendee,
+  monthlyAttendeeUniqueKey
+} from "@/lib/trainings/attendance-stats";
 import { getRealPartnerIdSet, isSamplePartnerName } from "@/lib/partners/sample-filter";
 import type { Partner } from "@/types/partner";
 import type { Training } from "@/types/training";
@@ -49,12 +54,15 @@ type MonthlySummaryRow = {
   label: string;
   attendanceCount: number;
   partnerCount: number;
+  nonPartnerCount: number;
 };
 
 type AttendeeDetailRow = {
   id: string;
   training_id: string;
+  partner_id: string | null;
   partner_name: string;
+  is_non_partner: boolean;
   attendee_name: string;
   training_year: number | null;
   training_month: number | null;
@@ -98,11 +106,13 @@ export default async function TrainingsPage({
       .order("training_month", { ascending: false, nullsFirst: false })
       .order("start_date", { ascending: false, nullsFirst: false })
       .order("created_at", { ascending: false }),
-    supabase.from("training_attendance").select("training_id, partner_id"),
+    supabase.from("training_attendance").select(
+      "id, training_id, partner_id, attendee_name, attended, attendance_status, company_name_raw"
+    ),
     supabase
       .from("training_attendance")
       .select(
-        "id, training_id, attendee_name, attendee_department, attendee_position, attendee_phone, attendee_email, attended, attendance_status, completion_status, score, evaluation_result, note, evaluation_memo, partner:partners(company_name), training:trainings(training_name, training_type, training_level, product, product_name, training_year, training_month)"
+        "id, training_id, partner_id, attendee_name, attendee_department, attendee_position, attendee_phone, attendee_email, attended, attendance_status, completion_status, score, evaluation_result, note, evaluation_memo, company_name_raw, partner:partners(company_name), training:trainings(training_name, training_type, training_level, product, product_name, training_year, training_month)"
       )
       .order("created_at", { ascending: false }),
     supabase.from("partners").select("id, company_name, external_no, memo")
@@ -117,24 +127,44 @@ export default async function TrainingsPage({
     null;
 
   const realPartnerIds = getRealPartnerIdSet((partnersData ?? []) as Partner[]);
-  const filteredAttendanceAgg = ((attendanceAggData ?? []) as Array<{
-    training_id: string;
-    partner_id: string;
-  }>).filter((row) => realPartnerIds.has(row.partner_id));
-
   const trainings = (trainingsData ?? []) as Training[];
-  const summaryRows = buildMonthlySummaryRows(trainings, filteredAttendanceAgg);
 
   const allAttendees = flattenAttendeeRows(attendanceDetailData).filter(
-    (row) => !isSamplePartnerName(row.partner_name)
+    (row) => row.is_non_partner || !isSamplePartnerName(row.partner_name)
   );
+  const countedAttendees = allAttendees.filter(isCountedTrainingAttendee);
+  const summaryRows = buildMonthlySummaryRows(trainings, countedAttendees, realPartnerIds);
   const monthOptions = buildMonthOptions(trainings);
   const trainingOptions = buildTrainingOptions(trainings, params.month);
   const filteredAttendees = filterAttendees(allAttendees, params);
 
+  const uniquePeople = new Set(
+    countedAttendees.map((row) =>
+      monthlyAttendeeUniqueKey(
+        row.training_year ?? 0,
+        row.training_month ?? 0,
+        isTechPartnerTraining(row),
+        row
+      )
+    )
+  );
   const kpi = {
-    attendanceCount: allAttendees.length,
-    partnerCount: new Set(filteredAttendanceAgg.map((row) => row.partner_id)).size,
+    attendanceCount: uniquePeople.size,
+    partnerCount: new Set(
+      countedAttendees
+        .filter((row) => row.partner_id && realPartnerIds.has(row.partner_id))
+        .map((row) => row.partner_id as string)
+    ).size,
+    nonPartnerCount: new Set(
+      countedAttendees.filter((row) => row.is_non_partner).map((row) =>
+        monthlyAttendeeUniqueKey(
+          row.training_year ?? 0,
+          row.training_month ?? 0,
+          isTechPartnerTraining(row),
+          row
+        )
+      )
+    ).size,
     latestMonth: findLatestTrainingMonth(trainings)
   };
 
@@ -149,10 +179,16 @@ export default async function TrainingsPage({
     : [];
 
   const attendeeExportRows = filteredAttendees.map((row) => ({
-    파트너사: row.partner_name,
+    파트너사: row.is_non_partner ? `${row.partner_name} (비파트너)` : row.partner_name,
     이름: row.attendee_name,
-    교육연월: formatTrainingYearMonth(row.training_year, row.training_month),
-    교육구분: formatTrainingTypeLabel(row.training_type),
+    교육연월: formatTrainingGroupLabel(
+      row.training_year,
+      row.training_month,
+      isTechPartnerTraining(row)
+    ),
+    교육구분: isTechPartnerTraining(row)
+      ? "기술파트너 교육"
+      : formatTrainingTypeLabel(row.training_type),
     교육명: row.training_name,
     교육레벨: row.training_level ?? "",
     제품: formatTrainingProduct(row.product, null),
@@ -193,7 +229,18 @@ export default async function TrainingsPage({
           <h2 className="text-sm font-bold text-slate-900">기술파트너 교육</h2>
           <div className="mt-3 space-y-2">
             {techTrainings.map((training) => {
-              const agg = filteredAttendanceAgg.filter((row) => row.training_id === training.id);
+              const attendeeCount = new Set(
+                countedAttendees
+                  .filter((row) => row.training_id === training.id)
+                  .map((row) =>
+                    monthlyAttendeeUniqueKey(
+                      training.training_year ?? 0,
+                      training.training_month ?? 0,
+                      true,
+                      row
+                    )
+                  )
+              ).size;
               const examTaken = allAttendees.filter(
                 (row) =>
                   row.training_id === training.id &&
@@ -207,7 +254,7 @@ export default async function TrainingsPage({
                   <div>
                     <p className="font-semibold text-slate-900">{training.training_name}</p>
                     <p className="text-xs text-slate-500">
-                      {training.start_date} ~ {training.end_date} · 참석 {agg.length}건 · 응시{" "}
+                      {training.start_date} ~ {training.end_date} · 참석 {attendeeCount}명 · 응시{" "}
                       {examTaken}건
                     </p>
                   </div>
@@ -231,9 +278,10 @@ export default async function TrainingsPage({
       ) : null}
 
       {tab !== "recruitment" ? (
-        <section className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-3">
-          <KpiBox label="참석 이력 수" value={kpi.attendanceCount} tone="blue" />
-          <KpiBox label="교육 참석 파트너 수" value={kpi.partnerCount} tone="violet" />
+        <section className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <KpiBox label="참석자" value={kpi.attendanceCount} tone="blue" />
+          <KpiBox label="참석 파트너" value={kpi.partnerCount} tone="violet" />
+          <KpiBox label="비파트너 교육생" value={kpi.nonPartnerCount} tone="slate" />
           <KpiCard label="최근 교육월" value={kpi.latestMonth} tone="emerald" />
         </section>
       ) : null}
@@ -321,8 +369,9 @@ function SummarySection({
             <thead className="bg-slate-50">
               <tr>
                 <Th>교육연월</Th>
-                <Th align="right">참석자 수</Th>
-                <Th align="right">참석 파트너 수</Th>
+                <Th align="right">참석자</Th>
+                <Th align="right">파트너</Th>
+                <Th align="right">비파트너</Th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -342,6 +391,9 @@ function SummarySection({
                   </td>
                   <td className="px-5 py-4 text-right text-sm tabular-nums text-blue-700">
                     {row.partnerCount.toLocaleString("ko-KR")}
+                  </td>
+                  <td className="px-5 py-4 text-right text-sm tabular-nums text-slate-600">
+                    {row.nonPartnerCount.toLocaleString("ko-KR")}
                   </td>
                 </tr>
               ))}
@@ -436,6 +488,8 @@ function flattenAttendeeRows(data: unknown): AttendeeDetailRow[] {
   return (data as Array<{
     id: string;
     training_id: string;
+    partner_id?: string | null;
+    company_name_raw?: string | null;
     attendee_name: string | null;
     attendee_department: string | null;
     attendee_position: string | null;
@@ -472,11 +526,15 @@ function flattenAttendeeRows(data: unknown): AttendeeDetailRow[] {
   }>).map((row) => {
     const partner = Array.isArray(row.partner) ? row.partner[0] ?? null : row.partner;
     const training = Array.isArray(row.training) ? row.training[0] ?? null : row.training;
+    const is_non_partner = !row.partner_id;
+    const partner_name = partner?.company_name ?? row.company_name_raw?.trim() ?? "-";
 
     return {
       id: row.id,
       training_id: row.training_id,
-      partner_name: partner?.company_name ?? "-",
+      partner_id: row.partner_id ?? null,
+      partner_name,
+      is_non_partner,
       attendee_name: row.attendee_name?.trim() || "-",
       training_year: training?.training_year ?? null,
       training_month: training?.training_month ?? null,
@@ -518,11 +576,12 @@ function filterAttendees(rows: AttendeeDetailRow[], params: SearchParams): Atten
     }
 
     if (month !== "all") {
-      const parsed = parseYearMonthKey(month);
+      const parsed = parseTrainingGroupKey(month);
       if (
         !parsed ||
         row.training_year !== parsed.year ||
-        row.training_month !== parsed.month
+        row.training_month !== parsed.month ||
+        isTechPartnerTraining(row) !== parsed.isTech
       ) {
         return false;
       }
@@ -544,48 +603,66 @@ function filterAttendees(rows: AttendeeDetailRow[], params: SearchParams): Atten
 
 function buildMonthlySummaryRows(
   trainings: Training[],
-  attendanceRows: Array<{ training_id: string; partner_id: string }>
+  attendanceRows: AttendeeDetailRow[],
+  realPartnerIds: Set<string>
 ): MonthlySummaryRow[] {
-  const trainingById = new Map(trainings.map((training) => [training.id, training]));
-  const byMonth = new Map<
+  const byGroup = new Map<
     string,
-    { trainingIds: Set<string>; attendanceCount: number; partners: Set<string> }
+    {
+      year: number;
+      month: number;
+      isTech: boolean;
+      people: Set<string>;
+      partners: Set<string>;
+      nonPartners: Set<string>;
+    }
   >();
 
   for (const training of trainings) {
     if (!training.training_year || !training.training_month) continue;
-    const key = yearMonthKey(training.training_year, training.training_month);
-    if (!byMonth.has(key)) {
-      byMonth.set(key, {
-        trainingIds: new Set(),
-        attendanceCount: 0,
-        partners: new Set()
+    const isTech = isTechPartnerTraining(training);
+    const key = trainingGroupKey(training.training_year, training.training_month, isTech);
+    if (!byGroup.has(key)) {
+      byGroup.set(key, {
+        year: training.training_year,
+        month: training.training_month,
+        isTech,
+        people: new Set(),
+        partners: new Set(),
+        nonPartners: new Set()
       });
     }
-    byMonth.get(key)!.trainingIds.add(training.id);
   }
 
   for (const row of attendanceRows) {
-    const training = trainingById.get(row.training_id);
-    if (!training?.training_year || !training.training_month) continue;
-    const key = yearMonthKey(training.training_year, training.training_month);
-    const bucket = byMonth.get(key);
+    if (!row.training_year || !row.training_month) continue;
+    const isTech = isTechPartnerTraining(row);
+    const key = trainingGroupKey(row.training_year, row.training_month, isTech);
+    const bucket = byGroup.get(key);
     if (!bucket) continue;
-    bucket.attendanceCount += 1;
-    bucket.partners.add(row.partner_id);
+    const personKey = monthlyAttendeeUniqueKey(row.training_year, row.training_month, isTech, {
+      attendee_name: row.attendee_name,
+      partner_id: row.partner_id,
+      company_name_raw: row.is_non_partner ? row.partner_name : null,
+      partner_name: row.partner_name
+    });
+    bucket.people.add(personKey);
+    if (row.partner_id && realPartnerIds.has(row.partner_id)) {
+      bucket.partners.add(row.partner_id);
+    } else if (row.is_non_partner) {
+      bucket.nonPartners.add(personKey);
+    }
   }
 
-  return Array.from(byMonth.entries())
+  return Array.from(byGroup.entries())
     .sort(([a], [b]) => b.localeCompare(a, "ko-KR", { numeric: true }))
-    .map(([key, bucket]) => {
-      const parsed = parseYearMonthKey(key)!;
-      return {
-        key,
-        label: formatTrainingYearMonth(parsed.year, parsed.month),
-        attendanceCount: bucket.attendanceCount,
-        partnerCount: bucket.partners.size
-      };
-    });
+    .map(([key, bucket]) => ({
+      key,
+      label: formatTrainingGroupLabel(bucket.year, bucket.month, bucket.isTech),
+      attendanceCount: bucket.people.size,
+      partnerCount: bucket.partners.size,
+      nonPartnerCount: bucket.nonPartners.size
+    }));
 }
 
 function buildMonthOptions(
@@ -595,11 +672,9 @@ function buildMonthOptions(
 
   for (const training of trainings) {
     if (!training.training_year || !training.training_month) continue;
-    const value = yearMonthKey(training.training_year, training.training_month);
-    seen.set(
-      value,
-      formatTrainingYearMonth(training.training_year, training.training_month)
-    );
+    const isTech = isTechPartnerTraining(training);
+    const value = trainingGroupKey(training.training_year, training.training_month, isTech);
+    seen.set(value, formatTrainingGroupLabel(training.training_year, training.training_month, isTech));
   }
 
   return Array.from(seen.entries())
@@ -613,12 +688,13 @@ function buildTrainingOptions(
 ): Array<{ value: string; label: string }> {
   let scoped = trainings;
   if (monthFilter && monthFilter !== "all") {
-    const parsed = parseYearMonthKey(monthFilter);
+    const parsed = parseTrainingGroupKey(monthFilter);
     if (parsed) {
       scoped = trainings.filter(
         (training) =>
           training.training_year === parsed.year &&
-          training.training_month === parsed.month
+          training.training_month === parsed.month &&
+          isTechPartnerTraining(training) === parsed.isTech
       );
     }
   }
@@ -671,8 +747,8 @@ function KpiBox({
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-      <div className="text-xs font-medium text-slate-500">{label}</div>
-      <div className={`mt-2 text-2xl font-bold tabular-nums ${toneClass}`}>
+      <div className="text-sm font-semibold text-slate-800">{label}</div>
+      <div className={`mt-2 text-3xl font-bold tabular-nums ${toneClass}`}>
         {value.toLocaleString("ko-KR")}
       </div>
     </div>
@@ -697,7 +773,7 @@ function KpiCard({
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-      <div className="text-xs font-medium text-slate-500">{label}</div>
+      <div className="text-sm font-semibold text-slate-800">{label}</div>
       <div className={`mt-2 text-xl font-bold ${toneClass}`}>{value}</div>
     </div>
   );

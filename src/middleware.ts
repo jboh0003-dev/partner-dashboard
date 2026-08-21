@@ -1,12 +1,19 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { buildLoginRedirectUrl, getSafeRedirectPath } from "@/lib/auth/redirect";
+import {
+  isAdminOnlyApiPath,
+  isAdminOnlyDashboardPath,
+  isPublicApplicantPath,
+  resolveIsAdmin
+} from "@/lib/auth/roles";
 
 function isPublicApiPath(pathname: string): boolean {
   return pathname.startsWith("/api/public/");
 }
 
 function isProtectedPath(pathname: string): boolean {
+  if (isPublicApplicantPath(pathname) || isPublicApiPath(pathname)) return false;
   if (pathname === "/dashboard" || pathname.startsWith("/dashboard/")) return true;
   if (pathname.startsWith("/api/") && !isPublicApiPath(pathname)) return true;
   return false;
@@ -109,7 +116,40 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
+  const denied = await enforceAdminAccess(request, supabase, user.id, supabaseResponse);
+  if (denied) return denied;
+
   return supabaseResponse;
+}
+
+async function enforceAdminAccess(
+  request: NextRequest,
+  supabase: ReturnType<typeof createServerClient>,
+  userId: string,
+  supabaseResponse: NextResponse
+) {
+  const { pathname } = request.nextUrl;
+  const needsAdmin =
+    isAdminOnlyDashboardPath(pathname) || isAdminOnlyApiPath(pathname, request.method);
+
+  if (!needsAdmin) return null;
+
+  const { data: profile } = await supabase.from("profiles").select("role").eq("id", userId).maybeSingle();
+  const role = profile?.role ? String(profile.role) : null;
+  if (resolveIsAdmin(role)) return null;
+
+  if (pathname.startsWith("/api/")) {
+    return NextResponse.json({ ok: false, message: "관리자 권한이 필요합니다." }, { status: 403 });
+  }
+
+  const url = request.nextUrl.clone();
+  url.pathname = "/dashboard";
+  url.search = "";
+  const redirectResponse = NextResponse.redirect(url);
+  supabaseResponse.cookies.getAll().forEach((cookie) => {
+    redirectResponse.cookies.set(cookie.name, cookie.value);
+  });
+  return redirectResponse;
 }
 
 export const config = {

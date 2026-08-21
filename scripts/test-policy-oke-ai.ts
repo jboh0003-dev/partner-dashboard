@@ -97,7 +97,7 @@ async function main() {
   let failed = 0;
 
   for (const query of queries) {
-    const result = runSearch(query, context);
+    const result = await runSearch(query, context);
     const hasVersion = result.answer.includes("기준일");
     const hasStrategic = /\bstrategic\b/i.test(result.answer);
     const hasContent = !result.empty && result.answer.length > 20;

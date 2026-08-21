@@ -35,7 +35,7 @@ export async function POST(request: Request) {
         ),
       supabase
         .from("training_attendance")
-        .select("id, partner_id, training_id, attendee_name")
+        .select("id, partner_id, training_id, attendee_name, company_name_raw")
     ]);
 
     if (partnerError) throw new Error(partnerError.message);

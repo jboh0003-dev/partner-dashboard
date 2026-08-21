@@ -7,6 +7,10 @@ import {
   PARTNER_APPLICATIONS_BUCKET,
   logApplicationEvent
 } from "@/lib/partner-applications/repository";
+import {
+  buildApplicationDocumentStorageKey,
+  publicUploadErrorMessage
+} from "@/lib/partner-applications/storage-key";
 
 export const runtime = "nodejs";
 
@@ -46,7 +50,7 @@ export async function POST(request: Request, context: Ctx) {
 
   if (honeypot) return NextResponse.json({ ok: true });
   if (!token) {
-    return NextResponse.json({ ok: false, message: "token이 필요합니다." }, { status: 400 });
+    return NextResponse.json({ ok: false, message: "접근 권한이 없습니다." }, { status: 400 });
   }
   if (!DOC_TYPES.has(documentType)) {
     return NextResponse.json({ ok: false, message: "문서 유형이 올바르지 않습니다." }, { status: 400 });
@@ -113,8 +117,7 @@ export async function POST(request: Request, context: Ctx) {
     .eq("document_type", documentType)
     .eq("is_active", true);
 
-  const safeName = fileName.replace(/[\\/:*?"<>|]/g, "_").slice(0, 120);
-  const storagePath = `${id}/${documentType}/${Date.now()}_${safeName}`;
+  const storagePath = buildApplicationDocumentStorageKey(id, documentType, fileName);
 
   const { error: upErr } = await supabase.storage
     .from(PARTNER_APPLICATIONS_BUCKET)
@@ -123,7 +126,8 @@ export async function POST(request: Request, context: Ctx) {
       contentType: file.type || "application/octet-stream"
     });
   if (upErr) {
-    return NextResponse.json({ ok: false, message: upErr.message }, { status: 500 });
+    console.error("partner application upload failed", upErr);
+    return NextResponse.json({ ok: false, message: publicUploadErrorMessage(upErr) }, { status: 500 });
   }
 
   const { data: inserted, error: insErr } = await supabase
@@ -145,7 +149,7 @@ export async function POST(request: Request, context: Ctx) {
   if (insErr || !inserted) {
     await supabase.storage.from(PARTNER_APPLICATIONS_BUCKET).remove([storagePath]);
     return NextResponse.json(
-      { ok: false, message: insErr?.message ?? "문서 저장 실패" },
+      { ok: false, message: "파일 업로드에 실패했습니다. 다시 시도해 주세요." },
       { status: 500 }
     );
   }
@@ -169,4 +173,85 @@ export async function POST(request: Request, context: Ctx) {
   });
 
   return NextResponse.json({ ok: true, document_id: inserted.id, reused: false });
+}
+
+export async function DELETE(request: Request, context: Ctx) {
+  const { id } = await context.params;
+  const ip = clientIpFromHeaders(request.headers);
+  const limited = checkRateLimit(`pa-doc-del:${ip}`, 20, 60_000);
+  if (!limited.ok) {
+    return NextResponse.json({ ok: false, message: "요청이 너무 많습니다." }, { status: 429 });
+  }
+
+  const json = await request.json().catch(() => null) as {
+    token?: string;
+    document_id?: string;
+    honeypot?: string;
+  } | null;
+  if (json?.honeypot) return NextResponse.json({ ok: true });
+
+  const token = String(json?.token || "");
+  const documentId = String(json?.document_id || "");
+  if (!token || !documentId) {
+    return NextResponse.json({ ok: false, message: "파일을 삭제할 수 없습니다." }, { status: 400 });
+  }
+
+  const supabase = createAdminClient();
+  const { data: app, error } = await supabase
+    .from("partner_applications")
+    .select("id, status, access_token_hash")
+    .eq("id", id)
+    .maybeSingle();
+  if (error || !app) {
+    return NextResponse.json({ ok: false, message: "신청서를 찾을 수 없습니다." }, { status: 404 });
+  }
+  if (!verifySecret(token, String(app.access_token_hash))) {
+    return NextResponse.json({ ok: false, message: "수정 권한이 없습니다." }, { status: 403 });
+  }
+  if (!["draft", "revision_requested"].includes(String(app.status))) {
+    return NextResponse.json(
+      { ok: false, message: "현재 상태에서는 파일을 삭제할 수 없습니다." },
+      { status: 409 }
+    );
+  }
+
+  const { data: doc } = await supabase
+    .from("partner_application_documents")
+    .select("id, storage_path, application_id")
+    .eq("id", documentId)
+    .eq("application_id", id)
+    .maybeSingle();
+  if (!doc) {
+    return NextResponse.json({ ok: false, message: "파일을 찾을 수 없습니다." }, { status: 404 });
+  }
+
+  const storagePath = String(doc.storage_path || "");
+  if (storagePath) {
+    const { error: removeErr } = await supabase.storage
+      .from(PARTNER_APPLICATIONS_BUCKET)
+      .remove([storagePath]);
+    if (removeErr) {
+      console.error("partner application file delete failed", removeErr);
+      return NextResponse.json(
+        { ok: false, message: "파일 삭제에 실패했습니다. 다시 시도해 주세요." },
+        { status: 500 }
+      );
+    }
+  }
+
+  const { error: delErr } = await supabase
+    .from("partner_application_documents")
+    .delete()
+    .eq("id", documentId)
+    .eq("application_id", id);
+  if (delErr) {
+    console.error("partner application document row delete failed", delErr);
+    return NextResponse.json(
+      { ok: false, message: "파일 삭제에 실패했습니다. 다시 시도해 주세요." },
+      { status: 500 }
+    );
+  }
+
+  await logApplicationEvent(supabase, id, "document_deleted", documentId);
+  return NextResponse.json({ ok: true });
 }

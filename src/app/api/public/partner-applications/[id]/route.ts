@@ -32,7 +32,7 @@ async function loadAuthorized(
     .select("*")
     .eq("id", id)
     .maybeSingle();
-  if (error) return { ok: false, status: 500, message: error.message };
+  if (error) return { ok: false, status: 500, message: "신청서를 불러오지 못했습니다." };
   if (!data) return { ok: false, status: 404, message: "신청서를 찾을 수 없습니다." };
   if (!verifySecret(token, String(data.access_token_hash))) {
     return { ok: false, status: 403, message: "수정 권한이 없습니다." };
@@ -51,7 +51,7 @@ export async function GET(request: Request, context: Ctx) {
   const url = new URL(request.url);
   const token = url.searchParams.get("token") || "";
   if (!token) {
-    return NextResponse.json({ ok: false, message: "token이 필요합니다." }, { status: 400 });
+    return NextResponse.json({ ok: false, message: "접근 권한이 없습니다." }, { status: 400 });
   }
 
   const auth = await loadAuthorized(id, token);
@@ -123,9 +123,6 @@ export async function PATCH(request: Request, context: Ctx) {
       missing
     });
   } catch (e) {
-    return NextResponse.json(
-      { ok: false, message: e instanceof Error ? e.message : "저장 실패" },
-      { status: 500 }
-    );
+    return NextResponse.json({ ok: false, message: "저장에 실패했습니다. 다시 시도해 주세요." }, { status: 500 });
   }
 }

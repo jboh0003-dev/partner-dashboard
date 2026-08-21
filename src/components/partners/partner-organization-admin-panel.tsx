@@ -108,11 +108,11 @@ export function PartnerOrganizationAdminPanel({
 
       {contractContactCount === 0 ? (
         <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm font-medium text-amber-800">
-          계약담당자 미지정
+          담당자 미지정
         </div>
       ) : contractContactCount > 1 ? (
         <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm font-medium text-amber-800">
-          계약담당자 복수 지정 ({contractContactCount}명)
+          담당자 복수 지정 ({contractContactCount}명)
         </div>
       ) : null}
 
@@ -125,7 +125,7 @@ export function PartnerOrganizationAdminPanel({
       {sortedContacts.length === 0 ? (
         <EmptyState
           title="등록된 현재 담당자가 없습니다."
-          description="담당자 추가 버튼으로 영업·엔지니어·계약담당자 정보를 등록할 수 있습니다."
+          description="담당자 추가 버튼으로 영업·엔지니어·파트너 담당자 정보를 등록할 수 있습니다."
         />
       ) : (
         <ContactTable
@@ -196,7 +196,7 @@ function ContactTable({
             <Th>부서/직급</Th>
             <Th>연락처</Th>
             <Th>이메일</Th>
-            <Th>계약담당</Th>
+            <Th>담당자</Th>
             <Th align="right">관리</Th>
           </tr>
         </thead>

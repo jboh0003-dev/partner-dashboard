@@ -2,11 +2,14 @@ import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import { deactivatePartnerContact } from "@/lib/contacts/mutations";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { rejectUnlessAdmin } from "@/lib/auth/require-admin";
 
 export async function POST(
   _request: Request,
   context: { params: Promise<{ id: string }> }
 ) {
+  const denied = await rejectUnlessAdmin();
+  if (denied) return denied;
   try {
     const { id } = await context.params;
     const supabase = createAdminClient();

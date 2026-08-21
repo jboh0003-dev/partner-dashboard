@@ -29,7 +29,7 @@ function DashboardHero() {
         eyebrow={null}
         prominentTitle
         title="OKESTRO Partner Portal"
-        description="파트너 정보·계약·교육·실적 데이터를 통합 관리하는 AI 기반 운영 대시보드"
+        description="파트너 DB·담당자·교육·실적 파이프라인을 한 화면에서 운영합니다. Partner AI로 자연어 조회할 수 있습니다."
       />
     </AnimatedSection>
   );

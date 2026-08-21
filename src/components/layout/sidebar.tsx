@@ -9,10 +9,12 @@ import {
   ArrowUpCircle,
   Building2,
   ChevronDown,
+  ClipboardCheck,
   FileText,
   GraduationCap,
   LayoutDashboard,
   MonitorUp,
+  Settings,
   Sparkles,
   TrendingUp,
   Upload,
@@ -22,6 +24,7 @@ import {
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import { isAdminOnlySidebarHref } from "@/lib/auth/roles";
 
 type NavLeaf = {
   href: string;
@@ -48,6 +51,7 @@ type NavGroup = {
 const PARTNER_ACCORDION_ID = "partner";
 
 const PARTNER_CHILD_PREFIXES = [
+  "/partner-apply",
   "/dashboard/partner-applications",
   "/dashboard/contacts",
   "/dashboard/documents",
@@ -69,7 +73,8 @@ const NAV_GROUPS: NavGroup[] = [
         label: "파트너",
         icon: Building2,
         children: [
-          { href: "/dashboard/partner-applications", label: "파트너 등록", icon: UserPlus },
+          { href: "/partner-apply", label: "신규 파트너 신청", icon: UserPlus },
+          { href: "/dashboard/partner-applications", label: "파트너 신청 관리", icon: ClipboardCheck },
           { href: "/dashboard/contacts", label: "인력·담당자", icon: Users },
           { href: "/dashboard/documents", label: "파트너 문서", icon: FileText },
           { href: "/dashboard/platinum-upgrade", label: "플래티넘 승급", icon: ArrowUpCircle }
@@ -91,7 +96,10 @@ const NAV_GROUPS: NavGroup[] = [
   },
   {
     title: "Admin",
-    items: [{ href: "/dashboard/upload-hub", label: "데이터 업로드", icon: Upload }]
+    items: [
+      { href: "/dashboard/upload-hub", label: "데이터 업로드", icon: Upload },
+      { href: "/dashboard/settings/users", label: "계정 관리", icon: Settings }
+    ]
   }
 ];
 
@@ -202,7 +210,17 @@ function PartnerAccordion({ item, pathname }: { item: NavAccordion; pathname: st
   );
 }
 
-export function Sidebar({ userEmail = null }: { userEmail?: string | null }) {
+export function Sidebar({
+  userEmail = null,
+  userName = null,
+  roleLabel = null,
+  isAdmin = false
+}: {
+  userEmail?: string | null;
+  userName?: string | null;
+  roleLabel?: string | null;
+  isAdmin?: boolean;
+}) {
   const pathname = usePathname();
   const { openPanel, open } = useOkePanel();
   const okeActive = open || isOkeNavActive(pathname);
@@ -218,13 +236,24 @@ export function Sidebar({ userEmail = null }: { userEmail?: string | null }) {
       </div>
 
       <nav className="flex-1 overflow-y-auto px-3 py-4">
-        {NAV_GROUPS.map((group) => (
+        {NAV_GROUPS.map((group) => {
+          if (group.title === "Admin" && !isAdmin) return null;
+          return (
           <div key={group.title} className="mb-5 last:mb-0">
             <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-widest text-slate-400">{group.title}</p>
             <div className="space-y-0.5">
               {group.items.map((item) => {
                 if (isAccordion(item)) {
-                  return <PartnerAccordion key={item.id} item={item} pathname={pathname} />;
+                  const children = isAdmin
+                    ? item.children
+                    : item.children.filter((child) => !isAdminOnlySidebarHref(child.href));
+                  return (
+                    <PartnerAccordion
+                      key={item.id}
+                      item={{ ...item, children }}
+                      pathname={pathname}
+                    />
+                  );
                 }
 
                 const Icon = item.icon;
@@ -237,7 +266,11 @@ export function Sidebar({ userEmail = null }: { userEmail?: string | null }) {
                       key={item.href}
                       type="button"
                       onClick={() => openPanel({ fullscreen: true })}
-                      className={["group w-full", navItemClass(isActive)].join(" ")}
+                      className={[
+                        "group w-full",
+                        navItemClass(isActive),
+                        isActive ? "" : "ring-1 ring-inset ring-okestro-100"
+                      ].join(" ")}
                     >
                       <Icon size={17} strokeWidth={isActive ? 2.25 : 2} className={navIconClass(isActive)} />
                       {item.label}
@@ -254,10 +287,11 @@ export function Sidebar({ userEmail = null }: { userEmail?: string | null }) {
               })}
             </div>
           </div>
-        ))}
+          );
+        })}
       </nav>
 
-      <SidebarUserFooter email={userEmail} />
+      <SidebarUserFooter name={userName} email={userEmail} roleLabel={roleLabel} />
     </aside>
   );
 }

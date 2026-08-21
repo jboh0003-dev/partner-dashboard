@@ -31,6 +31,7 @@ export type ContactTableRow = {
   memo?: string | null;
   created_at?: string;
   is_contract_contact: boolean;
+  source_file?: string | null;
 };
 
 const columns: SortableColumn<ContactTableRow>[] = [
@@ -72,7 +73,16 @@ const columns: SortableColumn<ContactTableRow>[] = [
     kind: "text",
     className: "min-w-[6rem] whitespace-nowrap",
     value: (row) => row.name,
-    render: (row) => <TableText value={row.name} className="min-w-[6rem] whitespace-nowrap" />
+    render: (row) => (
+      <span className="inline-flex items-center gap-1">
+        <TableText value={row.name} className="min-w-[6rem] whitespace-nowrap" />
+        {row.source_file === "dashboard-manual" ? (
+          <span className="rounded bg-slate-100 px-1 py-0.5 text-[10px] font-medium text-slate-600">
+            수동 등록
+          </span>
+        ) : null}
+      </span>
+    )
   },
   {
     key: "assignment",

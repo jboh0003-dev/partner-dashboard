@@ -2,6 +2,7 @@
 
 import { searchPartners } from "@/lib/search/engine";
 import type { SearchResult } from "@/lib/search/types";
+import { requireUser } from "@/lib/auth/require-user";
 
 function formatAnswerForReading(answer: string): string {
   const normalized = answer
@@ -102,6 +103,21 @@ function preferResult(first: SearchResult, retry: SearchResult): SearchResult {
 }
 
 export async function runPartnerSearch(query: string): Promise<SearchResult> {
+  const auth = await requireUser();
+  if (!auth.ok) {
+    return {
+      answer: "로그인이 필요합니다.",
+      intent: "partner_profile",
+      empty: true,
+      matchedPartner: null,
+      partners: [],
+      contacts: [],
+      items: [],
+      sources: [],
+      matchStrategy: "none"
+    };
+  }
+
   const trimmed = query.trim();
   if (!trimmed) {
     return {

@@ -23,6 +23,7 @@ import { DocumentRematchModal } from "@/components/documents/document-rematch-mo
 import type { DocumentMatchStatus } from "@/lib/documents/constants";
 import {
   getDocumentDisplayFileName,
+  getDocumentLastUploadedAt,
   getDocumentTypeShortLabel,
   getMatchStatusLabel,
   getPublicDocumentStatusLabel,
@@ -43,6 +44,7 @@ export type DocumentListRow = {
   file_ext: string | null;
   contract_date: string | null;
   created_at: string;
+  updated_at: string | null;
   match_status: string | null;
   review_status: string | null;
   grade_from_file?: string | null;
@@ -156,11 +158,11 @@ function buildColumns({
       render: (row) => (row.contract_date ? formatDate(row.contract_date) : "-")
     },
     {
-      key: "created_at",
-      label: "업로드일",
+      key: "updated_at",
+      label: "최종 업로드일",
       kind: "date",
-      value: (row) => row.created_at,
-      render: (row) => formatDate(row.created_at)
+      value: (row) => getDocumentLastUploadedAt(row),
+      render: (row) => formatDate(getDocumentLastUploadedAt(row))
     },
     {
       key: "match_status",
@@ -371,7 +373,7 @@ export function DocumentsListTable({
           onDelete: setDeleteTarget,
           onReplace: handleReplaceClick
         })}
-        defaultSortKey="created_at"
+        defaultSortKey="updated_at"
         defaultDir="desc"
         minWidth="1120px"
         rowKey={(row) => row.id}

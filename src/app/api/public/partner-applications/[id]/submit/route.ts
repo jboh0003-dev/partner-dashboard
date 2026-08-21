@@ -10,6 +10,7 @@ import {
   saveApplicationForm
 } from "@/lib/partner-applications/repository";
 import { collectMissingFields } from "@/lib/partner-applications/validation";
+import { runApplicationPreReview } from "@/lib/partner-applications/pre-review";
 
 export const runtime = "nodejs";
 
@@ -94,6 +95,12 @@ export async function POST(request: Request, context: Ctx) {
   }
 
   await logApplicationEvent(supabase, id, "submitted", "최종 제출");
+
+  try {
+    await runApplicationPreReview(supabase, id, null);
+  } catch {
+    // 사전검토 실패가 제출을 막지 않음
+  }
 
   return NextResponse.json({
     ok: true,

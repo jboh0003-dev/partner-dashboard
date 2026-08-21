@@ -29,7 +29,7 @@ export const CONTACT_ROLE_LABEL: Record<string, string> = {
   engineer: "엔지니어",
   admin: "관리",
   executive: "대표/경영",
-  contract: "계약담당",
+  contract: "담당자",
   etc: "일반 담당자"
 };
 

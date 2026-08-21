@@ -94,7 +94,7 @@ export default async function PocsPage({
       ) : rows.length === 0 ? (
         <EmptyState
           title="등록된 PoC 이력이 없습니다."
-          description="partner_pocs 테이블에 데이터를 추가하면 여기에 표시됩니다."
+        description="등록된 PoC 이력이 없습니다. 추후 데이터 연동 예정입니다."
         />
       ) : (
         <PocsListTable rows={rows} />

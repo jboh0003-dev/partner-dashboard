@@ -46,5 +46,6 @@ export function normalizeTrainingType(
 
 export function formatTrainingTypeLabel(value: string | null | undefined): string {
   if (!value?.trim()) return "-";
+  if (/기술파트너/.test(value)) return "기술파트너 교육";
   return normalizeTrainingType(value, "기타교육");
 }

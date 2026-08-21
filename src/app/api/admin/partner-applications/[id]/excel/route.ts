@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { requireUser, unauthorizedJson } from "@/lib/auth/require-user";
+import { forbiddenJson, requireAdmin } from "@/lib/auth/require-admin";
+import { unauthorizedJson } from "@/lib/auth/require-user";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   buildApplicationExcelFileName,
@@ -12,8 +13,10 @@ export const runtime = "nodejs";
 type Ctx = { params: Promise<{ id: string }> };
 
 export async function GET(_request: Request, context: Ctx) {
-  const auth = await requireUser();
-  if (!auth.ok) return unauthorizedJson(auth.message);
+  const auth = await requireAdmin();
+  if (!auth.ok) {
+    return auth.status === 401 ? unauthorizedJson(auth.message) : forbiddenJson(auth.message);
+  }
 
   const { id } = await context.params;
   const supabase = createAdminClient();

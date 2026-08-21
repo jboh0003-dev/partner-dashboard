@@ -83,8 +83,8 @@ export async function fetchSearchContext(): Promise<SearchContext> {
     { data: eventsData },
     { data: eventDocsData }
   ] = await Promise.all([
-    supabase.from("partners").select("*").order("company_name", { ascending: true }),
-    supabase.from("partner_contacts").select("*"),
+    supabase.from("partners").select("*").is("deleted_at", null).order("company_name", { ascending: true }),
+    supabase.from("partner_contacts").select("*").is("deleted_at", null),
     supabase
       .from("partner_assets")
       .select("*, partners!inner(company_name)")
@@ -145,11 +145,20 @@ export async function fetchSearchContext(): Promise<SearchContext> {
     }
   }
 
+  const partners = filterSamplePartners(
+    ((partnersData ?? []) as Partner[]).filter(
+      (partner) => partner.is_active !== false && !partner.deleted_at
+    )
+  );
+  const activePartnerIds = getRealPartnerIdSet(partners);
+
   return {
-    partners: filterSamplePartners((partnersData ?? []) as Partner[]),
+    partners,
     contacts: filterRowsByPartnerId(
-      (contactsData ?? []) as PartnerContact[],
-      getRealPartnerIdSet((partnersData ?? []) as Partner[])
+      ((contactsData ?? []) as PartnerContact[]).filter(
+        (contact) => contact.is_active !== false && !contact.deleted_at
+      ),
+      activePartnerIds
     ),
     assets: filterRowsByPartnerName(mapAssets(assetsData ?? [])),
     documents: filterRowsByPartnerName(mapDocuments(documentsData ?? [])),
@@ -163,7 +172,7 @@ export async function fetchSearchContext(): Promise<SearchContext> {
     previousPolicyChunks,
     notes: filterRowsByPartnerId(
       (notesData ?? []) as PartnerNote[],
-      getRealPartnerIdSet((partnersData ?? []) as Partner[])
+      activePartnerIds
     ),
     events: filterDisplayablePartnerEvents((eventsData ?? []) as PartnerEventRecord[]),
     eventDocuments: (eventDocsData ?? []) as PartnerEventDocument[],

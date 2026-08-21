@@ -3,8 +3,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { deactivatePartnerContactsBulk, softDeletePartnerContactsBulk } from "@/lib/contacts/mutations";
 import { createAdminClient } from "@/lib/supabase/admin";
-
-// TODO(auth): 추후 admin/user 권한 적용 예정 — requireAdmin() 검증 추가
+import { rejectUnlessAdmin } from "@/lib/auth/require-admin";
 
 const BulkActionSchema = z.object({
   ids: z.array(z.string().uuid()).min(1, "대상 담당자를 선택해 주세요."),
@@ -12,6 +11,8 @@ const BulkActionSchema = z.object({
 });
 
 export async function POST(request: Request) {
+  const denied = await rejectUnlessAdmin();
+  if (denied) return denied;
   try {
     const body = BulkActionSchema.parse(await request.json());
     const supabase = createAdminClient();

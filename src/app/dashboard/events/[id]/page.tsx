@@ -7,6 +7,7 @@ import { EmptyState } from "@/components/common/empty-state";
 import { formatEventTypeLabel } from "@/lib/events/folder-parser";
 import { fetchPartnerEventById } from "@/lib/data/partner-events";
 import { fetchEventPartnerLinks } from "@/lib/data/event-partners";
+import { getCachedViewerAuthContext } from "@/lib/auth/require-admin";
 import { formatDate } from "@/lib/utils";
 import { EventPartnersPanel } from "@/components/events/event-partners-panel";
 
@@ -16,6 +17,7 @@ export default async function EventDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  const { isAdmin } = await getCachedViewerAuthContext();
   const { event, error } = await fetchPartnerEventById(id);
   const { links: partnerLinks } = await fetchEventPartnerLinks(id);
 
@@ -98,7 +100,7 @@ export default async function EventDetailPage({
         <section className="rounded-2xl border border-indigo-100 bg-gradient-to-br from-white to-indigo-50/50 p-5 shadow-sm">
           <div className="flex items-center gap-2">
             <Sparkles size={16} className="text-indigo-700" />
-            <h2 className="text-sm font-semibold text-slate-900">오케 요약</h2>
+            <h2 className="text-sm font-semibold text-slate-900">행사 요약</h2>
           </div>
           <p className="mt-3 text-sm leading-relaxed text-slate-700">{okeSummary}</p>
           <p className="mt-4 text-xs text-slate-500">
@@ -107,12 +109,13 @@ export default async function EventDetailPage({
         </section>
       </div>
 
-      <EventPartnersPanel eventId={event.id} initialLinks={partnerLinks} />
+      <EventPartnersPanel eventId={event.id} initialLinks={partnerLinks} isAdmin={isAdmin} />
 
       <EventDetailView
         eventId={event.id}
         publicDocuments={event.documents}
         allDocuments={event.all_documents}
+        isAdmin={isAdmin}
       />
 
       <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">

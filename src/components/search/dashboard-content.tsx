@@ -18,7 +18,7 @@ export function DashboardContent({ children }: { children: ReactNode }) {
       style={layoutStyle}
     >
       <main className="min-h-screen min-w-0 flex-1">
-        <div className="mx-auto w-full max-w-[1680px] px-6 py-7 lg:px-8 xl:px-10 2xl:py-9">
+        <div className="w-full px-7 py-7 lg:px-8">
           {children}
         </div>
       </main>

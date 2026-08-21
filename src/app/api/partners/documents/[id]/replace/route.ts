@@ -15,13 +15,14 @@ import {
   resolveUploadStoragePath
 } from "@/lib/documents/storage-path";
 import { createAdminClient } from "@/lib/supabase/admin";
-
-// TODO(auth): 추후 admin/user 권한 적용 예정 — requireAdmin() 검증 추가
+import { rejectUnlessAdmin } from "@/lib/auth/require-admin";
 
 export async function POST(
   request: Request,
   context: { params: Promise<{ id: string }> }
 ) {
+  const denied = await rejectUnlessAdmin();
+  if (denied) return denied;
   try {
     const { id } = await context.params;
     const formData = await request.formData();
@@ -112,7 +113,8 @@ export async function POST(
         duplicate_of: null,
         deleted_at: null,
         document_status: "active",
-        uploaded_by: "dashboard-manual"
+        uploaded_by: "dashboard-manual",
+        updated_at: new Date().toISOString()
       })
       .eq("id", id);
 

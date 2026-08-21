@@ -23,7 +23,7 @@ export function PageHero({
   return (
     <section
       className={[
-        "relative mb-8 overflow-hidden rounded-xl border border-slate-200/80 shadow-elevated",
+        "relative mb-8 overflow-hidden rounded-2xl border border-slate-200/70 shadow-elevated",
         compact ? "min-h-[120px]" : "min-h-[176px]"
       ].join(" ")}
     >
@@ -36,7 +36,7 @@ export function PageHero({
         sizes="(max-width: 1280px) 100vw, 1280px"
       />
       <div
-        className="absolute inset-0 bg-gradient-to-r from-slate-950/80 via-slate-900/70 to-okestro-900/60"
+        className="absolute inset-0 bg-gradient-to-r from-slate-950/85 via-slate-900/72 to-okestro-800/55"
         aria-hidden
       />
       <div

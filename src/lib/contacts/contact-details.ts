@@ -55,7 +55,7 @@ export function roleLabelFromContact(input: {
   is_contract_contact?: boolean;
 }): string[] {
   const labels = new Set<string>();
-  if (input.is_contract_contact) labels.add("계약담당자");
+  if (input.is_contract_contact) labels.add("담당자");
   if (input.role_raw?.trim()) labels.add(input.role_raw.trim());
   const assignment = getContactAssignmentLabel({
     role_type: input.role_type ?? null,

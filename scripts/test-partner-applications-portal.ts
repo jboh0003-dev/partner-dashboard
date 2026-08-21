@@ -6,6 +6,15 @@ import { collectMissingFields } from "../src/lib/partner-applications/validation
 import { EMPTY_APPLICATION_FORM } from "../src/lib/partner-applications/types";
 import { fillPartnerApplicationExcel } from "../src/lib/partner-applications/excel-fill";
 import { generateApplicationNumber, hashSecret, verifySecret } from "../src/lib/partner-applications/tokens";
+import {
+  buildRuleBasedPreReview,
+  compareParsedApplication,
+  sanitizePreReviewForDisplay
+} from "../src/lib/partner-applications/pre-review";
+import { resolveApplicationDisplayStatus } from "../src/lib/partner-applications/status-display";
+import { buildApplicationDocumentStorageKey } from "../src/lib/partner-applications/storage-key";
+import { recommendedDocumentFileName } from "../src/lib/partner-applications/filename-guide";
+import { isAutosaveEvent, isBusinessHistoryEvent } from "../src/lib/partner-applications/admin-display";
 
 async function main() {
   const missingEmpty = collectMissingFields(EMPTY_APPLICATION_FORM, {
@@ -56,10 +65,20 @@ async function main() {
   assert.equal(ok.length, 0, `unexpected missing: ${JSON.stringify(ok)}`);
 
   form.flags.technical_collaboration_requested = true;
-  const techMissing = collectMissingFields(form, { hasBusinessRegistrationDoc: true });
-  assert.ok(techMissing.some((m) => m.field === "engineer"));
-  assert.ok(techMissing.some((m) => m.section === "equipment"));
-  assert.ok(techMissing.some((m) => m.section === "engineers"));
+  form.flags.platinum_review_requested = true;
+  const techNotRequired = collectMissingFields(form, { hasBusinessRegistrationDoc: true });
+  assert.equal(techNotRequired.some((m) => m.field === "engineer"), false);
+  assert.equal(techNotRequired.some((m) => m.section === "equipment"), false);
+  assert.equal(techNotRequired.some((m) => m.section === "engineers"), false);
+
+  const optionalCustomer = structuredClone(form);
+  optionalCustomer.customers = [{ customer_name: "고객A" }];
+  optionalCustomer.people.engineer = [];
+  optionalCustomer.equipment = [];
+  optionalCustomer.engineer_profiles = [];
+  optionalCustomer.company.dedicated_technical_count = "";
+  const optionalOk = collectMissingFields(optionalCustomer, { hasBusinessRegistrationDoc: true });
+  assert.equal(optionalOk.length, 0, `optional fields should not block: ${JSON.stringify(optionalOk)}`);
 
   const token = "abc123token";
   const hash = hashSecret(token);
@@ -67,8 +86,129 @@ async function main() {
   assert.equal(verifySecret("wrong", hash), false);
   assert.match(generateApplicationNumber(), /^PA-\d{4}-[0-9A-F]+$/i);
 
+  form.flags.technical_collaboration_requested = false;
+  form.flags.platinum_review_requested = false;
+
   const buf = await fillPartnerApplicationExcel(form);
   assert.ok(buf.byteLength > 1000, "excel buffer should be non-trivial");
+
+  const completeFindings = buildRuleBasedPreReview({
+    form,
+    documents: [{ document_type: "business_registration", is_active: true, file_name: "biz.pdf" }]
+  });
+  assert.equal(
+    completeFindings.some((f) => f.severity === "needs_fix"),
+    false,
+    `A. complete application should have no needs_fix: ${JSON.stringify(completeFindings.filter((f) => f.severity !== "ok"))}`
+  );
+  assert.equal(
+    resolveApplicationDisplayStatus({
+      dbStatus: "submitted",
+      preReview: { status: "completed", overall: "ok" }
+    }),
+    "admin_review"
+  );
+
+  const missingFindings = buildRuleBasedPreReview({
+    form: EMPTY_APPLICATION_FORM,
+    documents: []
+  });
+  assert.ok(missingFindings.some((f) => f.id === "docs.business_registration"));
+  assert.ok(missingFindings.some((f) => f.severity === "needs_fix"));
+  assert.equal(
+    resolveApplicationDisplayStatus({
+      dbStatus: "submitted",
+      preReview: { status: "completed", overall: "needs_fix" }
+    }),
+    "needs_revision"
+  );
+
+  assert.equal(
+    resolveApplicationDisplayStatus({
+      dbStatus: "submitted",
+      preReview: { status: "failed", overall: "admin_check" }
+    }),
+    "admin_review",
+    "C. AI failure still allows admin review"
+  );
+  assert.equal(
+    resolveApplicationDisplayStatus({ dbStatus: "approved", preReview: null }),
+    "approved"
+  );
+  assert.equal(
+    resolveApplicationDisplayStatus({ dbStatus: "rejected", preReview: null }),
+    "rejected"
+  );
+
+  const mismatches = compareParsedApplication(form, {
+    company: {
+      company_name_db: "다른회사",
+      company_name_raw: "다른회사",
+      business_number: "999-99-99999",
+      ceo_name: "다른대표"
+    }
+  });
+  assert.ok(mismatches.some((m) => m.id === "parse.business_number"));
+  assert.ok(mismatches.some((m) => m.id === "parse.company_name"));
+
+  const noGuess = compareParsedApplication(form, {
+    company: { company_name_db: null, business_number: null, ceo_name: null }
+  });
+  assert.equal(noGuess.length, 0, "missing parsed fields must not be treated as mismatch");
+
+  const key = buildApplicationDocumentStorageKey("app-id", "other", "★260810_파트너대시보드_업로드용.xlsx");
+  assert.match(key, /^app-id\/other\/[0-9a-f-]+\.xlsx$/i);
+  assert.equal(key.includes("★"), false);
+  assert.equal(key.includes("파트너"), false);
+
+  const flagged = structuredClone(form);
+  flagged.flags.platinum_review_requested = true;
+  flagged.flags.technical_collaboration_requested = true;
+  const flaggedFindings = buildRuleBasedPreReview({
+    form: flagged,
+    documents: [{ document_type: "business_registration", is_active: true, file_name: "biz.pdf" }]
+  });
+  assert.equal(flaggedFindings.some((f) => f.id === "flag.platinum" || f.id === "flag.tech"), false);
+  assert.equal(
+    flaggedFindings.some((f) => /플래티넘|기술협력|등급\/계약/.test(`${f.label}${f.detail ?? ""}`)),
+    false
+  );
+
+  const mismatchForm = structuredClone(form);
+  mismatchForm.company.representative_name = "복";
+  mismatchForm.people.ceo = [{ section: "ceo", name: "1" }];
+  const mismatchFindings = buildRuleBasedPreReview({
+    form: mismatchForm,
+    documents: [{ document_type: "business_registration", is_active: true, file_name: "biz.pdf" }]
+  });
+  const ceoFinding = mismatchFindings.find((f) => f.id === "mismatch.ceo");
+  assert.ok(ceoFinding);
+  assert.equal(ceoFinding?.comparison?.some((c) => c.label.includes("대표자명") && c.value === "복"), true);
+  assert.equal(ceoFinding?.comparison?.some((c) => c.label.includes("대표이사") && c.value === "1"), true);
+
+  const sanitized = sanitizePreReviewForDisplay({
+    status: "completed",
+    overall: "admin_check",
+    findings: [
+      {
+        id: "flag.platinum",
+        label: "파트너 등급/계약 조건 확인 필요",
+        severity: "admin_check",
+        source: "rule",
+        detail: "플래티넘 검토가 요청되었습니다."
+      }
+    ],
+    ai_used: false,
+    ai_error: null,
+    reviewed_at: new Date().toISOString()
+  });
+  assert.equal(sanitized?.findings.length, 0);
+  assert.equal(sanitized?.overall, "ok");
+
+  assert.equal(recommendedDocumentFileName("business_registration", "오케스트로"), "사업자등록증_오케스트로.pdf");
+  assert.equal(isAutosaveEvent("draft_saved"), true);
+  assert.equal(isBusinessHistoryEvent("draft_saved"), false);
+  assert.equal(isBusinessHistoryEvent("submitted"), true);
 
   console.log("partner-applications smoke tests OK");
 }

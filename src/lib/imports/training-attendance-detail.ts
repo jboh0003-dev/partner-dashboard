@@ -1,4 +1,5 @@
 import type { ParsedTrainingAttendanceRow } from "@/lib/excel/parse-training-attendance-detail";
+import { resolveTrainingCompanyAliasKey } from "@/lib/imports/training-company-aliases";
 import { normalizeCompanyName } from "@/lib/partner-match";
 
 export type TrainingAttendancePartnerRow = {
@@ -21,9 +22,10 @@ export type TrainingMasterRow = {
 
 export type ExistingTrainingAttendanceRow = {
   id: string;
-  partner_id: string;
+  partner_id: string | null;
   training_id: string;
   attendee_name: string | null;
+  company_name_raw?: string | null;
 };
 
 export type TrainingAttendanceDetailAction = "create" | "update" | "skip" | "review";
@@ -54,6 +56,7 @@ export type TrainingAttendanceDetailSummary = {
   updates: number;
   review: number;
   skipped: number;
+  non_partner: number;
 };
 
 export function analyzeTrainingAttendanceRows(
@@ -91,7 +94,12 @@ export function analyzeTrainingAttendanceRows(
   }
 
   for (const attendance of attendances) {
-    const key = `${attendance.partner_id}|${attendance.training_id}|${normalizeName(attendance.attendee_name)}`;
+    const key = attendanceLookupKey(
+      attendance.partner_id,
+      attendance.training_id,
+      attendance.attendee_name,
+      attendance.company_name_raw
+    );
     attendanceByKey.set(key, attendance);
   }
 
@@ -104,12 +112,13 @@ export function analyzeTrainingAttendanceRows(
       acc.total += 1;
       if (item.action === "create" && item.new_training) acc.new_trainings += 1;
       if (item.action === "create" && !item.new_training) acc.new_attendees += 1;
+      if (item.action === "create" && !item.matched_partner_id) acc.non_partner += 1;
       if (item.action === "update") acc.updates += 1;
       if (item.action === "review") acc.review += 1;
       if (item.action === "skip") acc.skipped += 1;
       return acc;
     },
-    { total: 0, new_trainings: 0, new_attendees: 0, updates: 0, review: 0, skipped: 0 }
+    { total: 0, new_trainings: 0, new_attendees: 0, updates: 0, review: 0, skipped: 0, non_partner: 0 }
   );
 
   return { items, summary };
@@ -168,17 +177,17 @@ function analyzeRow(
     return reviewRow(row, trainingKey, "교육 연월을 확인할 수 없습니다.");
   }
 
-  const partnerMatches =
-    partnersByName.get(normalizeCompanyName(row.company_name) ?? "") ?? [];
-  if (partnerMatches.length === 0) return reviewRow(row, trainingKey, "매칭되는 파트너가 없습니다.");
+  const partnerMatches = lookupTrainingPartners(row.company_name, partnersByName);
   if (partnerMatches.length > 1) return reviewRow(row, trainingKey, "회사명 원문이 여러 파트너와 일치합니다.");
 
-  const matchedPartner = partnerMatches[0];
+  const matchedPartner = partnerMatches[0] ?? null;
   const trainingMatches = trainingsByKey.get(trainingKey) ?? [];
 
   if (trainingMatches.length > 1) {
-    return reviewRow(row, trainingKey, "동일한 교육명/교육연월 조합이 여러 건입니다.", matchedPartner);
+    return reviewRow(row, trainingKey, "동일한 교육명/교육연월 조합이 여러 건입니다.", matchedPartner ?? undefined);
   }
+
+  const unmatchedReason = matchedPartner ? null : "비파트너 교육생";
 
   if (trainingMatches.length === 0) {
     const isFirstNewTraining = !plannedNewTrainingKeys.has(trainingKey);
@@ -193,9 +202,15 @@ function analyzeRow(
       training_year: row.training_year,
       training_month: row.training_month,
       action: "create",
-      reason: isFirstNewTraining ? "신규 교육 생성" : "신규 참석자 생성",
-      matched_partner_id: matchedPartner.id,
-      matched_partner_name: matchedPartner.company_name,
+      reason: unmatchedReason
+        ? isFirstNewTraining
+          ? `신규 교육 생성 · ${unmatchedReason}`
+          : unmatchedReason
+        : isFirstNewTraining
+          ? "신규 교육 생성"
+          : "신규 참석자 생성",
+      matched_partner_id: matchedPartner?.id ?? null,
+      matched_partner_name: matchedPartner?.company_name ?? row.company_name,
       matched_training_id: null,
       matched_training_name: row.training_name,
       matched_attendance_id: null,
@@ -204,7 +219,12 @@ function analyzeRow(
   }
 
   const matchedTraining = trainingMatches[0];
-  const attendanceKey = `${matchedPartner.id}|${matchedTraining.id}|${normalizeName(row.attendee_name)}`;
+  const attendanceKey = attendanceLookupKey(
+    matchedPartner?.id ?? null,
+    matchedTraining.id,
+    row.attendee_name,
+    row.company_name
+  );
   const existingAttendance = attendanceByKey.get(attendanceKey);
 
   if (existingAttendance) {
@@ -218,9 +238,9 @@ function analyzeRow(
       training_year: row.training_year,
       training_month: row.training_month,
       action: "update",
-      reason: "기존 참석자 이력 업데이트",
-      matched_partner_id: matchedPartner.id,
-      matched_partner_name: matchedPartner.company_name,
+      reason: unmatchedReason ? `기존 참석자 이력 업데이트 · ${unmatchedReason}` : "기존 참석자 이력 업데이트",
+      matched_partner_id: matchedPartner?.id ?? null,
+      matched_partner_name: matchedPartner?.company_name ?? row.company_name,
       matched_training_id: matchedTraining.id,
       matched_training_name: matchedTraining.training_name,
       matched_attendance_id: existingAttendance.id,
@@ -238,14 +258,39 @@ function analyzeRow(
     training_year: row.training_year,
     training_month: row.training_month,
     action: "create",
-    reason: "신규 참석자 생성",
-    matched_partner_id: matchedPartner.id,
-    matched_partner_name: matchedPartner.company_name,
+    reason: unmatchedReason ?? "신규 참석자 생성",
+    matched_partner_id: matchedPartner?.id ?? null,
+    matched_partner_name: matchedPartner?.company_name ?? row.company_name,
     matched_training_id: matchedTraining.id,
     matched_training_name: matchedTraining.training_name,
     matched_attendance_id: null,
     new_training: false
   };
+}
+
+export function attendanceLookupKey(
+  partnerId: string | null | undefined,
+  trainingId: string,
+  attendeeName: string | null | undefined,
+  companyName?: string | null
+): string {
+  if (partnerId) {
+    return `p|${partnerId}|${trainingId}|${normalizeName(attendeeName)}`;
+  }
+  return `n|${normalizeName(companyName)}|${trainingId}|${normalizeName(attendeeName)}`;
+}
+
+function lookupTrainingPartners(
+  companyName: string,
+  partnersByName: Map<string, TrainingAttendancePartnerRow[]>
+): TrainingAttendancePartnerRow[] {
+  const exactKey = normalizeCompanyName(companyName) ?? "";
+  const exact = partnersByName.get(exactKey);
+  if (exact && exact.length > 0) return exact;
+
+  const aliasKey = resolveTrainingCompanyAliasKey(companyName);
+  if (!aliasKey) return [];
+  return partnersByName.get(aliasKey) ?? [];
 }
 
 function reviewRow(

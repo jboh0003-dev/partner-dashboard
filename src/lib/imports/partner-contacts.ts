@@ -32,6 +32,7 @@ export type PartnerContactsDbRow = ContactLike & {
   review_required?: boolean | null;
   review_reason?: string | null;
   source_file?: string | null;
+  contact_source?: string | null;
 };
 
 export type PartnerContactsAnalysisAction =
@@ -66,6 +67,11 @@ export type PartnerContactsAnalysisItem = {
   review_duplicate: boolean;
 };
 
+export type BaselineExclusionCategory =
+  | "active_current_missing"
+  | "history_only"
+  | "already_inactive";
+
 export type PartnerContactsBaselineExcludedItem = {
   contact_id: string;
   partner_id: string;
@@ -74,24 +80,54 @@ export type PartnerContactsBaselineExcludedItem = {
   email: string | null;
   reason: string;
   is_history_only: boolean;
+  category: BaselineExclusionCategory;
 };
 
 export const FULL_SYNC_MISSING_REASON = "새 전체DB 업로드 파일에서 누락됨";
 export const BASELINE_EXCLUDED_REASON = "이전 기준 데이터에서 제외됨";
+export const HISTORY_ONLY_PRESERVE_REASON = "교육/행사 이력 보존 대상 (현재 명단 제외 아님)";
+export const ALREADY_INACTIVE_REASON = "이미 비활성/기준명단 제외 상태";
 
 const EDUCATION_SOURCE_HINTS = [
   "교육",
   "training",
   "tech-partner",
   "tech_partner",
-  "정기교육"
+  "정기교육",
+  "event",
+  "행사"
 ];
+
+export const DASHBOARD_MANUAL_SOURCE_FILE = "dashboard-manual";
+export const DASHBOARD_MANUAL_CONTACT_SOURCE = "dashboard_manual";
+
+export function isDashboardManualContact(contact: {
+  source_file?: string | null;
+  contact_source?: string | null;
+}): boolean {
+  const sourceFile = (contact.source_file ?? "").trim().toLowerCase();
+  if (sourceFile === DASHBOARD_MANUAL_SOURCE_FILE) return true;
+  const contactSource = (contact.contact_source ?? "").trim().toLowerCase();
+  return contactSource === DASHBOARD_MANUAL_CONTACT_SOURCE || contactSource === "manual";
+}
+
+export function isActiveCurrentBaselineContact(contact: {
+  is_active?: boolean | null;
+  in_current_full_db?: boolean | null;
+}): boolean {
+  return contact.is_active === true && contact.in_current_full_db === true;
+}
 
 export function isEducationOrEventOnlyContact(contact: {
   source_file?: string | null;
   role_raw?: string | null;
   review_reason?: string | null;
+  contact_source?: string | null;
 }): boolean {
+  const contactSource = (contact.contact_source ?? "").toLowerCase();
+  if (contactSource === "education" || contactSource === "event") {
+    return true;
+  }
   const source = (contact.source_file ?? "").toLowerCase();
   if (EDUCATION_SOURCE_HINTS.some((hint) => source.includes(hint.toLowerCase()))) {
     return true;
@@ -116,8 +152,14 @@ export type PartnerContactsAnalysisSummary = {
   skip: number;
   review: number;
   duplicate: number;
+  /** @deprecated use baseline_excluded (A only) */
   review_missing: number;
+  /** A: active+current 중 최신 전체DB 누락 */
   baseline_excluded: number;
+  /** B: 교육/행사 이력 보존 */
+  history_only_preserved: number;
+  /** C: 이미 비활성/기준명단 제외 — 신규 제외로 세지 않음 */
+  already_inactive: number;
 };
 
 export const PARTNER_CONTACTS_ACTION_LABEL: Record<PartnerContactsAnalysisAction, string> = {
@@ -132,10 +174,13 @@ export const PARTNER_CONTACTS_ACTION_LABEL: Record<PartnerContactsAnalysisAction
 export function analyzePartnerContactRows(
   rows: ParsedPartnerContactRow[],
   partners: PartnerContactsPartnerRow[],
-  contacts: PartnerContactsDbRow[]
+  contacts: PartnerContactsDbRow[],
+  historyContactIds?: Set<string>
 ): {
   items: PartnerContactsAnalysisItem[];
   baselineExcluded: PartnerContactsBaselineExcludedItem[];
+  historyOnlyPreserved: PartnerContactsBaselineExcludedItem[];
+  alreadyInactive: PartnerContactsBaselineExcludedItem[];
   summary: PartnerContactsAnalysisSummary;
 } {
   const partnersByNo = new Map<string, PartnerContactsPartnerRow[]>();
@@ -187,7 +232,13 @@ export function analyzePartnerContactRows(
     )
   );
 
-  const baselineExcluded = analyzeBaselineExcluded(items, canonicalContacts, partners);
+  const classified = classifyContactsMissingFromFullDb(
+    items,
+    canonicalContacts,
+    partners,
+    historyContactIds
+  );
+  const baselineExcluded = classified.active_current_missing;
 
   const summary = items.reduce<PartnerContactsAnalysisSummary>(
     (acc, item) => {
@@ -206,11 +257,19 @@ export function analyzePartnerContactRows(
       review: 0,
       duplicate: 0,
       review_missing: baselineExcluded.length,
-      baseline_excluded: baselineExcluded.length
+      baseline_excluded: baselineExcluded.length,
+      history_only_preserved: classified.history_only.length,
+      already_inactive: classified.already_inactive.length
     }
   );
 
-  return { items, baselineExcluded, summary };
+  return {
+    items,
+    baselineExcluded,
+    historyOnlyPreserved: classified.history_only,
+    alreadyInactive: classified.already_inactive,
+    summary
+  };
 }
 
 function analyzeRow(
@@ -342,42 +401,113 @@ function matchedItem(
   };
 }
 
-export function analyzeBaselineExcluded(
-  items: PartnerContactsAnalysisItem[],
-  contacts: PartnerContactsDbRow[],
-  partners: PartnerContactsPartnerRow[]
-): PartnerContactsBaselineExcludedItem[] {
-  const partnerNameById = new Map(partners.map((p) => [p.id, p.company_name]));
+function collectSyncedContactIds(items: PartnerContactsAnalysisItem[]): Set<string> {
   const syncedContactIds = new Set<string>();
-
   for (const item of items) {
     if (!["create", "update", "merge"].includes(item.action)) continue;
     if (item.matched_contact_id) syncedContactIds.add(item.matched_contact_id);
     for (const id of item.merge_contact_ids) syncedContactIds.add(id);
     for (const id of item.manual_duplicate_ids) syncedContactIds.add(id);
   }
+  return syncedContactIds;
+}
 
-  const results: PartnerContactsBaselineExcludedItem[] = [];
+function toBaselineItem(
+  contact: PartnerContactsDbRow,
+  partnerNameById: Map<string, string>,
+  category: BaselineExclusionCategory,
+  reason: string
+): PartnerContactsBaselineExcludedItem {
+  const historyOnly = isEducationOrEventOnlyContact(contact);
+  return {
+    contact_id: contact.id,
+    partner_id: contact.partner_id,
+    partner_name: partnerNameById.get(contact.partner_id) ?? "(알 수 없음)",
+    contact_name: contact.name,
+    email: contact.email ?? null,
+    reason,
+    is_history_only: historyOnly,
+    category
+  };
+}
+
+function sortBaselineItems(
+  items: PartnerContactsBaselineExcludedItem[]
+): PartnerContactsBaselineExcludedItem[] {
+  return items.sort((a, b) => {
+    const byPartner = a.partner_name.localeCompare(b.partner_name, "ko-KR");
+    if (byPartner !== 0) return byPartner;
+    return a.contact_name.localeCompare(b.contact_name, "ko-KR");
+  });
+}
+
+/**
+ * 최신 전체DB에 없는 기존 contact를 A/B/C로 분류한다.
+ * A active_current_missing: is_active && in_current_full_db
+ * B history_only: 교육/행사 이력 보존 (현재 명단 제외로 세지 않음)
+ * C already_inactive: 이미 비활성/기준명단 제외
+ */
+export function classifyContactsMissingFromFullDb(
+  items: PartnerContactsAnalysisItem[],
+  contacts: PartnerContactsDbRow[],
+  partners: PartnerContactsPartnerRow[],
+  historyContactIds?: Set<string>
+): {
+  active_current_missing: PartnerContactsBaselineExcludedItem[];
+  history_only: PartnerContactsBaselineExcludedItem[];
+  already_inactive: PartnerContactsBaselineExcludedItem[];
+} {
+  const partnerNameById = new Map(partners.map((p) => [p.id, p.company_name]));
+  const syncedContactIds = collectSyncedContactIds(items);
+
+  const active_current_missing: PartnerContactsBaselineExcludedItem[] = [];
+  const history_only: PartnerContactsBaselineExcludedItem[] = [];
+  const already_inactive: PartnerContactsBaselineExcludedItem[] = [];
 
   for (const contact of contacts) {
     if (contact.deleted_at) continue;
     if (contact.merged_into_contact_id) continue;
     if (syncedContactIds.has(contact.id)) continue;
+    if (isDashboardManualContact(contact)) continue;
 
-    results.push({
-      contact_id: contact.id,
-      partner_id: contact.partner_id,
-      partner_name: partnerNameById.get(contact.partner_id) ?? "(알 수 없음)",
-      contact_name: contact.name,
-      email: contact.email ?? null,
-      reason: BASELINE_EXCLUDED_REASON,
-      is_history_only: isEducationOrEventOnlyContact(contact)
-    });
+    const historyOnly =
+      isEducationOrEventOnlyContact(contact) || Boolean(historyContactIds?.has(contact.id));
+
+    if (isActiveCurrentBaselineContact(contact)) {
+      active_current_missing.push(
+        toBaselineItem(contact, partnerNameById, "active_current_missing", FULL_SYNC_MISSING_REASON)
+      );
+      continue;
+    }
+
+    if (historyOnly) {
+      history_only.push(
+        toBaselineItem(contact, partnerNameById, "history_only", HISTORY_ONLY_PRESERVE_REASON)
+      );
+      continue;
+    }
+
+    already_inactive.push(
+      toBaselineItem(contact, partnerNameById, "already_inactive", ALREADY_INACTIVE_REASON)
+    );
   }
 
-  return results.sort((a, b) =>
-    a.partner_name.localeCompare(b.partner_name, "ko-KR")
-  );
+  return {
+    active_current_missing: sortBaselineItems(active_current_missing),
+    history_only: sortBaselineItems(history_only),
+    already_inactive: sortBaselineItems(already_inactive)
+  };
+}
+
+/** A만 반환 — UI '현재 목록 제외 예정' */
+export function analyzeBaselineExcluded(
+  items: PartnerContactsAnalysisItem[],
+  contacts: PartnerContactsDbRow[],
+  partners: PartnerContactsPartnerRow[],
+  historyContactIds?: Set<string>
+): PartnerContactsBaselineExcludedItem[] {
+  return classifyContactsMissingFromFullDb(items, contacts, partners, historyContactIds)
+    .active_current_missing;
 }
 
 /** @deprecated analyzeBaselineExcluded 사용 */

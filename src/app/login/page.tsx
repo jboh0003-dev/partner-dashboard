@@ -62,6 +62,13 @@ function LoginForm() {
       <p className="mt-2 text-center text-sm text-slate-500">
         승인된 사내 계정으로 로그인하세요.
       </p>
+      <p className="mt-1 text-center text-xs text-slate-400">
+        외부 업체의 파트너 신청은{" "}
+        <a href="/partner-apply" className="text-okestro-700 underline">
+          로그인 없이
+        </a>{" "}
+        진행할 수 있습니다.
+      </p>
 
       <form onSubmit={handleLogin} className="mt-6 space-y-4">
         <div>

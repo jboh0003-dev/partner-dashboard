@@ -6,7 +6,8 @@ import { TableClamp2, TableName, TableNowrap } from "@/components/common/table-c
 import { formatTrainingTypeLabel } from "@/lib/training/constants";
 import {
   formatAttendanceStatus,
-  formatTrainingYearMonth
+  formatTrainingGroupLabel,
+  isTechPartnerTraining
 } from "@/lib/training-display";
 import {
   TRAINING_ATTENDEE_SELECTED_ROW_TSV,
@@ -17,6 +18,7 @@ import type { CsvRow } from "@/lib/csv";
 export type TrainingAttendeeRow = {
   id: string;
   partner_name: string;
+  is_non_partner?: boolean;
   attendee_name: string;
   training_year: number | null;
   training_month: number | null;
@@ -43,7 +45,12 @@ const columns: SortableColumn<TrainingAttendeeRow>[] = [
     value: (row) => row.partner_name,
     render: (row) => (
       <TableName title={row.partner_name} className="min-w-[140px] max-w-[200px]">
-        {row.partner_name}
+        <span>{row.partner_name}</span>
+        {row.is_non_partner ? (
+          <span className="ml-1.5 rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600">
+            비파트너
+          </span>
+        ) : null}
       </TableName>
     )
   },
@@ -66,7 +73,11 @@ const columns: SortableColumn<TrainingAttendeeRow>[] = [
         : null,
     render: (row) => (
       <TableNowrap
-        value={formatTrainingYearMonth(row.training_year, row.training_month)}
+        value={formatTrainingGroupLabel(
+          row.training_year,
+          row.training_month,
+          isTechPartnerTraining(row)
+        )}
         className="min-w-[90px] tabular-nums"
       />
     )
@@ -76,10 +87,13 @@ const columns: SortableColumn<TrainingAttendeeRow>[] = [
     label: "교육구분",
     kind: "text",
     className: "min-w-[100px]",
-    value: (row) => row.training_type,
+    value: (row) =>
+      isTechPartnerTraining(row) ? "기술파트너 교육" : formatTrainingTypeLabel(row.training_type),
     render: (row) => (
       <TableNowrap
-        value={formatTrainingTypeLabel(row.training_type)}
+        value={
+          isTechPartnerTraining(row) ? "기술파트너 교육" : formatTrainingTypeLabel(row.training_type)
+        }
         className="min-w-[100px]"
       />
     )

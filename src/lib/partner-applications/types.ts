@@ -142,7 +142,19 @@ export const EMPTY_APPLICATION_FORM: PartnerApplicationFormPayload = {
         email: ""
       }
     ],
-    engineer: []
+    engineer: [
+      {
+        section: "engineer",
+        duty: "기술",
+        name: "",
+        position: "",
+        department: "",
+        phone: "",
+        email: "",
+        skill_level: "",
+        main_skills: ""
+      }
+    ]
   },
   customers: [
     {

@@ -158,7 +158,7 @@ async function attachPartnersToRows(
 
   const { data: partners, error } = await supabase
     .from("partners")
-    .select("id, company_name, external_no")
+    .select("id, company_name, external_no, deleted_at, is_active")
     .in("id", partnerIds);
 
   if (error) {
@@ -166,19 +166,23 @@ async function attachPartnersToRows(
   }
 
   const partnerMap = new Map(
-    (partners ?? []).map((partner) => [
-      String(partner.id),
-      {
-        company_name: String(partner.company_name),
-        external_no: partner.external_no ? String(partner.external_no) : null
-      }
-    ])
+    (partners ?? [])
+      .filter((partner) => !partner.deleted_at && partner.is_active !== false)
+      .map((partner) => [
+        String(partner.id),
+        {
+          company_name: String(partner.company_name),
+          external_no: partner.external_no ? String(partner.external_no) : null
+        }
+      ])
   );
 
-  return rows.map((row) => ({
-    ...row,
-    partner: partnerMap.get(row.partner_id) ?? null
-  }));
+  return rows
+    .filter((row) => partnerMap.has(row.partner_id))
+    .map((row) => ({
+      ...row,
+      partner: partnerMap.get(row.partner_id) ?? null
+    }));
 }
 
 async function resolveCompanyMatchPartnerIds(

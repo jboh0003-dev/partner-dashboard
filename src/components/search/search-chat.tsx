@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useEffect, useState, useTransition } from "react";
 import {
-  BookOpen,
   ChevronDown,
   ChevronUp,
   Copy,
@@ -13,6 +12,7 @@ import {
   Search,
   Server,
   Sparkles,
+  TrendingUp,
   Users
 } from "lucide-react";
 import { downloadPartnerDocumentFile } from "@/components/documents/document-row-actions";
@@ -59,10 +59,10 @@ const CAPABILITY_CARDS = [
     description: "담당자 연락처, 교육 참석·미수강 파트너 조회"
   },
   {
-    icon: BookOpen,
-    title: "행사·기간",
-    description: "행사 자료, 계약월·등급·장비 보유 등 복합 조건 검색"
-  }
+    icon: TrendingUp,
+    title: "실적·파이프라인",
+    description: "파트너 전체 영업기회, 수주 예상 프로젝트, 매출 조회"
+  },
 ];
 
 type SearchChatProps = {
@@ -154,9 +154,9 @@ export function SearchChat({ variant = "page" }: SearchChatProps) {
               ))}
             </div>
 
-            <div className="ui-card p-5">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                오케에게 물어보기
+            <div className="ui-card border-okestro-100/80 bg-gradient-to-br from-white to-okestro-50/35 p-5">
+              <p className="text-xs font-semibold tracking-wide text-okestro-800">
+                Partner AI에게 물어보기
               </p>
               <div className="mt-3 flex flex-col gap-2">
                 {PAGE_EXAMPLE_QUESTIONS.map((question) => (
@@ -280,7 +280,7 @@ export function SearchChat({ variant = "page" }: SearchChatProps) {
             <input
               value={input}
               onChange={(event) => setInput(event.target.value)}
-              placeholder="오케에게 파트너·정책·조건 검색을 요청해 주세요."
+              placeholder="누구지, 연락처, 영업 누구, 될만한 건처럼 편하게 물어보세요."
               className="w-full rounded-xl border border-slate-300 py-3 pl-11 pr-4 text-sm outline-none focus:border-blue-600"
               disabled={isPending}
             />
@@ -333,7 +333,7 @@ function SearchResultPanel({
       >
         <div className="flex items-center gap-2">
           <OkeAvatar size="sm" />
-          <p className="text-2xs font-semibold uppercase tracking-wider text-okestro-700">
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-okestro-700">
             {resultLabel}
           </p>
         </div>

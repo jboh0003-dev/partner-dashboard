@@ -97,7 +97,7 @@ export function PolicyUploadPanel() {
 
     if (applyAsCurrent) {
       const confirmed = window.confirm(
-        "이 정책을 최신 정책으로 적용하시겠습니까?\n기존 최신 정책은 이전 버전으로 보관되며, 오케 AI 검색 기준이 변경됩니다."
+        "이 정책을 최신 정책으로 적용하시겠습니까?\n기존 최신 정책은 이전 버전으로 보관되며, Partner AI 검색 기준이 변경됩니다."
       );
       if (!confirmed) return;
     }
@@ -137,7 +137,7 @@ export function PolicyUploadPanel() {
       <div className="ui-card p-6">
         <h2 className="text-lg font-bold text-slate-900">파트너 정책 업로드</h2>
         <p className="mt-1 text-sm text-slate-600">
-          PPT/PDF 정책 파일을 업로드하면 버전별로 보관되고, 최신 정책이 파트너 정책 화면과 오케 AI에 반영됩니다.
+          PPT/PDF 정책 파일을 업로드하면 버전별로 보관되고, 최신 정책이 파트너 정책 화면과 Partner AI에 반영됩니다.
         </p>
 
         <div className="mt-5 grid gap-4 md:grid-cols-2">

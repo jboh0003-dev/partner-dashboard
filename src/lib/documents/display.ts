@@ -187,12 +187,28 @@ export function getDocumentDisplayFileName(doc: DocumentDisplaySource): string {
   return buildAutoDisplayName(doc);
 }
 
+export function getDocumentLastUploadedAt(doc: {
+  updated_at?: string | null;
+  created_at?: string | null;
+}): string | null {
+  return doc.updated_at?.trim() || doc.created_at?.trim() || null;
+}
+
+function isStorageLikeFileName(name: string): boolean {
+  const trimmed = name.trim();
+  if (!trimmed) return true;
+  if (trimmed.includes("/") || trimmed.includes("\\")) return true;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i.test(trimmed);
+}
+
 export function getDocumentDownloadFileName(doc: DocumentDisplaySource): string {
-  return (
-    doc.original_filename?.trim() ||
-    doc.file_name?.trim() ||
-    `${getDocumentDisplayFileName(doc)}.${resolveDocumentExtension(doc)}`
-  );
+  const original = doc.original_filename?.trim();
+  if (original && !isStorageLikeFileName(original)) return original;
+
+  const fileName = doc.file_name?.trim();
+  if (fileName && !isStorageLikeFileName(fileName)) return fileName;
+
+  return `${getDocumentDisplayFileName(doc)}.${resolveDocumentExtension(doc)}`;
 }
 
 export function resolveDocumentExtension(doc: DocumentDisplaySource): string {

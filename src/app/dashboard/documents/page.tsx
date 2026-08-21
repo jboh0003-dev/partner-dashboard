@@ -53,7 +53,7 @@ export default async function DocumentsPage({
     문서구분: getDocumentTypeShortLabel(row.document_type),
     파일명: getDocumentDisplayFileName(row),
     계약일자: row.contract_date ? formatDate(row.contract_date) : null,
-    업로드일: formatDate(row.created_at),
+    최종업로드일: formatDate(row.updated_at ?? row.created_at),
     상태: isAdmin
       ? getMatchStatusLabel(
           resolveMatchStatus({ match_status: row.match_status, review_status: row.review_status })
@@ -75,6 +75,7 @@ export default async function DocumentsPage({
     file_ext: row.file_ext,
     contract_date: row.contract_date,
     created_at: row.created_at,
+    updated_at: row.updated_at,
     match_status: row.match_status,
     review_status: row.review_status,
     grade_from_file: row.grade_from_file,

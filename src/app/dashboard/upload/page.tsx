@@ -4,16 +4,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
-  Building2,
-  CalendarCheck2,
   CheckCircle2,
   FileSpreadsheet,
-  FileText,
-  GraduationCap,
   Loader2,
-  MonitorUp,
   UploadCloud,
-  Users,
   X
 } from "lucide-react";
 import * as XLSX from "xlsx";
@@ -59,11 +53,12 @@ type UploadType =
 
 type UploadTypeMeta = {
   key: UploadType;
-  title: string;
-  description: string;
+  menuTitle: string;
+  menuHint: string;
+  workTitle: string;
+  workDescription: string;
   sourceFile: string;
   order: number;
-  icon: typeof Building2;
   mode: "active" | "preview_only";
 };
 
@@ -125,6 +120,8 @@ type PartnerContactsAnalysisSummary = {
   duplicate: number;
   review_missing: number;
   baseline_excluded: number;
+  history_only_preserved: number;
+  already_inactive: number;
   merge: number;
 };
 
@@ -136,6 +133,7 @@ type PartnerContactsBaselineExcludedItem = {
   email: string | null;
   reason: string;
   is_history_only?: boolean;
+  category?: "active_current_missing" | "history_only" | "already_inactive";
 };
 
 type MatchState<TItem, TSummary> = {
@@ -173,6 +171,7 @@ type TrainingAttendancePreview = {
     updates: number;
     review: number;
     skipped: number;
+    non_partner: number;
   };
   loading: boolean;
   error: string | null;
@@ -253,70 +252,72 @@ const ACCEPTED_EXT = [".xlsx", ".xls", ".csv"];
 const UPLOAD_TYPES: UploadTypeMeta[] = [
   {
     key: "partner_master",
-    title: "파트너 기본정보 업로드",
-    description: "파트너관리.xlsx를 읽어 partners를 신규 생성 또는 업데이트합니다.",
+    menuTitle: "파트너 기본정보",
+    menuHint: "회사 / 계약 / 등급",
+    workTitle: "파트너 기본정보 업로드",
+    workDescription: "회사·계약·등급 정보를 추가하거나 갱신합니다.",
     sourceFile: "파트너관리.xlsx",
     order: 1,
-    icon: Building2,
     mode: "active"
   },
   {
     key: "partner_contacts",
-    title: "현재 인력/담당자 명단 동기화",
-    description:
-      "파트너 전체 DB.xlsx를 최신 명단 기준으로 동기화합니다. upsert 후 이번 업로드에 없는 active 담당자는 inactive 처리됩니다(삭제 아님). 교육·행사 이력은 유지됩니다.",
+    menuTitle: "인력·담당자",
+    menuHint: "최신 담당자 명단 전체 동기화",
+    workTitle: "현재 인력·담당자 명단 동기화",
+    workDescription: "최신 담당자 명단을 기준으로 동기화합니다. 교육·행사 이력은 유지됩니다.",
     sourceFile: "파트너 전체 DB.xlsx",
     order: 2,
-    icon: Users,
     mode: "active"
   },
   {
     key: "partner_training_summary",
-    title: "파트너 교육 요약 업로드",
-    description: "파트너 교육.xlsx를 읽어 교육 요약 데이터를 반영합니다.",
+    menuTitle: "파트너 교육",
+    menuHint: "파트너 교육 이력",
+    workTitle: "파트너 교육 업로드",
+    workDescription: "파트너 교육 이력을 반영합니다.",
     sourceFile: "파트너 교육.xlsx",
     order: 3,
-    icon: GraduationCap,
     mode: "active"
   },
   {
     key: "training_attendance_detail",
-    title: "정기교육 참석자 상세 업로드",
-    description:
-      "시트 01_교육참석_상세 기준. 필수 4컬럼만으로 업로드 가능하며, 교육구분·평가·연락처 등 선택 컬럼은 있을 때만 저장합니다.",
+    menuTitle: "정기교육 참석자",
+    menuHint: "정기교육 상세 참석자",
+    workTitle: "정기교육 참석자 업로드",
+    workDescription: "정기교육 상세 참석자 명단을 반영합니다.",
     sourceFile: "2026 오케스트로 정기교육 관리시트.xlsx",
     order: 4,
-    icon: CalendarCheck2,
     mode: "active"
   },
   {
     key: "partner_equipment",
-    title: "장비현황 업로드",
-    description:
-      "교육생 관리대장(장비스펙) 파일의 파트너사별 장비규격 시트를 읽어 노드 단위로 partner_assets에 저장합니다.",
+    menuTitle: "장비현황",
+    menuHint: "파트너 보유 장비",
+    workTitle: "장비현황 업로드",
+    workDescription: "파트너 보유 장비를 노드 단위로 반영합니다.",
     sourceFile: "3. 기술파트너교육_ 교육생 관리대장(장비스펙).xlsx",
     order: 5,
-    icon: MonitorUp,
     mode: "active"
   },
   {
     key: "partner_documents",
-    title: "파트너 문서 업로드",
-    description:
-      "압축 해제한 폴더 또는 여러 파일을 선택해 계약서, 신청서, 사업자등록증 등을 partner_documents와 Storage에 저장합니다.",
+    menuTitle: "파트너 문서",
+    menuHint: "계약서 / 신청서 / 사업자등록증 등",
+    workTitle: "파트너 문서 업로드",
+    workDescription: "계약서, 신청서, 사업자등록증 등 문서를 등록합니다.",
     sourceFile: "문서 폴더 (ZIP 해제 후)",
     order: 6,
-    icon: FileText,
     mode: "active"
   },
   {
     key: "partner_application",
-    title: "파트너 신청서 등록",
-    description:
-      "파트너 신청서를 분석하여 회사·담당자·전담인원을 등록하고 계약서를 생성합니다.",
+    menuTitle: "파트너 신청서",
+    menuHint: "신규 파트너 신청 등록",
+    workTitle: "파트너 신청서 등록",
+    workDescription: "신규 파트너 신청서를 분석하고 등록합니다.",
     sourceFile: "파트너 신청서.xlsx",
     order: 7,
-    icon: FileSpreadsheet,
     mode: "active"
   }
 ];
@@ -370,12 +371,17 @@ export default function UploadPage() {
       duplicate: 0,
       review_missing: 0,
       baseline_excluded: 0,
+      history_only_preserved: 0,
+      already_inactive: 0,
       merge: 0
     },
     loading: false,
     error: null
   });
-  const [partnerContactsReviewMissing, setPartnerContactsReviewMissing] = useState<
+  const [partnerContactsBaselineExcluded, setPartnerContactsBaselineExcluded] = useState<
+    PartnerContactsBaselineExcludedItem[]
+  >([]);
+  const [partnerContactsHistoryOnly, setPartnerContactsHistoryOnly] = useState<
     PartnerContactsBaselineExcludedItem[]
   >([]);
   const [partnerEquipmentPreview, setPartnerEquipmentPreview] = useState<
@@ -401,7 +407,8 @@ export default function UploadPage() {
         new_attendees: 0,
         updates: 0,
         review: 0,
-        skipped: 0
+        skipped: 0,
+        non_partner: 0
       },
       loading: false,
       error: null
@@ -413,9 +420,32 @@ export default function UploadPage() {
   const saveLockRef = useRef(false);
   const [saveSummary, setSaveSummary] = useState<SaveSummary | null>(null);
   const [saveResults, setSaveResults] = useState<SaveResult[]>([]);
-  const [saveError, setSaveError] = useState<string | null>(null);
+  /** 업로드 유형별 저장 오류 — 다른 작업 stale error가 섞이지 않음 */
+  const [saveErrorsByType, setSaveErrorsByType] = useState<
+    Partial<Record<UploadType, string | null>>
+  >({});
 
   const selectedMeta = UPLOAD_TYPES.find((item) => item.key === selectedType)!;
+  const saveError = saveErrorsByType[selectedType] ?? null;
+
+  const emptyContactsSummary = (): PartnerContactsAnalysisSummary => ({
+    total: 0,
+    matched_partners: 0,
+    create: 0,
+    update: 0,
+    skip: 0,
+    review: 0,
+    duplicate: 0,
+    review_missing: 0,
+    baseline_excluded: 0,
+    history_only_preserved: 0,
+    already_inactive: 0,
+    merge: 0
+  });
+
+  function setSaveErrorForType(type: UploadType, message: string | null) {
+    setSaveErrorsByType((prev) => ({ ...prev, [type]: message }));
+  }
 
   const importableTrainingRows = useMemo(
     () => (partnerTrainingResult ? partnerTrainingResult.rows.filter((row) => !row.excluded) : []),
@@ -487,11 +517,12 @@ export default function UploadPage() {
     if (selectedType !== "partner_contacts" || !partnerContactsResult) {
       setPartnerContactsPreview({
         items: [],
-        summary: { total: 0, matched_partners: 0, create: 0, update: 0, skip: 0, review: 0, duplicate: 0, review_missing: 0, baseline_excluded: 0, merge: 0 },
+        summary: emptyContactsSummary(),
         loading: false,
         error: null
       });
-      setPartnerContactsReviewMissing([]);
+      setPartnerContactsBaselineExcluded([]);
+      setPartnerContactsHistoryOnly([]);
       return;
     }
 
@@ -512,28 +543,38 @@ export default function UploadPage() {
         }
         setPartnerContactsPreview({
           items: json.items as PartnerContactsAnalysisItem[],
-          summary: json.summary as PartnerContactsAnalysisSummary,
+          summary: {
+            ...emptyContactsSummary(),
+            ...(json.summary as PartnerContactsAnalysisSummary)
+          },
           loading: false,
           error: null
         });
-        setPartnerContactsReviewMissing(
-          (json.baselineExcluded ?? json.reviewMissing ?? []) as PartnerContactsBaselineExcludedItem[]
+        setPartnerContactsBaselineExcluded(
+          (json.baselineExcluded ?? []) as PartnerContactsBaselineExcludedItem[]
         );
+        setPartnerContactsHistoryOnly(
+          (json.historyOnlyPreserved ?? []) as PartnerContactsBaselineExcludedItem[]
+        );
+        // 분석 성공 시 이 유형의 이전 저장 오류만 제거 (다른 유형 error는 유지)
+        setSaveErrorForType("partner_contacts", null);
       } catch (error) {
         if (cancelled) return;
         setPartnerContactsPreview({
           items: [],
-          summary: { total: 0, matched_partners: 0, create: 0, update: 0, skip: 0, review: 0, duplicate: 0, review_missing: 0, baseline_excluded: 0, merge: 0 },
+          summary: emptyContactsSummary(),
           loading: false,
           error: error instanceof Error ? error.message : "담당자 업로드 미리보기에 실패했습니다."
         });
-        setPartnerContactsReviewMissing([]);
+        setPartnerContactsBaselineExcluded([]);
+        setPartnerContactsHistoryOnly([]);
       }
     })();
 
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [partnerContactsResult, selectedType]);
 
   useEffect(() => {
@@ -594,7 +635,8 @@ export default function UploadPage() {
           new_attendees: 0,
           updates: 0,
           review: 0,
-          skipped: 0
+          skipped: 0,
+          non_partner: 0
         },
         loading: false,
         error: null
@@ -634,7 +676,8 @@ export default function UploadPage() {
             new_attendees: 0,
             updates: 0,
             review: 0,
-            skipped: 0
+            skipped: 0,
+            non_partner: 0
           },
           loading: false,
           error:
@@ -722,7 +765,7 @@ export default function UploadPage() {
         setSaveCompleted(false);
         setSaveSummary(null);
         setSaveResults([]);
-        setSaveError(null);
+        setSaveErrorForType(selectedType, null);
 
         if (selectedType === "partner_master") {
           const result = parsePartnerMasterWorkbook(workbook);
@@ -787,22 +830,12 @@ export default function UploadPage() {
     });
     setPartnerContactsPreview({
       items: [],
-      summary: {
-        total: 0,
-        matched_partners: 0,
-        create: 0,
-        update: 0,
-        skip: 0,
-        review: 0,
-        duplicate: 0,
-        review_missing: 0,
-        baseline_excluded: 0,
-        merge: 0
-      },
+      summary: emptyContactsSummary(),
       loading: false,
       error: null
     });
-    setPartnerContactsReviewMissing([]);
+    setPartnerContactsBaselineExcluded([]);
+    setPartnerContactsHistoryOnly([]);
     setPartnerEquipmentPreview({
       items: [],
       summary: { total: 0, partner_count: 0, matched_partners: 0, unmatched_partners: 0, create: 0, update: 0, skip: 0, review: 0 },
@@ -818,14 +851,15 @@ export default function UploadPage() {
         new_attendees: 0,
         updates: 0,
         review: 0,
-        skipped: 0
+        skipped: 0,
+        non_partner: 0
       },
       loading: false,
       error: null
     });
     setSaveSummary(null);
     setSaveResults([]);
-    setSaveError(null);
+    setSaveErrorForType(selectedType, null);
     setParseError(null);
     setFileName(null);
     setSourceFile(null);
@@ -881,7 +915,7 @@ export default function UploadPage() {
     saveLockRef.current = true;
     try {
       setIsSaving(true);
-      setSaveError(null);
+      setSaveErrorForType(selectedType, null);
       setSaveSummary(null);
       setSaveResults([]);
 
@@ -934,21 +968,12 @@ export default function UploadPage() {
         setPartnerContactsResult(null);
         setPartnerContactsPreview({
           items: [],
-          summary: {
-            total: 0,
-            matched_partners: 0,
-            create: 0,
-            update: 0,
-            skip: 0,
-            review: 0,
-            duplicate: 0,
-            review_missing: 0,
-            baseline_excluded: 0,
-            merge: 0
-          },
+          summary: emptyContactsSummary(),
           loading: false,
           error: null
         });
+        setPartnerContactsBaselineExcluded([]);
+        setPartnerContactsHistoryOnly([]);
         setSourceFile(null);
         setFileName(null);
         if (fileInputRef.current) fileInputRef.current.value = "";
@@ -1012,7 +1037,10 @@ export default function UploadPage() {
         return;
       }
     } catch (error) {
-      setSaveError(error instanceof Error ? error.message : "저장에 실패했습니다.");
+      setSaveErrorForType(
+        selectedType,
+        error instanceof Error ? error.message : "저장에 실패했습니다."
+      );
     } finally {
       setIsSaving(false);
       saveLockRef.current = false;
@@ -1026,10 +1054,21 @@ export default function UploadPage() {
     trainingAttendancePreview.summary.review +
     trainingAttendancePreview.summary.skipped;
 
+  const analyzeBlockingError =
+    (selectedType === "partner_master" && !!partnerMasterPreview.error) ||
+    (selectedType === "partner_contacts" &&
+      (!!partnerContactsPreview.error || partnerContactsPreview.loading)) ||
+    (selectedType === "partner_equipment" && !!partnerEquipmentPreview.error) ||
+    (selectedType === "partner_training_summary" && !!trainingMatchPreview.error) ||
+    (selectedType === "training_attendance_detail" && !!trainingAttendancePreview.error);
+
   const canSave =
     !saveCompleted &&
+    !analyzeBlockingError &&
     ((selectedType === "partner_master" && !!partnerMasterResult) ||
-      (selectedType === "partner_contacts" && !!partnerContactsResult) ||
+      (selectedType === "partner_contacts" &&
+        !!partnerContactsResult &&
+        partnerContactsPreview.summary.total > 0) ||
       (selectedType === "partner_training_summary" && !!partnerTrainingResult) ||
       (selectedType === "partner_equipment" &&
         !!partnerEquipmentResult &&
@@ -1039,6 +1078,10 @@ export default function UploadPage() {
         !!trainingAttendanceResult &&
         !trainingAttendancePreview.loading &&
         trainingAnalysisTotal > 0));
+
+  const contactReviewItems = partnerContactsPreview.items.filter(
+    (item) => item.action === "review" || item.action === "duplicate"
+  );
 
   const reviewCount =
     selectedType === "partner_master"
@@ -1054,73 +1097,53 @@ export default function UploadPage() {
   return (
     <>
       <PageHeader
-        title="엑셀 업로드"
-        description="업로드 유형을 선택한 뒤 분석, 미리보기, 저장을 순서대로 진행합니다."
+        title="데이터 업로드"
+        description="위에서 업로드 종류를 선택한 뒤, 아래 작업 영역에서 파일을 올리고 저장합니다."
       />
-
-      {selectedType === "partner_contacts" ? (
-        <ImportJobsPanel importType="contact_full_db_upload" pollFast={isSaving} />
-      ) : null}
-
-      <section className="mb-6">
-        <div className="mb-3 text-sm font-semibold text-slate-900">권장 업로드 순서</div>
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          {UPLOAD_TYPES.map((item) => (
-            <div
-              key={item.key}
-              className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
-            >
-              <div className="text-xs font-semibold text-slate-400">0{item.order}</div>
-              <div className="mt-1 text-sm font-semibold text-slate-900">{item.title}</div>
-              <div className="mt-2 text-xs text-slate-500">{item.sourceFile}</div>
-            </div>
-          ))}
-        </div>
-      </section>
 
       <UploadTypeSelector selectedType={selectedType} onChange={setSelectedType} />
 
       {selectedType === "partner_master" ? <PartnerDuplicatesPanel /> : null}
 
-      {selectedType === "partner_documents" ? (
-        <PartnerDocumentsUploadSection />
-      ) : selectedType === "partner_application" ? (
-        <PartnerApplicationUploadSection />
-      ) : (
-        <>
       <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <div className="text-sm font-semibold text-slate-900">{selectedMeta.title}</div>
-            <div className="mt-1 text-sm text-slate-500">{selectedMeta.description}</div>
-            <div className="mt-2 text-xs text-slate-400">권장 파일명: {selectedMeta.sourceFile}</div>
-          </div>
-          <span
-            className={[
-              "inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold",
-              selectedMeta.mode === "active"
-                ? "bg-blue-50 text-blue-700"
-                : "bg-amber-50 text-amber-700"
-            ].join(" ")}
-          >
-            {selectedMeta.mode === "active" ? "업로드 가능" : "준비중"}
-          </span>
+        <div>
+          <div className="text-base font-semibold text-slate-900">{selectedMeta.workTitle}</div>
+          <p className="mt-1 text-sm text-slate-600">{selectedMeta.workDescription}</p>
+          <p className="mt-2 text-xs text-slate-400">권장 파일: {selectedMeta.sourceFile}</p>
         </div>
 
         {selectedType === "partner_master" ? (
-          <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
-            <div className="text-xs font-semibold text-slate-700">업로드 모드</div>
-            <div className="mt-2 flex flex-wrap gap-4 text-sm text-slate-700">
-              <label className="inline-flex items-center gap-2">
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <label
+              className={[
+                "cursor-pointer rounded-xl border p-3 text-sm",
+                partnerMasterUploadMode === "update"
+                  ? "border-blue-400 bg-blue-50"
+                  : "border-slate-200 bg-slate-50"
+              ].join(" ")}
+            >
+              <span className="flex items-center gap-2 font-semibold text-slate-900">
                 <input
                   type="radio"
                   name="partner_master_upload_mode"
                   checked={partnerMasterUploadMode === "update"}
                   onChange={() => setPartnerMasterUploadMode("update")}
                 />
-                갱신 업로드 (기본)
-              </label>
-              <label className="inline-flex items-center gap-2">
+                갱신 업로드
+              </span>
+              <span className="mt-1 block pl-6 text-xs leading-relaxed text-slate-500">
+                현재 Excel에 있는 파트너만 추가/갱신합니다.
+              </span>
+            </label>
+            <label
+              className={[
+                "cursor-pointer rounded-xl border p-3 text-sm",
+                partnerMasterUploadMode === "full_sync"
+                  ? "border-blue-400 bg-blue-50"
+                  : "border-slate-200 bg-slate-50"
+              ].join(" ")}
+            >
+              <span className="flex items-center gap-2 font-semibold text-slate-900">
                 <input
                   type="radio"
                   name="partner_master_upload_mode"
@@ -1128,16 +1151,30 @@ export default function UploadPage() {
                   onChange={() => setPartnerMasterUploadMode("full_sync")}
                 />
                 전체 동기화
-              </label>
-            </div>
-            <p className="mt-2 text-xs leading-relaxed text-slate-500">
-              갱신 업로드: 엑셀 행은 upsert(신규 insert / 기존 update)하고, 엑셀에 없는 기존
-              파트너는 건드리지 않습니다. 전체 동기화: 엑셀에 없는 기존 파트너를
-              &quot;엑셀에서 누락됨&quot;으로 표시합니다(자동 삭제 없음).
-            </p>
+              </span>
+              <span className="mt-1 block pl-6 text-xs leading-relaxed text-slate-500">
+                Excel에 없는 기존 파트너도 비교 대상으로 표시합니다. 자동 삭제하지 않습니다.
+              </span>
+            </label>
           </div>
         ) : null}
 
+        {selectedType === "partner_contacts" ? (
+          <div className="mt-4">
+            <ImportJobsPanel importType="contact_full_db_upload" pollFast={isSaving} />
+          </div>
+        ) : null}
+
+        {selectedType === "partner_documents" ? (
+          <div className="mt-5">
+            <PartnerDocumentsUploadSection />
+          </div>
+        ) : selectedType === "partner_application" ? (
+          <div className="mt-5">
+            <PartnerApplicationUploadSection embedded />
+          </div>
+        ) : (
+          <>
         <div
           onDragOver={(event) => {
             event.preventDefault();
@@ -1206,9 +1243,8 @@ export default function UploadPage() {
             {parseError}
           </div>
         ) : null}
-      </section>
 
-      <section className="mb-6 grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+      <section className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
         <SummaryPanel
           selectedType={selectedType}
           selectedMeta={selectedMeta}
@@ -1280,9 +1316,16 @@ export default function UploadPage() {
           {selectedType === "partner_contacts" &&
           partnerContactsPreview.summary.baseline_excluded > 0 ? (
             <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
-              현재 목록에서 제외 예정 {partnerContactsPreview.summary.baseline_excluded}명 — 이번
-              전체DB.xlsx에 없는 기존 contact는 baseline reset으로 현재 인력 목록에서 제외됩니다.
-              (교육/행사 이력은 유지)
+              현재 명단에서 제외 예정 {partnerContactsPreview.summary.baseline_excluded}명
+              (is_active + in_current_full_db). 교육/행사 이력{" "}
+              {partnerContactsPreview.summary.history_only_preserved}명 · 이미 비활성{" "}
+              {partnerContactsPreview.summary.already_inactive}명은 제외 예정에 포함하지 않습니다.
+            </div>
+          ) : null}
+
+          {selectedType === "partner_contacts" && partnerContactsPreview.error ? (
+            <div className="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+              분석 오류: {partnerContactsPreview.error}
             </div>
           ) : null}
 
@@ -1377,25 +1420,71 @@ export default function UploadPage() {
 
         {selectedType === "partner_contacts" && partnerContactsResult ? (
           <>
-            <PartnerContactsPreviewTable
-              items={partnerContactsPreview.items}
-              loading={partnerContactsPreview.loading}
-            />
-            {partnerContactsReviewMissing.length > 0 ? (
-              <div className="mt-4">
-                <p className="mb-2 text-xs font-semibold text-amber-800">
-                  검토 필요 이동 예정 ({partnerContactsReviewMissing.length}명)
+            {contactReviewItems.length > 0 ? (
+              <div className="mb-4">
+                <p className="mb-2 text-xs font-semibold text-rose-800">
+                  이름 없음/검토 필요 ({contactReviewItems.length}건)
                 </p>
                 <PreviewTable
-                  headers={["회사명", "담당자", "이메일", "사유"]}
-                  rows={partnerContactsReviewMissing.slice(0, 100).map((item) => [
-                    item.partner_name,
-                    item.contact_name,
+                  headers={[
+                    "row",
+                    "회사명",
+                    "담당자",
+                    "이메일",
+                    "전화",
+                    "action",
+                    "사유"
+                  ]}
+                  rows={contactReviewItems.map((item) => [
+                    String(item.row_number),
+                    item.company_name,
+                    item.contact_name || "-",
                     item.email ?? "-",
+                    item.phone ?? "-",
+                    item.action,
                     item.reason
                   ])}
                 />
               </div>
+            ) : null}
+            <PartnerContactsPreviewTable
+              items={partnerContactsPreview.items}
+              loading={partnerContactsPreview.loading}
+            />
+            {partnerContactsBaselineExcluded.length > 0 ? (
+              <details className="mt-4 rounded-xl border border-amber-200 bg-amber-50/60 p-3">
+                <summary className="cursor-pointer text-xs font-semibold text-amber-900">
+                  현재 명단에서 제외 예정 {partnerContactsBaselineExcluded.length}명 펼쳐보기
+                  (회사명 / 이름 / 이메일)
+                </summary>
+                <div className="mt-3">
+                  <PreviewTable
+                    headers={["회사명", "담당자", "이메일"]}
+                    rows={partnerContactsBaselineExcluded.map((item) => [
+                      item.partner_name,
+                      item.contact_name,
+                      item.email ?? "-"
+                    ])}
+                  />
+                </div>
+              </details>
+            ) : null}
+            {partnerContactsHistoryOnly.length > 0 ? (
+              <details className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                <summary className="cursor-pointer text-xs font-semibold text-slate-700">
+                  교육/행사 이력 보존 {partnerContactsHistoryOnly.length}명 (현재 명단 제외 아님)
+                </summary>
+                <div className="mt-3">
+                  <PreviewTable
+                    headers={["회사명", "담당자", "이메일"]}
+                    rows={partnerContactsHistoryOnly.slice(0, 100).map((item) => [
+                      item.partner_name,
+                      item.contact_name,
+                      item.email ?? "-"
+                    ])}
+                  />
+                </div>
+              </details>
             ) : null}
           </>
         ) : null}
@@ -1487,6 +1576,7 @@ export default function UploadPage() {
       ) : null}
         </>
       )}
+      </section>
     </>
   );
 }
@@ -1499,32 +1589,32 @@ function UploadTypeSelector({
   onChange: (value: UploadType) => void;
 }) {
   return (
-    <section className="mb-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-      {UPLOAD_TYPES.map((item) => {
-        const Icon = item.icon;
-        const selected = item.key === selectedType;
-        return (
-          <button
-            key={item.key}
-            type="button"
-            onClick={() => onChange(item.key)}
-            className={[
-              "rounded-2xl border p-5 text-left shadow-sm transition",
-              selected
-                ? "border-blue-500 bg-blue-50"
-                : "border-slate-200 bg-white hover:border-slate-300"
-            ].join(" ")}
-          >
-            <div className="flex items-start justify-between gap-3">
-              <Icon className={selected ? "text-blue-700" : "text-slate-500"} size={20} />
-              <span className="text-xs font-semibold text-slate-400">0{item.order}</span>
-            </div>
-            <div className="mt-4 text-sm font-semibold text-slate-900">{item.title}</div>
-            <div className="mt-2 text-sm text-slate-500">{item.description}</div>
-            <div className="mt-3 text-xs text-slate-400">{item.sourceFile}</div>
-          </button>
-        );
-      })}
+    <section className="mb-6">
+      <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+        업로드 종류
+      </div>
+      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-7">
+        {UPLOAD_TYPES.map((item) => {
+          const selected = item.key === selectedType;
+          return (
+            <button
+              key={item.key}
+              type="button"
+              onClick={() => onChange(item.key)}
+              className={[
+                "rounded-xl border px-3 py-3 text-left transition",
+                selected
+                  ? "border-blue-500 bg-blue-50"
+                  : "border-slate-200 bg-white hover:border-slate-300"
+              ].join(" ")}
+            >
+              <div className="text-[11px] font-semibold text-slate-400">0{item.order}</div>
+              <div className="mt-1 text-sm font-semibold text-slate-900">{item.menuTitle}</div>
+              <div className="mt-1 text-xs leading-snug text-slate-500">{item.menuHint}</div>
+            </button>
+          );
+        })}
+      </div>
     </section>
   );
 }
@@ -1560,100 +1650,150 @@ function SummaryPanel({
   trainingAttendancePreview: TrainingAttendancePreview;
   genericPreview: GenericPreview | null;
 }) {
-  const cards: Array<{ label: string; value: number | string }> = [];
+  const cards: Array<{
+    label: string;
+    value: number | string;
+    tone?: "default" | "caution" | "alert";
+  }> = [];
 
   if (selectedType === "partner_master" && partnerMasterResult) {
+    const missing =
+      partnerMasterPreview.summary.missing_from_excel ?? partnerMasterMissing.length;
     cards.push(
-      { label: "전체 행 수", value: partnerMasterPreview.summary.total },
-      { label: "신규 추가", value: partnerMasterPreview.summary.create },
-      { label: "기존 갱신", value: partnerMasterPreview.summary.update },
-      { label: "변경 없음", value: partnerMasterPreview.summary.skip },
-      { label: "중복 의심", value: partnerMasterPreview.summary.review },
+      { label: "전체", value: partnerMasterPreview.summary.total },
+      { label: "신규", value: partnerMasterPreview.summary.create },
+      { label: "갱신", value: partnerMasterPreview.summary.update },
       {
-        label: "엑셀 누락",
-        value: partnerMasterPreview.summary.missing_from_excel ?? partnerMasterMissing.length
+        label: "제외 예정",
+        value: missing,
+        tone: missing > 0 ? "caution" : "default"
+      },
+      {
+        label: "검토 필요",
+        value: partnerMasterPreview.summary.review,
+        tone: partnerMasterPreview.summary.review > 0 ? "caution" : "default"
       }
     );
   } else if (selectedType === "partner_contacts" && partnerContactsResult) {
+    const excluded = partnerContactsPreview.summary.baseline_excluded;
+    const review = partnerContactsPreview.summary.review;
+    const dup = partnerContactsPreview.summary.duplicate + partnerContactsPreview.summary.merge;
     cards.push(
-      { label: "전체 행 수", value: partnerContactsPreview.summary.total },
-      { label: "파트너 매칭 성공", value: partnerContactsPreview.summary.matched_partners },
-      { label: "신규 담당자", value: partnerContactsPreview.summary.create },
-      { label: "기존 담당자 갱신", value: partnerContactsPreview.summary.update },
-      { label: "이름 없음/검토 필요", value: partnerContactsPreview.summary.review },
-      { label: "중복 의심", value: partnerContactsPreview.summary.duplicate },
-      { label: "중복 병합", value: partnerContactsPreview.summary.merge },
-      { label: "현재 목록 제외 예정", value: partnerContactsPreview.summary.baseline_excluded },
-      { label: "제외", value: partnerContactsPreview.summary.skip }
+      { label: "전체", value: partnerContactsPreview.summary.total },
+      { label: "신규", value: partnerContactsPreview.summary.create },
+      { label: "갱신", value: partnerContactsPreview.summary.update },
+      { label: "제외 예정", value: excluded, tone: excluded > 0 ? "caution" : "default" },
+      { label: "검토 필요", value: review, tone: review > 0 ? "caution" : "default" },
+      { label: "중복", value: dup, tone: dup > 0 ? "caution" : "default" }
     );
   } else if (selectedType === "partner_equipment" && partnerEquipmentResult) {
+    const review = partnerEquipmentPreview.summary.review;
+    const skip = partnerEquipmentPreview.summary.skip;
     cards.push(
-      { label: "파싱된 파트너 수", value: partnerEquipmentResult.partner_count },
-      { label: "매칭 성공 파트너 수", value: partnerEquipmentPreview.summary.matched_partners },
-      { label: "매칭 실패 파트너 수", value: partnerEquipmentPreview.summary.unmatched_partners },
-      { label: "생성 예정 장비 행", value: partnerEquipmentPreview.summary.create },
-      { label: "업데이트 예정 장비 행", value: partnerEquipmentPreview.summary.update },
-      { label: "확인필요 건수", value: partnerEquipmentPreview.summary.review },
-      { label: "제외 예정", value: partnerEquipmentPreview.summary.skip }
+      { label: "전체", value: partnerEquipmentPreview.summary.total },
+      { label: "신규", value: partnerEquipmentPreview.summary.create },
+      { label: "갱신", value: partnerEquipmentPreview.summary.update },
+      { label: "제외 예정", value: skip, tone: skip > 0 ? "caution" : "default" },
+      { label: "검토 필요", value: review, tone: review > 0 ? "caution" : "default" }
     );
   } else if (selectedType === "partner_training_summary" && partnerTrainingResult) {
+    const skipped = partnerTrainingResult.excluded_count;
     cards.push(
-      { label: "전체 행 수", value: partnerTrainingResult.total_rows },
-      { label: "제외 행 수", value: partnerTrainingResult.excluded_count },
-      { label: "경고 수", value: partnerTrainingResult.warning_count },
-      { label: "신규 예정", value: trainingMatchPreview.new },
-      { label: "업데이트 예정", value: trainingMatchPreview.update }
+      { label: "전체", value: partnerTrainingResult.total_rows },
+      { label: "신규", value: trainingMatchPreview.new },
+      { label: "갱신", value: trainingMatchPreview.update },
+      { label: "제외 예정", value: skipped, tone: skipped > 0 ? "caution" : "default" }
     );
   } else if (selectedType === "training_attendance_detail" && trainingAttendanceResult) {
+    const review = trainingAttendancePreview.summary.review;
+    const skipped = trainingAttendancePreview.summary.skipped;
     cards.push(
-      { label: "파싱된 전체 행", value: trainingAttendanceResult.total_rows },
-      { label: "분석 대상 행", value: trainingAttendanceResult.importable_count },
-      { label: "제외 행", value: trainingAttendanceResult.excluded_count },
-      { label: "신규 교육 생성 예정", value: trainingAttendancePreview.summary.new_trainings },
-      { label: "신규 참석자 생성 예정", value: trainingAttendancePreview.summary.new_attendees },
-      { label: "업데이트 예정", value: trainingAttendancePreview.summary.updates },
-      { label: "확인필요 예정", value: trainingAttendancePreview.summary.review },
-      { label: "스킵 예정", value: trainingAttendancePreview.summary.skipped }
+      { label: "전체", value: trainingAttendanceResult.total_rows },
+      {
+        label: "신규",
+        value:
+          trainingAttendancePreview.summary.new_trainings +
+          trainingAttendancePreview.summary.new_attendees
+      },
+      { label: "갱신", value: trainingAttendancePreview.summary.updates },
+      { label: "제외 예정", value: skipped, tone: skipped > 0 ? "caution" : "default" },
+      {
+        label: "비파트너 교육생",
+        value: trainingAttendancePreview.summary.non_partner ?? 0
+      },
+      { label: "검토 필요", value: review, tone: review > 0 ? "caution" : "default" }
     );
   } else if (genericPreview) {
     cards.push(
-      { label: "시트명", value: genericPreview.selectedSheet },
-      { label: "행 수", value: genericPreview.totalRows },
-      { label: "헤더 수", value: genericPreview.headers.length }
-    );
-  } else {
-    cards.push(
-      { label: "상태", value: selectedMeta.mode === "active" ? "대기중" : "준비중" },
-      { label: "권장 파일", value: selectedMeta.sourceFile }
+      { label: "전체", value: genericPreview.totalRows },
+      { label: "시트", value: genericPreview.selectedSheet }
     );
   }
 
+  const analysisError =
+    (selectedType === "partner_master" && partnerMasterPreview.error) ||
+    (selectedType === "partner_contacts" && partnerContactsPreview.error) ||
+    (selectedType === "partner_equipment" && partnerEquipmentPreview.error) ||
+    (selectedType === "partner_training_summary" && trainingMatchPreview.error) ||
+    (selectedType === "training_attendance_detail" && trainingAttendancePreview.error) ||
+    null;
+
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="mb-4 text-sm font-semibold text-slate-900">분석 요약</div>
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-        {cards.map((card) => (
-          <div key={card.label} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-            <div className="text-xs font-semibold text-slate-400">{card.label}</div>
-            <div className="mt-2 text-lg font-bold text-slate-950">{card.value}</div>
-          </div>
-        ))}
-      </div>
+      <div className="mb-4 text-sm font-semibold text-slate-900">분석 결과</div>
+      {cards.length === 0 ? (
+        <p className="text-sm text-slate-500">파일을 선택하면 분석 결과가 여기에 표시됩니다.</p>
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {cards.map((card) => (
+            <div
+              key={card.label}
+              className={[
+                "rounded-xl border p-4",
+                card.tone === "alert"
+                  ? "border-rose-200 bg-rose-50"
+                  : card.tone === "caution"
+                    ? "border-amber-200 bg-amber-50"
+                    : "border-slate-200 bg-slate-50"
+              ].join(" ")}
+            >
+              <div
+                className={[
+                  "text-xs font-semibold",
+                  card.tone === "alert"
+                    ? "text-rose-700"
+                    : card.tone === "caution"
+                      ? "text-amber-800"
+                      : "text-slate-400"
+                ].join(" ")}
+              >
+                {card.label}
+              </div>
+              <div
+                className={[
+                  "mt-2 text-lg font-bold",
+                  card.tone === "alert"
+                    ? "text-rose-900"
+                    : card.tone === "caution"
+                      ? "text-amber-950"
+                      : "text-slate-950"
+                ].join(" ")}
+              >
+                {card.value}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
-      {selectedType === "partner_master" && partnerMasterPreview.error ? (
-        <ErrorBox message={partnerMasterPreview.error} />
-      ) : null}
-      {selectedType === "partner_contacts" && partnerContactsPreview.error ? (
-        <ErrorBox message={partnerContactsPreview.error} />
-      ) : null}
-      {selectedType === "partner_equipment" && partnerEquipmentPreview.error ? (
-        <ErrorBox message={partnerEquipmentPreview.error} />
-      ) : null}
-      {selectedType === "partner_training_summary" && trainingMatchPreview.error ? (
-        <ErrorBox message={trainingMatchPreview.error} />
-      ) : null}
-      {selectedType === "training_attendance_detail" && trainingAttendancePreview.error ? (
-        <ErrorBox message={trainingAttendancePreview.error} />
+      {analysisError ? <ErrorBox message={analysisError} /> : null}
+
+      {selectedType === "partner_contacts" && partnerContactsResult ? (
+        <p className="mt-3 text-xs text-slate-500">
+          교육/행사 이력 {partnerContactsPreview.summary.history_only_preserved ?? 0}명, 이미
+          비활성 {partnerContactsPreview.summary.already_inactive ?? 0}명은 제외 예정에 넣지
+          않습니다.
+        </p>
       ) : null}
     </div>
   );

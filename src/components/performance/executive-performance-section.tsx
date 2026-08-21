@@ -12,7 +12,7 @@ import {
 import type { ExecutivePerformanceStats } from "@/types/partner-performance";
 
 const PIPELINE_CARD_CLASS =
-  "flex h-full min-h-[10.5rem] flex-col rounded-xl border border-slate-300/90 bg-white p-5 shadow-sm";
+  "flex h-full min-h-[10.5rem] flex-col rounded-2xl border border-slate-200/80 bg-white p-5 shadow-card";
 
 export function ExecutivePerformanceSection({ stats }: { stats: ExecutivePerformanceStats }) {
   return (
@@ -30,7 +30,7 @@ export function ExecutivePipelineSummarySection({ stats }: { stats: ExecutivePer
   if (!latest) {
     return (
       <section className="mt-6 space-y-3">
-        <SectionHeader title="2026 파이프라인 요약" href="/dashboard/performance/upload" hrefLabel="업로드" />
+        <SectionHeader title="파트너 파이프라인" href="/dashboard/performance/upload" hrefLabel="업로드" />
         <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-6 text-sm font-medium text-slate-700">
           아직 업로드된 파이프라인 스냅샷이 없습니다.{" "}
           <Link href="/dashboard/performance/upload" className="font-bold text-okestro-700 hover:underline">
@@ -42,45 +42,75 @@ export function ExecutivePipelineSummarySection({ stats }: { stats: ExecutivePer
     );
   }
 
-  const topWin = stats.win_forecast_top10[0];
+  const topPartner = stats.all_opportunity_top10[0] ?? stats.expected_win_top10[0];
   const revenue = stats.revenue_summary;
   const hasRevenueData = revenue.has_data;
-
-  const winShare =
-    latest.total_pipeline_amount_million && latest.total_pipeline_amount_million > 0
-      ? (latest.partner_pipeline_amount_million ?? 0) / latest.total_pipeline_amount_million
-      : null;
-  const newShare =
-    latest.new_total_pipeline_amount_million && latest.new_total_pipeline_amount_million > 0
-      ? (latest.new_partner_pipeline_amount_million ?? 0) / latest.new_total_pipeline_amount_million
+  const expectedShare =
+    stats.all_opportunity_amount_million > 0
+      ? stats.expected_win_amount_million / stats.all_opportunity_amount_million
       : null;
 
   return (
     <section className="mt-6 space-y-3">
-      <SectionHeader title="2026 파이프라인 요약" href="/dashboard/performance" hrefLabel="파이프라인 상세" />
+      <SectionHeader
+        title="파트너 파이프라인"
+        href="/dashboard/performance"
+        hrefLabel="파이프라인 상세"
+      />
+      <p className="text-xs text-slate-500">
+        기준일 {latest.snapshot_date} ({latest.snapshot_label}) · FY26 · 파트너딜 · 제품매출
+      </p>
       <div
         className={`grid grid-cols-1 gap-3 sm:grid-cols-2 ${hasRevenueData ? "xl:grid-cols-4" : "xl:grid-cols-3"}`}
       >
         <PipelineCard
-          title="2026 수주예상 파트너 파이프라인"
-          amount={latest.partner_pipeline_amount_million}
-          count={latest.partner_pipeline_count}
-          share={winShare}
-        />
-        <PipelineCard
-          title="2026 신규등록 파트너 파이프라인"
-          amount={latest.new_partner_pipeline_amount_million}
-          count={latest.new_partner_pipeline_count}
-          share={newShare}
+          title="수주예상 파이프라인"
+          amount={stats.expected_win_amount_million}
+          count={stats.expected_win_count}
+          share={expectedShare}
+          shareLabel="전체 영업기회 대비"
+          hint="2026년 · 50%(F) 이상"
+          featured
         />
         <TopPartnerCard
           title="TOP 파이프라인 파트너"
-          partnerName={topWin?.partner_name}
-          amount={topWin?.amount_million ?? null}
-          count={topWin?.project_count ?? null}
+          partnerName={stats.expected_win_top10[0]?.partner_name ?? topPartner?.partner_name}
+          amount={stats.expected_win_top10[0]?.amount_million ?? topPartner?.amount_million ?? null}
+          count={stats.expected_win_top10[0]?.project_count ?? topPartner?.project_count ?? null}
+        />
+        <PipelineCard
+          title="전체 영업기회"
+          amount={stats.all_opportunity_amount_million}
+          count={stats.all_opportunity_count}
+          share={null}
+          hint="파트너딜 · 제품매출"
         />
         {hasRevenueData ? <RevenueSummaryCard revenue={revenue} /> : null}
       </div>
+      {stats.win_probability_breakdown.length > 0 ? (
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-card">
+          <h3 className="text-sm font-bold text-slate-900">수주확도 · 50%(F) 이상 우선</h3>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {stats.win_probability_breakdown
+              .filter((row) => ["50%(F)", "75%", "90%", "100%"].includes(row.label))
+              .map((row) => (
+                <span
+                  key={row.label}
+                  className="rounded-full bg-okestro-50 px-3 py-1 text-xs font-semibold text-okestro-800 ring-1 ring-okestro-100"
+                >
+                  {row.label}: {formatMillion(row.amount_million)} ({formatCount(row.count)})
+                </span>
+              ))}
+          </div>
+          <p className="mt-3 text-xs text-slate-500">
+            보조{" "}
+            {stats.win_probability_breakdown
+              .filter((row) => ["0%", "25%", "50%(U)"].includes(row.label) && row.count > 0)
+              .map((row) => `${row.label} ${formatCount(row.count)}`)
+              .join(" · ") || "없음"}
+          </p>
+        </div>
+      ) : null}
     </section>
   );
 }
@@ -94,18 +124,18 @@ export function ExecutivePipelineTrendSection({ stats }: { stats: ExecutivePerfo
 
   return (
     <section className="mt-6 space-y-3">
-      <SectionHeader title="파이프라인 추이" href="/dashboard/performance" hrefLabel="파이프라인 상세" />
+      <SectionHeader title="파트너 파이프라인 추이" href="/dashboard/performance" hrefLabel="파이프라인 상세" />
       {showLineCharts ? (
         <div className="grid gap-4 lg:grid-cols-2">
           <TrendChartCard
-            title="수주예상 파이프라인 추이"
+            title="수주예상 파이프라인"
             data={stats.snapshot_trend.map((point) => ({
               label: formatSnapshotLabelShort(point.snapshot_label, point.snapshot_date),
               value: point.partner_pipeline_amount_million
             }))}
           />
           <TrendChartCard
-            title="신규등록 파이프라인 추이"
+            title="신규등록 파이프라인"
             data={stats.snapshot_trend.map((point) => ({
               label: formatSnapshotLabelShort(point.snapshot_label, point.snapshot_date),
               value: point.new_partner_pipeline_amount_million
@@ -115,7 +145,7 @@ export function ExecutivePipelineTrendSection({ stats }: { stats: ExecutivePerfo
       ) : (
         <div className="grid gap-4 lg:grid-cols-2">
           <TrendComparisonCard
-            title="수주예상 파이프라인"
+            title="파트너 파이프라인"
             trend={stats.snapshot_trend}
             valueKey="partner_pipeline_amount_million"
           />
@@ -140,18 +170,18 @@ export function ExecutiveTopPartnersSection({ stats }: { stats: ExecutivePerform
     <section className="mt-8 space-y-3">
       <SectionHeader title="TOP 파트너" href="/dashboard/performance" hrefLabel="TOP 10 보기" />
       <div className={`grid gap-4 ${hasRevenue ? "lg:grid-cols-3" : "lg:grid-cols-2"}`}>
-        <RankCard title="파트너별 수주예상 TOP 5">
+        <RankCard title="파트너별 수주 예상 TOP 5">
           <ExecutiveRankBarChart
-            data={stats.win_forecast_top10.slice(0, 5).map((row) => ({
+            data={stats.expected_win_top10.slice(0, 5).map((row) => ({
               label: row.partner_name,
               value: row.amount_million
             }))}
             formatValue={(value) => formatEokExecutive(value) ?? "데이터 없음"}
           />
         </RankCard>
-        <RankCard title="파트너별 신규등록 TOP 5">
+        <RankCard title="파트너별 전체 영업기회 TOP 5">
           <ExecutiveRankBarChart
-            data={stats.new_reg_top10.slice(0, 5).map((row) => ({
+            data={stats.all_opportunity_top10.slice(0, 5).map((row) => ({
               label: row.partner_name,
               value: row.amount_million
             }))}
@@ -199,26 +229,41 @@ function PipelineCard({
   title,
   amount,
   count,
-  share
+  share,
+  shareLabel = "전체 대비",
+  hint,
+  featured
 }: {
   title: string;
   amount: number | null;
   count: number | null;
   share: number | null;
+  shareLabel?: string;
+  hint?: string;
+  featured?: boolean;
 }) {
   return (
-    <div className={PIPELINE_CARD_CLASS}>
-      <p className="text-[11px] font-bold uppercase tracking-wide text-slate-600">{title}</p>
-      <p className="mt-2.5 text-3xl font-bold tabular-nums leading-none tracking-tight text-slate-950 md:text-4xl">
+    <div
+      className={
+        featured
+          ? `${PIPELINE_CARD_CLASS} min-h-[12.5rem] border-okestro-300 bg-gradient-to-br from-white via-okestro-50/40 to-slate-50 ring-1 ring-okestro-100`
+          : PIPELINE_CARD_CLASS
+      }
+    >
+      <p className={featured ? "text-sm font-semibold leading-snug text-okestro-800" : "text-sm font-semibold leading-snug text-slate-800"}>
+        {title}
+      </p>
+      <p className="mt-3 text-3xl font-bold tabular-nums leading-none tracking-tight text-slate-950">
         {formatEokExecutive(amount)}
       </p>
-      <p className="mt-2 text-xs font-medium text-slate-600">
+      <p className="mt-2 text-xs font-medium text-slate-500">
+        {hint ? `${hint} · ` : ""}
         {formatCount(count)}
         {amount != null ? ` · ${formatMillion(amount)}` : ""}
       </p>
       {share != null ? (
-        <p className="mt-auto pt-3 text-xs font-semibold text-slate-700">
-          전체 대비 {formatPercent(share)}
+        <p className="mt-auto pt-3 text-xs font-medium text-slate-600">
+          {shareLabel} {formatPercent(share)}
         </p>
       ) : (
         <div className="mt-auto" />
@@ -230,8 +275,8 @@ function PipelineCard({
 function RevenueSummaryCard({ revenue }: { revenue: ExecutivePerformanceStats["revenue_summary"] }) {
   return (
     <div className={PIPELINE_CARD_CLASS}>
-      <p className="text-[11px] font-bold uppercase tracking-wide text-slate-600">2025 파트너 매출</p>
-      <p className="mt-2.5 text-3xl font-bold tabular-nums tracking-tight text-slate-950 md:text-4xl">
+      <p className="text-sm font-semibold leading-snug text-slate-800">2025 파트너 매출</p>
+      <p className="mt-3 text-3xl font-bold tabular-nums tracking-tight text-slate-950">
         {formatEokExecutive(revenue.total_million)}
       </p>
       <p className="mt-2 text-xs font-medium text-slate-600">
@@ -273,7 +318,7 @@ function TopPartnerCard({
 
   return (
     <div className={PIPELINE_CARD_CLASS}>
-      <p className="text-[11px] font-bold uppercase tracking-wide text-slate-600">{title}</p>
+      <p className="text-sm font-semibold leading-snug text-slate-800">{title}</p>
       <p
         className="mt-2 truncate text-base font-bold text-slate-900"
         title={partnerName && partnerName !== "-" ? partnerName : undefined}
@@ -300,10 +345,15 @@ function TrendChartCard({
   data: { label: string; value: number }[];
 }) {
   return (
-    <div className="flex min-h-[280px] flex-col rounded-xl border border-slate-300/90 bg-white p-5 shadow-sm">
-      <h3 className="mb-3 text-sm font-bold text-slate-950">{title}</h3>
+    <div className="flex min-h-[22rem] flex-col rounded-xl border border-slate-300/90 bg-white p-4 shadow-sm">
+      <h3 className="mb-2 text-sm font-semibold text-slate-900">{title}</h3>
       <div className="min-h-0 flex-1">
-        <LineChart data={data} height={240} />
+          <LineChart
+            data={data}
+            height={320}
+            formatValue={(value) => formatEokExecutive(value)}
+            formatTooltip={(value) => `${formatEokExecutive(value)} (${formatMillion(value)})`}
+          />
       </div>
     </div>
   );
@@ -374,9 +424,9 @@ function TrendComparisonCard({
 
 function RankCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-xl border border-slate-300/90 bg-white p-5 shadow-sm">
+    <div className="flex min-h-[20rem] flex-col rounded-xl border border-slate-300/90 bg-white p-5 shadow-sm">
       <h3 className="mb-4 text-sm font-bold text-slate-950">{title}</h3>
-      {children}
+      <div className="min-h-0 flex-1">{children}</div>
     </div>
   );
 }

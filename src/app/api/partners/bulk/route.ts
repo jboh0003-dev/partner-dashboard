@@ -2,11 +2,12 @@ import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/auth/require-admin";
-import { softDeletePartners } from "@/lib/partners/mutations";
+import { softDeletePartners, type PartnerDeleteMode } from "@/lib/partners/mutations";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const BulkDeleteSchema = z.object({
-  ids: z.array(z.string().uuid()).min(1, "삭제할 파트너를 선택해 주세요.")
+  ids: z.array(z.string().uuid()).min(1, "삭제할 파트너를 선택해 주세요."),
+  mode: z.enum(["partner_only", "deactivate_contacts", "delete_contacts"]).optional()
 });
 
 export async function DELETE(request: Request) {
@@ -18,7 +19,12 @@ export async function DELETE(request: Request) {
   try {
     const body = BulkDeleteSchema.parse(await request.json());
     const supabase = createAdminClient();
-    const result = await softDeletePartners(supabase, body.ids, auth.userId);
+    const result = await softDeletePartners(
+      supabase,
+      body.ids,
+      auth.userId,
+      (body.mode ?? "deactivate_contacts") as PartnerDeleteMode
+    );
 
     revalidatePath("/dashboard");
     revalidatePath("/dashboard/partners");
@@ -31,6 +37,7 @@ export async function DELETE(request: Request) {
       ok: result.errors.length === 0 || result.deletedCount > 0,
       deleted_count: result.deletedCount,
       deleted_ids: result.deletedIds,
+      contacts_affected: result.contactsAffected,
       errors: result.errors
     });
   } catch (error) {

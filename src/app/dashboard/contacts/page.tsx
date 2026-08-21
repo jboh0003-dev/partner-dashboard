@@ -20,6 +20,7 @@ import { getContactAssignmentLabel } from "@/lib/contacts/display";
 import { collectDisplayRoleLabels } from "@/lib/contacts/role-labels";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { getCachedViewerAuthContext } from "@/lib/auth/require-admin";
 import { formatPartnerNo } from "@/lib/partners/partner-no";
 import { isSamplePartner, isSamplePartnerName } from "@/lib/partners/sample-filter";
 
@@ -36,6 +37,7 @@ export default async function ContactsPage({
   searchParams: Promise<SearchParams>;
 }) {
   const params = await searchParams;
+  const { isAdmin } = await getCachedViewerAuthContext();
   const partnerId = (params.partnerId ?? "").trim();
   const view = parseContactListView(params.view);
   const hrefParams = { q: params.q, role: params.role, partnerId };
@@ -224,7 +226,7 @@ export default async function ContactsPage({
               className="w-44 shrink-0 rounded-xl border border-slate-300 px-3 py-2.5 text-sm"
             >
               <option value="all">전체 담당구분</option>
-              <option value="contract_contact">계약담당자</option>
+              <option value="contract_contact">담당자</option>
               <option value="sales">영업</option>
               <option value="engineer">엔지니어</option>
               <option value="admin">관리</option>
@@ -266,6 +268,7 @@ export default async function ContactsPage({
             defaultPartnerId={partnerId || undefined}
             embedded
             showReviewReason={view === "review"}
+            isAdmin={isAdmin}
           />
         </div>
       ) : null}

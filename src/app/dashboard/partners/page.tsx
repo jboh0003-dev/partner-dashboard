@@ -6,6 +6,7 @@ import { EmptyState } from "@/components/common/empty-state";
 import { createClient } from "@/lib/supabase/server";
 import { partnerListRowsToCsv } from "@/lib/partners/list";
 import { fetchPartnersList } from "@/lib/partners/partners-list-query";
+import { getCachedViewerAuthContext } from "@/lib/auth/require-admin";
 
 type SearchParams = {
   q?: string;
@@ -22,6 +23,8 @@ export default async function PartnersPage({
 }) {
   const params = await searchParams;
   const supabase = await createClient();
+  const auth = await getCachedViewerAuthContext();
+  const isAdmin = auth.isAdmin;
   const result = await fetchPartnersList(supabase, params);
   const {
     rows,
@@ -40,12 +43,14 @@ export default async function PartnersPage({
         <PageHeader
           title="파트너 DB"
           action={
-            <Link
-              href="/dashboard/partners/new"
-              className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700"
-            >
-              수동 등록
-            </Link>
+            isAdmin ? (
+              <Link
+                href="/dashboard/partners/new"
+                className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700"
+              >
+                수동 등록
+              </Link>
+            ) : undefined
           }
         />
       </AnimatedSection>
@@ -114,7 +119,7 @@ export default async function PartnersPage({
         ) : totalCount === 0 ? (
           <EmptyState title="등록된 파트너사가 없습니다." description="파트너를 직접 등록하거나 업로드 화면에서 데이터를 먼저 반영하세요." />
         ) : (
-          <PartnerAdminTable rows={rows} csvRows={exportRows} />
+          <PartnerAdminTable rows={rows} csvRows={exportRows} isAdmin={isAdmin} />
         )}
       </AnimatedSection>
     </>

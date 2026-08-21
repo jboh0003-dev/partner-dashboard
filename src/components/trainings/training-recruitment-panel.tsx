@@ -94,7 +94,7 @@ export function TrainingRecruitmentPanel({
               className="rounded-xl border border-slate-300 px-3 py-2.5 text-sm text-slate-800"
             >
               <option value="all">전체 (우선순위 자동)</option>
-              <option value="contract">계약담당자</option>
+              <option value="contract">담당자</option>
               <option value="primary">주담당자</option>
               <option value="sales">영업</option>
               <option value="engineer">엔지니어</option>

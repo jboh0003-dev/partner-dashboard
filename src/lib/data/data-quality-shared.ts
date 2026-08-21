@@ -459,6 +459,7 @@ export function computeDataQualityBundle(input: {
   }
 
   for (const row of attendances) {
+    if (!row.partner_id) continue;
     const partner = partnerMap.get(row.partner_id);
     if (!partner) continue;
 
@@ -484,6 +485,7 @@ export function computeDataQualityBundle(input: {
   for (const group of attendanceGroups.values()) {
     if (group.length < 2) continue;
     for (const row of group) {
+      if (!row.partner_id) continue;
       const partner = partnerMap.get(row.partner_id);
       if (!partner) continue;
       rows.push(

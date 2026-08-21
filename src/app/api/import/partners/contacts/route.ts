@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { writeImportLog, deleteTempImportFile } from "@/lib/imports/import-logs";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { rejectUnlessAdmin } from "@/lib/auth/require-admin";
 import {
   type PartnerContactsDbRow,
   type PartnerContactsPartnerRow
@@ -51,7 +52,8 @@ const ImportPayloadSchema = z.object({
 });
 
 export async function POST(request: Request) {
-  // TODO(auth): 추후 admin 세션 도입 시 requireAdmin() 복원. 현재는 service role로 처리.
+  const denied = await rejectUnlessAdmin();
+  if (denied) return denied;
   const supabase = createAdminClient();
   let importJobId: string | null = null;
   let parsedFileName: string | null = null;

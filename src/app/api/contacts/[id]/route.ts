@@ -5,8 +5,7 @@ import { fetchFullContact, updateFullContact } from "@/lib/contacts/contact-upda
 import { fetchContactTrainingHistory } from "@/lib/contacts/contact-review-sync";
 import { softDeletePartnerContact } from "@/lib/contacts/mutations";
 import { createAdminClient } from "@/lib/supabase/admin";
-
-// TODO(auth): 추후 admin/user 권한 적용 예정 — requireAdmin() 검증 추가
+import { rejectUnlessAdmin } from "@/lib/auth/require-admin";
 
 const EmailInputSchema = z.object({
   id: z.string().uuid().optional(),
@@ -88,6 +87,8 @@ export async function PATCH(
   request: Request,
   context: { params: Promise<{ id: string }> }
 ) {
+  const denied = await rejectUnlessAdmin();
+  if (denied) return denied;
   try {
     const { id } = await context.params;
     const body = ContactPatchSchema.parse(await request.json());
@@ -121,6 +122,8 @@ export async function DELETE(
   _request: Request,
   context: { params: Promise<{ id: string }> }
 ) {
+  const denied = await rejectUnlessAdmin();
+  if (denied) return denied;
   try {
     const { id } = await context.params;
     const supabase = createAdminClient();

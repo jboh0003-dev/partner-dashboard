@@ -42,7 +42,7 @@ export function PartnerSearchWidget() {
         <>
           <button
             type="button"
-            aria-label="오케 패널 닫기"
+            aria-label="Partner AI 패널 닫기"
             className="fixed inset-0 z-40 bg-slate-950/30 backdrop-blur-[2px]"
             onClick={closePanel}
           />
@@ -56,7 +56,7 @@ export function PartnerSearchWidget() {
         <>
           <button
             type="button"
-            aria-label="오케 패널 닫기"
+            aria-label="Partner AI 패널 닫기"
             className="fixed inset-0 z-40 bg-slate-950/30 backdrop-blur-[2px] md:hidden"
             onClick={closePanel}
           />
@@ -75,7 +75,7 @@ export function PartnerSearchWidget() {
         <button
           type="button"
           onClick={() => openPanel()}
-          className="fixed bottom-6 right-6 z-40 inline-flex items-center gap-2.5 rounded-full bg-gradient-to-r from-slate-900 via-okestro-800 to-okestro-700 px-4 py-3 text-sm font-semibold text-white shadow-elevated ring-2 ring-okestro-200/40 transition hover:from-slate-800 hover:to-okestro-600"
+          className="fixed bottom-6 right-6 z-40 inline-flex items-center gap-2.5 rounded-full bg-slate-900 px-4 py-3 text-sm font-semibold text-white shadow-elevated ring-1 ring-okestro-200/50 transition hover:bg-slate-800"
           aria-expanded={open}
           aria-label={`${OKE_MENU_LABEL} 열기`}
         >

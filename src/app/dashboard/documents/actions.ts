@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { markDocumentRepresentative } from "@/lib/data/document-duplicates";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { requireAdmin } from "@/lib/auth/require-admin";
 
 export type SavePartnerDocumentRematchInput = {
   documentId: string;
@@ -15,6 +16,10 @@ export type SavePartnerDocumentRematchInput = {
 };
 
 export async function savePartnerDocumentRematch(input: SavePartnerDocumentRematchInput) {
+  const auth = await requireAdmin();
+  if (!auth.ok) {
+    return { ok: false as const, message: "관리자 권한이 필요합니다." };
+  }
   if (!input.partnerId?.trim()) {
     return { ok: false as const, message: "파트너사를 선택해 주세요." };
   }
@@ -84,6 +89,8 @@ export async function savePartnerDocumentRematch(input: SavePartnerDocumentRemat
 }
 
 export async function confirmDocumentNormal(documentId: string) {
+  const auth = await requireAdmin();
+  if (!auth.ok) return { ok: false as const, message: "관리자 권한이 필요합니다." };
   const supabase = createAdminClient();
   const now = new Date().toISOString();
 
@@ -119,6 +126,8 @@ export async function confirmDocumentNormal(documentId: string) {
 }
 
 export async function excludeDocumentFromReview(documentId: string) {
+  const auth = await requireAdmin();
+  if (!auth.ok) return { ok: false as const, message: "관리자 권한이 필요합니다." };
   const supabase = createAdminClient();
   const now = new Date().toISOString();
 
@@ -153,6 +162,8 @@ export async function excludeDocumentFromReview(documentId: string) {
 }
 
 export async function designateDocumentRepresentative(documentId: string) {
+  const auth = await requireAdmin();
+  if (!auth.ok) return { ok: false as const, message: "관리자 권한이 필요합니다." };
   try {
     await markDocumentRepresentative(documentId);
     revalidatePath("/dashboard/documents");

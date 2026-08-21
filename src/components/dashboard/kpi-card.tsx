@@ -10,10 +10,10 @@ type KpiCardProps = {
 export function KpiCard({ label, value, hint, href }: KpiCardProps) {
   const inner = (
     <div className="ui-kpi">
-      <div className="text-2xs font-semibold uppercase tracking-wider text-slate-500">
+      <div className="text-sm font-semibold text-slate-800">
         {label}
       </div>
-      <div className="text-2xl font-bold leading-none tabular-nums tracking-tight text-slate-950 xl:text-[1.75rem]">
+      <div className="text-3xl font-bold leading-none tabular-nums tracking-tight text-slate-950">
         {value}
       </div>
       <div className="min-h-[14px] text-2xs text-slate-400">{hint ?? ""}</div>

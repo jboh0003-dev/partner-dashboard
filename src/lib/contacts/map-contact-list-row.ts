@@ -103,7 +103,8 @@ export function mapContactToPersonRow(row: ContactListDbRow): PersonContactRow {
     is_baseline_excluded: false,
     is_history_only: false,
     review_required: row.review_required ?? false,
-    review_reason: row.review_reason ?? null
+    review_reason: row.review_reason ?? null,
+    source_file: row.source_file ?? null
   };
 }
 

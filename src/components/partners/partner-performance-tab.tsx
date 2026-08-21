@@ -13,6 +13,7 @@ type PartnerPerformanceBundle = {
   new_reg_count: number;
   revenue_amount_million: number;
   revenue_count: number;
+  revenue_has_data?: boolean;
   opportunities: PartnerPipelineOpportunity[];
   win_probability_breakdown: Array<{ label: string; amount_million: number; count: number }>;
 };
@@ -49,53 +50,42 @@ export function PartnerPerformanceTab({ performance }: { performance: PartnerPer
       <div className="grid gap-3 md:grid-cols-3">
         <SummaryCard
           label="수주 예상 프로젝트"
-          hint="50%(F), 75%, 90%, 100%"
+          hint="50%(F) · 75% · 90% · 100%"
           amount={performance.win_forecast_amount_million}
           count={performance.win_forecast_count}
+          featured
         />
         <SummaryCard
-          label="전체 영업기회"
-          hint="FY26 · 파트너딜 · 제품매출"
+          label="파트너 전체 영업기회"
+          hint="FY26 · 파트너딜 · 제품매출 · 보조"
           amount={performance.all_opportunity_amount_million}
           count={performance.all_opportunity_count}
         />
-        <SummaryCard
-          label="2025 매출"
-          hint="연간 실적"
+        <RevenueCard
+          hasData={Boolean(performance.revenue_has_data)}
           amount={performance.revenue_amount_million}
           count={performance.revenue_count}
         />
       </div>
 
       {performance.win_probability_breakdown.length > 0 ? (
-        <div>
-          <h3 className="text-sm font-bold text-slate-900">수주확도별 전체 영업기회</h3>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {performance.win_probability_breakdown.map((row) => (
-              <span
-                key={row.label}
-                className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700"
-              >
-                {row.label}: {formatMillion(row.amount_million)} ({formatCount(row.count)})
-              </span>
-            ))}
-          </div>
-        </div>
+        <WinProbabilityBreakdown rows={performance.win_probability_breakdown} />
       ) : null}
 
       <OpportunityList
         title="수주 예상 프로젝트"
-        description="50%(F) · 75% · 90% · 100% (50%(U), 25%, 0% 제외)"
+        description="50%(F) · 75% · 90% · 100% 위주. 현재 자료는 영업 파이프라인 스냅샷이며 실제 수주 확정 여부는 별도 확인이 필요합니다."
         count={performance.win_forecast_count}
         amount={performance.win_forecast_amount_million}
         rows={expectedRows}
       />
       <OpportunityList
-        title="전체 영업기회"
-        description="FY26 · 파트너딜 O · 제품매출 O (모든 수주확도)"
+        title="파트너 전체 영업기회"
+        description="보조 영역 · FY26 · 파트너딜 · 제품매출 (0% · 25% · 50%(U) 포함)"
         count={performance.all_opportunity_count}
         amount={performance.all_opportunity_amount_million}
         rows={allRows}
+        muted
       />
     </div>
   );
@@ -105,19 +95,82 @@ function SummaryCard({
   label,
   hint,
   amount,
-  count
+  count,
+  featured
 }: {
   label: string;
   hint: string;
   amount: number;
   count: number;
+  featured?: boolean;
 }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4">
-      <p className="text-xs font-semibold uppercase text-slate-500">{label}</p>
-      <p className="mt-2 text-2xl font-bold text-slate-900">{formatMillion(amount)}</p>
+    <div
+      className={
+        featured
+          ? "rounded-2xl border border-okestro-200 bg-gradient-to-br from-white to-okestro-50 p-4 shadow-card"
+          : "rounded-2xl border border-slate-200 bg-white p-4 shadow-card"
+      }
+    >
+      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</p>
+      <p className="mt-2 text-2xl font-bold tabular-nums text-slate-950">{formatMillion(amount)}</p>
       <p className="mt-1 text-sm text-slate-600">{formatCount(count)}</p>
       <p className="mt-1 text-2xs text-slate-400">{hint}</p>
+    </div>
+  );
+}
+
+function RevenueCard({
+  hasData,
+  amount,
+  count
+}: {
+  hasData: boolean;
+  amount: number;
+  count: number;
+}) {
+  if (!hasData) {
+    return (
+      <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4">
+        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">2025 매출</p>
+        <p className="mt-2 text-lg font-semibold text-slate-800">실적 데이터 미연결</p>
+        <p className="mt-1 text-2xs leading-relaxed text-slate-500">
+          연간 매출 원장이 이 파트너에 매칭되지 않았습니다. 0백만원으로 표시하지 않습니다.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <SummaryCard label="2025 매출" hint="연간 실적 원장 기준" amount={amount} count={count} />
+  );
+}
+
+function WinProbabilityBreakdown({
+  rows
+}: {
+  rows: Array<{ label: string; amount_million: number; count: number }>;
+}) {
+  const primary = rows.filter((row) => ["50%(F)", "75%", "90%", "100%"].includes(row.label));
+  const secondary = rows.filter((row) => ["0%", "25%", "50%(U)"].includes(row.label));
+  return (
+    <div>
+      <h3 className="text-sm font-bold text-slate-900">수주확도</h3>
+      <div className="mt-2 flex flex-wrap gap-2">
+        {primary.map((row) => (
+          <span
+            key={row.label}
+            className="rounded-full bg-okestro-50 px-3 py-1 text-xs font-semibold text-okestro-800 ring-1 ring-okestro-100"
+          >
+            {row.label}: {formatMillion(row.amount_million)} ({formatCount(row.count)})
+          </span>
+        ))}
+      </div>
+      {secondary.some((row) => row.count > 0) ? (
+        <p className="mt-2 text-xs text-slate-500">
+          보조 {secondary.filter((row) => row.count > 0).map((row) => `${row.label} ${formatCount(row.count)}`).join(" · ")}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -127,16 +180,18 @@ function OpportunityList({
   description,
   count,
   amount,
-  rows
+  rows,
+  muted
 }: {
   title: string;
   description: string;
   count: number;
   amount: number;
   rows: PartnerPipelineOpportunity[];
+  muted?: boolean;
 }) {
   return (
-    <div>
+    <div className={muted ? "rounded-2xl border border-slate-100 bg-slate-50/50 p-4" : undefined}>
       <div className="mb-2 flex flex-wrap items-end justify-between gap-2">
         <div>
           <h3 className="text-sm font-bold text-slate-900">{title}</h3>

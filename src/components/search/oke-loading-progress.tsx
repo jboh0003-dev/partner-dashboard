@@ -39,7 +39,7 @@ export function OkeLoadingProgress({ query, active }: OkeLoadingProgressProps) {
       <div className="flex items-center gap-3">
         <OkeAvatar size="sm" />
         <div>
-          <p className="text-sm font-semibold text-slate-900">오케가 응답을 준비하고 있습니다</p>
+          <p className="text-sm font-semibold text-slate-900">Partner AI가 등록된 데이터를 조회하고 있습니다</p>
           <p className="text-2xs text-slate-500">등록된 데이터만 조회합니다. 추측 답변은 제공하지 않습니다.</p>
         </div>
       </div>

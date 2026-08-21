@@ -32,21 +32,40 @@ export type ContactImportContext = {
   matchMethod?: string | null;
 };
 
+export type ApplySanitizedEmailPhoneOptions = {
+  /**
+   * 전체DB full sync 전용.
+   * Excel 빈칸을 의도적 삭제로 보고 email/phone 관련 컬럼을 null로 덮어쓴다.
+   * 기본값 false — 값이 있을 때만 payload에 반영 (기존 동작).
+   */
+  clearEmptyFields?: boolean;
+};
+
 export function applySanitizedEmailPhoneToPayload(
   payload: Record<string, unknown>,
   email: string | null | undefined,
-  phone: string | null | undefined
+  phone: string | null | undefined,
+  options?: ApplySanitizedEmailPhoneOptions
 ): { corrected: boolean; needsReview: boolean } {
   const sanitized = sanitizeContactEmailPhone({ email, phone });
   const normalized = normalizeSanitizedContactFields(sanitized);
   let needsReview = false;
+  const clearEmpty = Boolean(options?.clearEmptyFields);
 
   if (normalized.email) {
     payload.email = normalized.email;
+  } else if (clearEmpty) {
+    payload.email = null;
   }
 
-  const phoneNeedsReview = applyNormalizedPhoneToPayload(payload, normalized.phone);
-  needsReview = phoneNeedsReview;
+  if (normalized.phone?.trim()) {
+    needsReview = applyNormalizedPhoneToPayload(payload, normalized.phone);
+  } else if (clearEmpty) {
+    payload.phone = null;
+    payload.phone_raw = null;
+    payload.phone_normalized = null;
+    payload.phone_display = null;
+  }
 
   if (sanitized.ambiguous) {
     payload.review_required = true;

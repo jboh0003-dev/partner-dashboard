@@ -48,11 +48,13 @@ function DocumentList({
 export function EventDetailView({
   eventId,
   publicDocuments,
-  allDocuments
+  allDocuments,
+  isAdmin = false
 }: {
   eventId: string;
   publicDocuments: PartnerEventDocument[];
   allDocuments: PartnerEventDocument[];
+  isAdmin?: boolean;
 }) {
   const [tab, setTab] = useState<"public" | "all">("public");
   const [showCollapsed, setShowCollapsed] = useState(false);
@@ -126,19 +128,19 @@ export function EventDetailView({
             title="대표 자료"
             documents={grouped.representative.filter((doc) => doc.document_type !== "photo")}
             emptyMessage="등록된 대표 자료가 없습니다."
-            onToggleRepresentative={handleToggleRepresentative}
+            onToggleRepresentative={isAdmin ? handleToggleRepresentative : undefined}
           />
           <DocumentList
             title="일반 자료"
             documents={grouped.normal}
             emptyMessage="등록된 일반 자료가 없습니다."
-            onToggleRepresentative={handleToggleRepresentative}
+            onToggleRepresentative={isAdmin ? handleToggleRepresentative : undefined}
           />
           <DocumentList
             title="대표 사진"
             documents={grouped.photos}
             emptyMessage="등록된 대표 사진이 없습니다."
-            onToggleRepresentative={handleToggleRepresentative}
+            onToggleRepresentative={isAdmin ? handleToggleRepresentative : undefined}
           />
 
           {collapsedDocs.length > 0 ? (
@@ -168,7 +170,7 @@ export function EventDetailView({
           ) : null}
         </div>
       ) : (
-        <EventAllFilesPanel eventId={eventId} documents={docs} disabled={isPending} />
+        <EventAllFilesPanel eventId={eventId} documents={docs} disabled={isPending || !isAdmin} />
       )}
     </section>
   );

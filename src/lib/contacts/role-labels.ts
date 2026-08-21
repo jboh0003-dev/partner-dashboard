@@ -41,6 +41,13 @@ function normalizeRoleKey(label: string): string {
   return label.trim().replace(/\s+/g, " ");
 }
 
+/** 화면 표시용. DB role 값(계약담당 등)은 바꾸지 않는다. */
+export function toUserFacingRoleLabel(label: string): string {
+  const compact = label.replace(/\s+/g, "");
+  if (compact === "계약담당" || compact === "계약담당자") return "담당자";
+  return label;
+}
+
 /** 중복 제거 + 숨김/교육 태그 제외한 화면용 역할 목록 */
 export function collectDisplayRoleLabels(labels: Iterable<string>): string[] {
   const seen = new Set<string>();
@@ -49,10 +56,11 @@ export function collectDisplayRoleLabels(labels: Iterable<string>): string[] {
   for (const raw of labels) {
     const label = normalizeRoleKey(raw);
     if (isHiddenRoleLabel(label) || isEducationEventRoleLabel(label)) continue;
-    const key = label.toLowerCase();
+    const display = toUserFacingRoleLabel(label);
+    const key = display.toLowerCase();
     if (seen.has(key)) continue;
     seen.add(key);
-    result.push(label);
+    result.push(display);
   }
 
   return result;
@@ -63,7 +71,7 @@ export type RoleLabelTone = ContactAssignmentTone | "tech";
 export function getRoleLabelTone(label: string): RoleLabelTone {
   const normalized = label.replace(/\s+/g, "").toLowerCase();
 
-  if (normalized.includes("계약담당")) return "contract";
+  if (normalized === "담당자" || normalized.includes("계약담당")) return "contract";
   if (normalized.includes("영업")) return "sales";
   if (normalized.includes("엔지니어")) return "engineer";
   if (normalized.includes("대표") || normalized.includes("경영")) return "executive";

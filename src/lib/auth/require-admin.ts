@@ -1,6 +1,6 @@
 import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { isDevAdminBypassEnabled, resolveIsAdmin } from "@/lib/auth/roles";
 
 export type AdminAuthResult =
   | { ok: true; userId: string | null; role: string }
@@ -8,44 +8,16 @@ export type AdminAuthResult =
 
 export type ViewerAuthContext = {
   user: { id: string; email: string | null } | null;
-  profile: { id: string; role: string | null } | null;
+  profile: { id: string; role: string | null; name: string | null; email: string | null } | null;
   role: string | null;
   isAdmin: boolean;
-  /** development 환경에서 profile admin 없이 bypass된 경우 */
   devBypass: boolean;
 };
 
-// TODO(auth): Supabase Auth 세션 + profiles.role 기반 권한 체계를 정리하고,
-// development bypass를 제거한 뒤 admin 역할 부여/로그인 흐름을 통합할 것.
+export { isDevAdminBypassEnabled };
 
-/** development에서만 true — production에서는 profiles.role === 'admin'만 허용 */
-export function isDevelopmentAdminBypassEnabled(): boolean {
-  return process.env.NODE_ENV === "development";
-}
-
-/**
- * UI/API 공통 admin 판정.
- * - production: profiles.role === 'admin'
- * - development: profiles row 없어도 true (로컬 CRUD 검증용)
- */
 export function resolveViewerIsAdmin(role: string | null | undefined): boolean {
-  if (role === "admin") return true;
-  return isDevelopmentAdminBypassEnabled();
-}
-
-async function resolveDevFallbackUserId(): Promise<string | null> {
-  try {
-    const supabase = createAdminClient();
-    const { data } = await supabase
-      .from("profiles")
-      .select("id")
-      .eq("role", "admin")
-      .limit(1)
-      .maybeSingle();
-    return data?.id ? String(data.id) : null;
-  } catch {
-    return null;
-  }
+  return resolveIsAdmin(role);
 }
 
 export async function getViewerAuthContext(): Promise<ViewerAuthContext> {
@@ -54,43 +26,62 @@ export async function getViewerAuthContext(): Promise<ViewerAuthContext> {
     data: { user }
   } = await supabase.auth.getUser();
 
-  let profile: { id: string; role: string | null } | null = null;
+  let profile: ViewerAuthContext["profile"] = null;
 
   if (user) {
     const { data } = await supabase
       .from("profiles")
-      .select("id, role")
+      .select("id, role, name, email")
       .eq("id", user.id)
       .maybeSingle();
 
     if (data) {
-      profile = { id: String(data.id), role: data.role ? String(data.role) : null };
+      profile = {
+        id: String(data.id),
+        role: data.role ? String(data.role) : null,
+        name: data.name ? String(data.name) : null,
+        email: data.email ? String(data.email) : user.email ?? null
+      };
     }
   }
 
   const role = profile?.role ?? null;
-  const profileIsAdmin = role === "admin";
-  const devBypass = isDevelopmentAdminBypassEnabled() && !profileIsAdmin;
-  const isAdmin = resolveViewerIsAdmin(role);
+  const isAdmin = resolveIsAdmin(role);
+  const devBypass = isDevAdminBypassEnabled() && !isAdminRoleSafe(role) && isAdmin;
 
-  const context: ViewerAuthContext = {
+  return {
     user: user ? { id: user.id, email: user.email ?? null } : null,
     profile,
     role,
     isAdmin,
     devBypass
   };
-
-  return context;
 }
 
+function isAdminRoleSafe(role: string | null): boolean {
+  return role === "admin";
+}
+
+export const getCachedViewerAuthContext = cache(getViewerAuthContext);
+
 export async function getViewerRole(): Promise<string | null> {
-  const context = await getViewerAuthContextCached();
+  const context = await getCachedViewerAuthContext();
   if (context.isAdmin) return "admin";
   return context.role;
 }
 
-const getViewerAuthContextCached = cache(getViewerAuthContext);
+export function forbiddenJson(message = "관리자 권한이 필요합니다.") {
+  return Response.json({ ok: false, message }, { status: 403 });
+}
+
+export async function rejectUnlessAdmin(): Promise<Response | null> {
+  const auth = await requireAdmin();
+  if (auth.ok) return null;
+  if (auth.status === 401) {
+    return Response.json({ ok: false, message: auth.message }, { status: 401 });
+  }
+  return forbiddenJson(auth.message);
+}
 
 export async function requireAdmin(): Promise<AdminAuthResult> {
   const supabase = await createClient();
@@ -110,16 +101,10 @@ export async function requireAdmin(): Promise<AdminAuthResult> {
       return { ok: false, status: 500, message: profileError.message };
     }
 
-    const role = String(profile?.role ?? "");
-    if (role === "admin") {
-      return { ok: true, userId: user.id, role };
+    const role = profile?.role ? String(profile.role) : null;
+    if (resolveIsAdmin(role)) {
+      return { ok: true, userId: user.id, role: role ?? "admin" };
     }
-  }
-
-  // TODO(auth): development bypass — 운영 배포 전 제거 또는 env 플래그로 분리할 것.
-  if (isDevelopmentAdminBypassEnabled()) {
-    const fallbackUserId = user?.id ?? (await resolveDevFallbackUserId());
-    return { ok: true, userId: fallbackUserId, role: "admin" };
   }
 
   if (authError || !user) {

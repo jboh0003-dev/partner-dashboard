@@ -19,7 +19,7 @@ export function inferContactTags(contact: ContactTagInput): string[] {
   const tags = new Set<string>();
 
   if (contact.is_contract_contact) {
-    tags.add("계약담당자");
+    tags.add("담당자");
   } else {
     const role = contact.role_type ?? "etc";
     if (role !== "etc") {

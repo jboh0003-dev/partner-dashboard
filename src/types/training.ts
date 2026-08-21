@@ -20,7 +20,7 @@ export type Training = {
 
 export type TrainingAttendance = {
   id: string;
-  partner_id: string;
+  partner_id: string | null;
   training_id: string;
   attendee_name: string | null;
   attendee_department: string | null;
@@ -48,5 +48,6 @@ export type TrainingAttendance = {
   match_status: string | null;
   review_reason: string | null;
   extra_json: Record<string, unknown> | null;
+  company_name_raw?: string | null;
   created_at: string;
 };

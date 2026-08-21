@@ -96,7 +96,7 @@ export function ImportJobsPanel({
 
   if (loading && jobs.length === 0) {
     return (
-      <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <section className="rounded-xl border border-slate-200 bg-slate-50 p-3">
         <div className="flex items-center gap-2 text-sm text-slate-500">
           <Loader2 size={14} className="animate-spin" />
           전체DB import 작업 상태 확인 중…
@@ -107,7 +107,7 @@ export function ImportJobsPanel({
 
   if (error) {
     return (
-      <section className="mb-6 rounded-2xl border border-rose-200 bg-rose-50 p-4 shadow-sm">
+      <section className="rounded-xl border border-rose-200 bg-rose-50 p-3">
         <div className="text-sm text-rose-700">{error}</div>
       </section>
     );
@@ -116,7 +116,7 @@ export function ImportJobsPanel({
   if (jobs.length === 0) return null;
 
   return (
-    <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+    <section className="rounded-xl border border-slate-200 bg-slate-50 p-3">
       <div className="mb-3 text-sm font-semibold text-slate-900">전체DB import 작업</div>
 
       {activeJobs.length > 0 ? (

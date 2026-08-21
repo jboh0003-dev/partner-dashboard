@@ -44,16 +44,18 @@ export function buildTrainingFillEmptyPatch(
 
 export function buildAttendancePayload(
   row: ParsedTrainingAttendanceRow,
-  partnerId: string,
+  partnerId: string | null,
   trainingId: string
 ): Record<string, unknown> {
   const payload: Record<string, unknown> = {
     partner_id: partnerId,
     training_id: trainingId,
     attendee_name: row.attendee_name,
+    company_name_raw: row.company_name,
     attended: row.attended,
     attendance_status: row.attendance_status ?? "참석",
-    source_file: row.source_file
+    source_file: row.source_file,
+    match_status: partnerId ? "matched" : "non_partner"
   };
 
   if (row.attendee_department) payload.attendee_department = row.attendee_department;

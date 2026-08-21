@@ -110,6 +110,12 @@ export type ExecutivePerformanceStats = {
     new_partner_pipeline_amount_million: number;
     new_partner_pipeline_count: number;
   }>;
+  all_opportunity_amount_million: number;
+  all_opportunity_count: number;
+  expected_win_amount_million: number;
+  expected_win_count: number;
+  all_opportunity_top10: PipelinePartnerAggregate[];
+  expected_win_top10: PipelinePartnerAggregate[];
   win_forecast_top10: PipelinePartnerAggregate[];
   new_reg_top10: PipelinePartnerAggregate[];
   revenue_top10: Array<{

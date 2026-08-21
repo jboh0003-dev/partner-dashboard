@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { requireUser, unauthorizedJson } from "@/lib/auth/require-user";
+import { requireAdmin, forbiddenJson } from "@/lib/auth/require-admin";
+import { unauthorizedJson } from "@/lib/auth/require-user";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { approvePartnerApplication } from "@/lib/partner-applications/approve";
 import { parsePartnerContractGrade } from "@/lib/partner-application/contract-dates";
 import { logApplicationEvent } from "@/lib/partner-applications/repository";
+import { runApplicationPreReview } from "@/lib/partner-applications/pre-review";
 
 export const runtime = "nodejs";
 
@@ -31,8 +33,14 @@ const MemoSchema = z.object({
 });
 
 export async function POST(request: Request, context: Ctx) {
-  const auth = await requireUser();
-  if (!auth.ok) return unauthorizedJson(auth.message);
+  const auth = await requireAdmin();
+  if (!auth.ok) {
+    return auth.status === 401 ? unauthorizedJson(auth.message) : forbiddenJson(auth.message);
+  }
+  if (!auth.userId) {
+    return unauthorizedJson("로그인이 필요합니다. 다시 로그인해주세요.");
+  }
+  const reviewedBy = auth.userId;
   const { id } = await context.params;
   const url = new URL(request.url);
   const action = url.searchParams.get("action") || "approve";
@@ -53,7 +61,7 @@ export async function POST(request: Request, context: Ctx) {
       contractStartDate: parsed.data.contract_start_date,
       confirmDuplicate: parsed.data.confirm_duplicate,
       existingPartnerId: parsed.data.existing_partner_id ?? null,
-      reviewedBy: auth.userId
+      reviewedBy
     });
     if (!result.ok) {
       return NextResponse.json(result, { status: result.duplicate ? 409 : 400 });
@@ -78,12 +86,12 @@ export async function POST(request: Request, context: Ctx) {
         status: "revision_requested",
         revision_reason: reason,
         reviewed_at: new Date().toISOString(),
-        reviewed_by: auth.userId,
+        reviewed_by: reviewedBy,
         updated_at: new Date().toISOString()
       })
       .eq("id", id);
     if (error) return NextResponse.json({ ok: false, message: error.message }, { status: 500 });
-    await logApplicationEvent(supabase, id, "revision_requested", reason, {}, auth.userId);
+    await logApplicationEvent(supabase, id, "revision_requested", reason, {}, reviewedBy);
     return NextResponse.json({ ok: true });
   }
 
@@ -98,7 +106,7 @@ export async function POST(request: Request, context: Ctx) {
         status: "rejected",
         revision_reason: parsed.data.reason,
         reviewed_at: new Date().toISOString(),
-        reviewed_by: auth.userId,
+        reviewed_by: reviewedBy,
         updated_at: new Date().toISOString()
       })
       .eq("id", id);
@@ -109,7 +117,7 @@ export async function POST(request: Request, context: Ctx) {
       "rejected",
       parsed.data.reason,
       {},
-      auth.userId
+      reviewedBy
     );
     return NextResponse.json({ ok: true });
   }
@@ -119,13 +127,18 @@ export async function POST(request: Request, context: Ctx) {
       .from("partner_applications")
       .update({
         status: "under_review",
-        reviewed_by: auth.userId,
+        reviewed_by: reviewedBy,
         updated_at: new Date().toISOString()
       })
       .eq("id", id);
     if (error) return NextResponse.json({ ok: false, message: error.message }, { status: 500 });
-    await logApplicationEvent(supabase, id, "under_review", "검토 시작", {}, auth.userId);
+    await logApplicationEvent(supabase, id, "under_review", "검토 시작", {}, reviewedBy);
     return NextResponse.json({ ok: true });
+  }
+
+  if (action === "pre_review") {
+    const result = await runApplicationPreReview(supabase, id, reviewedBy);
+    return NextResponse.json({ ok: true, pre_review: result });
   }
 
   if (action === "memo") {

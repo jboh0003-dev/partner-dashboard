@@ -44,6 +44,7 @@ export type PersonContactRow = ContactTableRow & {
   is_history_only?: boolean;
   review_required?: boolean;
   review_reason?: string | null;
+  source_file?: string | null;
 };
 
 type RawContact = {
@@ -190,7 +191,7 @@ export function groupContactsByPerson(
       }
       for (const row of bundle?.phones ?? []) addPhoneRow(phoneMap, row);
       for (const row of bundle?.roles ?? []) allRoles.add(row.role_name);
-      if (member.is_contract_contact) allRoles.add("계약담당자");
+      if (member.is_contract_contact) allRoles.add("담당자");
       if (member.role_raw?.trim()) allRoles.add(member.role_raw.trim());
     }
 
@@ -261,7 +262,8 @@ export function groupContactsByPerson(
           })
       ),
       review_required: sorted.some((m) => m.review_required),
-      review_reason: primary.review_reason ?? sorted.find((m) => m.review_reason)?.review_reason ?? null
+      review_reason: primary.review_reason ?? sorted.find((m) => m.review_reason)?.review_reason ?? null,
+      source_file: primary.source_file ?? null
     });
   }
 

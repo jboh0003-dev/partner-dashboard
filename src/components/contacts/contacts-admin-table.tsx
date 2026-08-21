@@ -42,6 +42,7 @@ type ContactsAdminTableProps = {
   defaultPartnerId?: string;
   embedded?: boolean;
   showReviewReason?: boolean;
+  isAdmin?: boolean;
 };
 
 export function ContactsAdminTable({
@@ -52,7 +53,8 @@ export function ContactsAdminTable({
   partnerOptions,
   defaultPartnerId,
   embedded = false,
-  showReviewReason = false
+  showReviewReason = false,
+  isAdmin = false
 }: ContactsAdminTableProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -146,6 +148,11 @@ export function ContactsAdminTable({
                 확인
               </span>
             ) : null}
+            {row.source_file === "dashboard-manual" ? (
+              <span className="rounded bg-slate-100 px-1 py-0.5 text-[10px] font-medium text-slate-600">
+                수동 등록
+              </span>
+            ) : null}
           </span>
         )
       }
@@ -227,8 +234,11 @@ export function ContactsAdminTable({
             ) : null}
           </span>
         )
-      },
-      {
+      }
+    );
+
+    if (isAdmin) {
+      base.push({
         key: "actions",
         label: "관리",
         kind: "text",
@@ -248,11 +258,11 @@ export function ContactsAdminTable({
             onMerge={() => runMergeDuplicates(row)}
           />
         )
-      }
-    );
+      });
+    }
 
     return base;
-  }, [loadingHistory, openDeleteConfirm, openEdit, showReviewReason]);
+  }, [isAdmin, loadingHistory, openDeleteConfirm, openEdit, showReviewReason]);
 
   const compareRows = useCallback(
     (a: PersonContactRow, b: PersonContactRow, sortKey: string, dir: SortDir) =>
@@ -375,9 +385,11 @@ export function ContactsAdminTable({
             : "mb-3 flex flex-wrap items-center justify-between gap-2"
         }
       >
+        {isAdmin ? (
         <button type="button" onClick={openCreate} className="ui-btn-primary text-sm">
           담당자 추가
         </button>
+        ) : <span />}
         {selection.selectedCount > 0 ? (
           <button
             type="button"
@@ -428,7 +440,7 @@ export function ContactsAdminTable({
           minWidth="1100px"
           rowKey={(row) => row.id}
           compareRows={compareRows}
-          selectable
+          selectable={isAdmin}
           selectedIds={selection.selectedIds}
           onToggleRow={selection.toggleRow}
           onToggleAll={selection.toggleAll}
@@ -443,6 +455,7 @@ export function ContactsAdminTable({
         />
       )}
 
+      {isAdmin ? (
       <PartnerContactFormModal
         open={formOpen}
         contact={editingContact}
@@ -455,6 +468,7 @@ export function ContactsAdminTable({
           setEditingContact(null);
         }}
       />
+      ) : null}
 
       <ConfirmDialog
         open={confirmState?.type === "deactivate"}

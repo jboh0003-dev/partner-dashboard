@@ -7,7 +7,7 @@ import {
   buildPartnerGradeSavePayload,
   normalizePartnerGrade
 } from "@/lib/partners/grade";
-import { softDeletePartners } from "@/lib/partners/mutations";
+import { softDeletePartners, type PartnerDeleteMode } from "@/lib/partners/mutations";
 import { normalizeOptionalText, validateContractDate } from "@/lib/partners/validators";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -149,8 +149,12 @@ export async function PATCH(
   }
 }
 
+const DeleteSchema = z.object({
+  mode: z.enum(["partner_only", "deactivate_contacts", "delete_contacts"]).optional()
+});
+
 export async function DELETE(
-  _request: Request,
+  request: Request,
   context: { params: Promise<{ id: string }> }
 ) {
   const auth = await requireAdmin();
@@ -160,8 +164,13 @@ export async function DELETE(
 
   try {
     const { id } = await context.params;
+    const json = await request.json().catch(() => ({}));
+    const parsed = DeleteSchema.safeParse(json);
+    const mode: PartnerDeleteMode = parsed.success
+      ? (parsed.data.mode ?? "deactivate_contacts")
+      : "deactivate_contacts";
     const supabase = createAdminClient();
-    const result = await softDeletePartners(supabase, [id], auth.userId);
+    const result = await softDeletePartners(supabase, [id], auth.userId, mode);
 
     if (result.deletedCount === 0) {
       return NextResponse.json(
@@ -175,7 +184,10 @@ export async function DELETE(
     revalidatePath(`/dashboard/partners/${id}`);
     revalidatePath("/dashboard/contacts");
 
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({
+      ok: true,
+      contacts_affected: result.contactsAffected
+    });
   } catch (error) {
     return NextResponse.json(
       {

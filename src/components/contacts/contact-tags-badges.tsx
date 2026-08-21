@@ -1,6 +1,7 @@
 import { CONTACT_ASSIGNMENT_TONE_CLASS } from "@/lib/contacts/display";
 
 const TAG_TONE: Record<string, keyof typeof CONTACT_ASSIGNMENT_TONE_CLASS> = {
+  담당자: "contract",
   계약담당자: "contract",
   "대표/경영": "executive",
   영업: "sales",

@@ -10,7 +10,14 @@ import {
 import { extractCompanyCandidateFromQuery } from "@/lib/search/extract-company";
 import { resolveCompanyName } from "@/lib/search/fuzzy-company";
 import { stripNonPartnerTerms } from "@/lib/search/company-terms";
+import { normalizePersonName, isCanonicalContact } from "@/lib/contacts/person-key";
+import { compactSearchQuery } from "@/lib/search/query-normalize";
 import { isPipelineQuery } from "@/lib/search/pipeline-query";
+import { detectQueryEntities, leftoverQueryTokens } from "@/lib/search/entity-detect";
+import { resolveExactSearchResult } from "@/lib/search/entity-resolver";
+import { executeStructuredPlan } from "@/lib/search/plan-executor";
+import { lookupOpportunityByProjectCode } from "@/lib/search/pipeline-project-lookup";
+import { planSearchQueryWithLlm } from "@/lib/search/query-planner";
 import { handlePipelineLookup } from "@/lib/search/pipeline-lookup-handler";
 import { buildFollowUpQuery, inferListIntentFromQuery, isRegisteredDocumentListMode, parseSearchQuery } from "@/lib/search/parse-query";
 import {
@@ -41,10 +48,10 @@ import { formatTrainingYearMonth } from "@/lib/training-display";
 import { formatDate } from "@/lib/utils";
 import type { Partner, PartnerContact } from "@/types/partner";
 
-const NO_DATA_ANSWER = "조회 가능한 데이터가 없습니다. 등록 여부를 확인해 주세요.";
-const EMPTY_LIST_ANSWER = "조건에 맞는 데이터가 없습니다.";
+const NO_DATA_ANSWER = "현재 등록된 데이터에서 확인되지 않습니다.";
+const EMPTY_LIST_ANSWER = "현재 등록된 데이터에서 확인되지 않습니다.";
 const PARTNER_NOT_FOUND_ANSWER =
-  "등록된 파트너사에서 일치하는 대상을 찾지 못했습니다.";
+  "현재 등록된 데이터에서 확인되지 않습니다.";
 const RECENT_CONTRACT_LIMIT = 10;
 
 function partnerLink(partner: { id: string; company_name: string }): SearchPartnerLink {
@@ -432,7 +439,7 @@ function buildPartnerTableListResult(
     ...(options.includeContractDate !== false
       ? [{ key: "contractDate", label: "계약일자" }]
       : []),
-    { key: "contact", label: "계약담당자" },
+    { key: "contact", label: "담당자" },
     { key: "detail", label: "상세" }
   ];
 
@@ -521,7 +528,7 @@ function emptyListResult(
         { key: "company", label: "파트너사" },
         { key: "grade", label: "등급" },
         { key: "contractDate", label: "계약일자" },
-        { key: "contact", label: "계약담당자" },
+        { key: "contact", label: "담당자" },
         { key: "detail", label: "상세" }
       ],
       rows: [],
@@ -1239,7 +1246,7 @@ function handleAssetPartnerList(
       { key: "company", label: "파트너사" },
       { key: "grade", label: "등급" },
       { key: "assetCount", label: "장비 건수" },
-      { key: "contact", label: "계약담당자" },
+      { key: "contact", label: "담당자" },
       { key: "detail", label: "상세" }
     ],
     rows: partners.map((partner) => {
@@ -1490,8 +1497,19 @@ function handleContactLookup(
   context: SearchContext,
   match: ReturnType<typeof resolveCompanyName>
 ): SearchResult {
+  const exact = resolveExactSearchResult(parsed.raw, context);
+  if (exact && (!parsed.requiresPartner || exact.contacts.length > 0 || exact.empty)) {
+    if (match.partner && exact.intent === "contact_lookup" && exact.contacts.length > 0) {
+      return exact;
+    }
+    if (!match.partner) return exact;
+  }
+
   const blocked = requirePartnerMatch(parsed, context, match);
-  if (blocked) return blocked;
+  if (blocked) {
+    if (exact) return exact;
+    return blocked;
+  }
 
   const partner = match.partner!;
   const contacts = contactsForPartner(partner.id, partner.company_name, context.contacts);
@@ -1765,7 +1783,13 @@ function handleTechPartnerTrainingLookup(
     intent: "tech_partner_training_lookup",
     empty: false,
     matchedPartner: partnerMatch.partner ? partnerLink(partnerMatch.partner) : null,
-    partners: Array.from(new Map(rows.map((r) => [r.partner_id, partnerLink({ id: r.partner_id, company_name: r.partner_name })])).values()),
+    partners: Array.from(
+      new Map(
+        rows
+          .filter((r) => r.partner_id)
+          .map((r) => [r.partner_id, partnerLink({ id: r.partner_id as string, company_name: r.partner_name })])
+      ).values()
+    ),
     contacts: [],
     items: rows.slice(0, 10).map((row) => ({
       id: row.id,
@@ -1830,11 +1854,13 @@ function handleTrainingGapLookup(
     {
       partners: context.partners,
       contacts: context.contacts,
-      attendances: context.attendances.map((row) => ({
-        partner_id: row.partner_id,
-        training_id: row.training_id,
-        attended: row.attended
-      })),
+      attendances: context.attendances
+        .filter((row): row is typeof row & { partner_id: string } => !!row.partner_id)
+        .map((row) => ({
+          partner_id: row.partner_id,
+          training_id: row.training_id,
+          attended: row.attended
+        })),
       trainings: context.trainings
     },
     {
@@ -1983,8 +2009,12 @@ function handlePartnerProfile(
   };
 }
 
-export function runSearch(query: string, context: SearchContext): SearchResult {
+export async function runSearch(query: string, context: SearchContext): Promise<SearchResult> {
   let parsed = parseSearchQuery(query, context.trainings);
+
+  if (isGradePartnerListQuery(query) && parsed.grade) {
+    return handleGradePartnerList(parsed, context);
+  }
 
   // Intent-first: 조건·목록·정책 질문은 파트너명 매칭 없이 처리
   if (parsed.intent === "partner_profile" || (parsed.requiresPartner && !parsed.companyCandidate?.trim())) {
@@ -2033,18 +2063,11 @@ export function runSearch(query: string, context: SearchContext): SearchResult {
     case "tech_partner_training_lookup":
       return handleTechPartnerTrainingLookup(parsed, context);
     case "pipeline_lookup":
-      return {
-        intent: "pipeline_lookup",
-        answer: "파이프라인 데이터를 조회합니다.",
-        empty: true,
-        matchedPartner: null,
-        partners: [],
-        contacts: [],
-        items: [],
-        sources: [{ type: "partner_knowledge", label: "파트너 파이프라인 DB" }],
-        matchStrategy: "none",
-        menuLinks: [{ label: "실적/파이프라인", href: "/dashboard/performance" }]
-      };
+      return handlePipelineLookup(
+        parsed,
+        match.partner?.id ?? null,
+        match.partner?.company_name ?? null
+      );
     case "asset_lookup":
       return handleAssetLookup(parsed, context, match);
     case "document_lookup":
@@ -2059,11 +2082,196 @@ export function runSearch(query: string, context: SearchContext): SearchResult {
   }
 }
 
+function isTrainingLeaderboardQuery(query: string): boolean {
+  const compact = compactSearchQuery(query);
+  return /교육/.test(compact) && /(가장많|제일많|최다|많이참석|참석많|많이받은|많이받)/.test(compact);
+}
+
+function isGradePartnerListQuery(query: string): boolean {
+  const compact = compactSearchQuery(query);
+  const hasGrade = /(플래티넘|골드|실버|platinum|gold|silver)/.test(compact);
+  const hasList = /(목록|리스트|보여줘|알려줘)/.test(compact);
+  return hasGrade && hasList && /파트너/.test(compact);
+}
+
+function isPersonAffiliationQuery(query: string): boolean {
+  return /(소속|어느\s*파트너|어느\s*회사)/.test(query);
+}
+
+function extractPersonName(query: string): string | null {
+  const affiliation = query.match(/([가-힣]{2,5})(?:이|가)?\s*(?:어느\s*)?(?:파트너|회사)?\s*소속/);
+  if (affiliation?.[1]) return affiliation[1];
+  const which = query.match(/([가-힣]{2,5})이\s*어느/);
+  return which?.[1] ?? null;
+}
+
+function handleTrainingAttendanceLeaderboard(context: SearchContext): SearchResult {
+  const counts = new Map<string, { name: string; count: number }>();
+  for (const row of context.attendances) {
+    if (!row.attended || !row.partner_id) continue;
+    const partner = context.partners.find((item) => item.id === row.partner_id);
+    if (!partner) continue;
+    const entry = counts.get(partner.id) ?? { name: partner.company_name, count: 0 };
+    entry.count += 1;
+    counts.set(partner.id, entry);
+  }
+  const ranked = [...counts.entries()]
+    .map(([id, value]) => ({ id, ...value }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 10);
+  if (ranked.length === 0) {
+    return {
+      answer: NO_DATA_ANSWER,
+      intent: "training_lookup",
+      empty: true,
+      matchedPartner: null,
+      partners: [],
+      contacts: [],
+      items: [],
+      sources: [{ type: "training_attendance", label: "교육 참석 DB" }],
+      matchStrategy: "none",
+      menuLinks: [{ label: "교육 현황", href: "/dashboard/trainings" }]
+    };
+  }
+  return {
+    answer: `교육 참석 상위 파트너입니다.\n${ranked.map((row, index) => `${index + 1}. ${row.name} — ${row.count}건`).join("\n")}`,
+    intent: "training_lookup",
+    empty: false,
+    matchedPartner: { id: ranked[0]!.id, name: ranked[0]!.name, href: `/dashboard/partners/${ranked[0]!.id}?tab=trainings` },
+    partners: ranked.map((row) => ({ id: row.id, name: row.name, href: `/dashboard/partners/${row.id}?tab=trainings` })),
+    contacts: [],
+    items: ranked.map((row) => ({
+      id: row.id,
+      title: row.name,
+      subtitle: `참석 ${row.count}건`,
+      href: `/dashboard/partners/${row.id}?tab=trainings`
+    })),
+    sources: [{ type: "training_attendance", label: "교육 참석 DB" }],
+    matchStrategy: "none",
+    menuLinks: [{ label: "교육 현황", href: "/dashboard/trainings" }]
+  };
+}
+
+function handleGradePartnerList(parsed: ParsedSearchQuery, context: SearchContext): SearchResult {
+  const grade = parsed.grade;
+  const partners = context.partners.filter((partner) => (partner.grade ?? "none") === grade);
+  const gradeLabel = PARTNER_GRADE_LABEL[grade ?? "none"] ?? grade ?? "해당 등급";
+  if (partners.length === 0) {
+    return {
+      answer: NO_DATA_ANSWER,
+      intent: "partner_profile",
+      empty: true,
+      matchedPartner: null,
+      partners: [],
+      contacts: [],
+      items: [],
+      sources: [{ type: "partner", label: "partners" }],
+      matchStrategy: "none",
+      menuLinks: [{ label: "파트너 목록", href: "/dashboard/partners" }]
+    };
+  }
+  const listResult = buildPartnerTableListResult(partners, context, {
+    title: `${gradeLabel} 파트너`,
+    criteria: `등급 = ${gradeLabel}`,
+    exportFilename: "grade-partners"
+  });
+  return {
+    answer: `${gradeLabel} 파트너 ${partners.length}곳입니다.`,
+    intent: "partner_profile",
+    empty: false,
+    matchedPartner: null,
+    partners: partners.slice(0, 20).map(partnerLink),
+    contacts: [],
+    items: partners.slice(0, 20).map((partner) => ({
+      id: partner.id,
+      title: partner.company_name,
+      subtitle: gradeLabel,
+      href: `/dashboard/partners/${partner.id}`
+    })),
+    sources: [{ type: "partner", label: "partners" }],
+    matchStrategy: "none",
+    listResult,
+    menuLinks: [{ label: "파트너 목록", href: "/dashboard/partners" }]
+  };
+}
+
+function handlePersonAffiliationLookup(query: string, context: SearchContext): SearchResult | null {
+  const name = extractPersonName(query);
+  if (!name) return null;
+  const key = normalizePersonName(name);
+  if (key.length < 2) return null;
+  const hits = context.contacts.filter((contact) => {
+    if (!isCanonicalContact(contact)) return false;
+    return normalizePersonName(contact.name).includes(key);
+  });
+  if (hits.length === 0) {
+    return {
+      answer: NO_DATA_ANSWER,
+      intent: "contact_lookup",
+      empty: true,
+      matchedPartner: null,
+      partners: [],
+      contacts: [],
+      items: [],
+      sources: [{ type: "partner_contacts", label: "인력/담당자 DB" }],
+      matchStrategy: "none",
+      menuLinks: [{ label: "인력·담당자", href: "/dashboard/contacts" }]
+    };
+  }
+  const items = hits.slice(0, 15).map((contact) => {
+    const partner = context.partners.find((item) => item.id === contact.partner_id);
+    const company = partner?.company_name ?? "현재 등록된 데이터에서 확인되지 않습니다";
+    return {
+      id: contact.id,
+      title: contact.name,
+      subtitle: `${company}${contact.email ? ` · ${contact.email}` : ""}`,
+      href: partner ? `/dashboard/partners/${partner.id}?tab=organization` : "/dashboard/contacts"
+    };
+  });
+  return {
+    answer: hits
+      .slice(0, 8)
+      .map((contact) => {
+        const partner = context.partners.find((item) => item.id === contact.partner_id);
+        return `- ${contact.name}: ${partner?.company_name ?? "소속 미확인"}`;
+      })
+      .join("\n"),
+    intent: "contact_lookup",
+    empty: false,
+    matchedPartner: null,
+    partners: hits
+      .map((contact) => context.partners.find((item) => item.id === contact.partner_id))
+      .filter((partner): partner is Partner => Boolean(partner))
+      .slice(0, 10)
+      .map(partnerLink),
+    contacts: [],
+    items,
+    sources: [{ type: "partner_contacts", label: "인력/담당자 DB" }],
+    matchStrategy: "none",
+    menuLinks: [{ label: "인력·담당자", href: "/dashboard/contacts" }]
+  };
+}
+
 export async function searchPartners(query: string): Promise<SearchResult> {
   const context = await fetchSearchContext();
+
+  const detected = detectQueryEntities(query);
+  if (detected.projectCodes[0]) {
+    return lookupOpportunityByProjectCode(detected.projectCodes[0]);
+  }
+
+  const exact = resolveExactSearchResult(query, context);
+  if (exact) return exact;
+
+  if (isTrainingLeaderboardQuery(query)) {
+    return handleTrainingAttendanceLeaderboard(context);
+  }
+
   if (isPipelineQuery(query)) {
     const parsed = parseSearchQuery(query, context.trainings);
-    const candidate = parsed.companyCandidate?.trim() || stripNonPartnerTerms(parsed.raw);
+    const leftover = leftoverQueryTokens(query).join(" ");
+    const candidate =
+      leftover || parsed.companyCandidate?.trim() || stripNonPartnerTerms(parsed.raw);
     const resolved = candidate
       ? resolveCompanyName(candidate, context.partners)
       : { partner: null, strategy: "none" as const, confidence: 0, candidates: [], queryUsed: null };
@@ -2072,6 +2280,17 @@ export async function searchPartners(query: string): Promise<SearchResult> {
       resolved.partner?.id ?? null,
       resolved.partner?.company_name ?? null
     );
+  }
+
+  const plan = await planSearchQueryWithLlm(query);
+  if (plan) {
+    const planned = await executeStructuredPlan(query, plan, context);
+    if (planned) return planned;
+  }
+
+  if (isPersonAffiliationQuery(query)) {
+    const personResult = handlePersonAffiliationLookup(query, context);
+    if (personResult) return personResult;
   }
   return runSearch(query, context);
 }

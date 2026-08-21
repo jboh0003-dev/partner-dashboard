@@ -629,7 +629,7 @@ export function PartnerContactFormModal({
                   setForm((prev) => ({ ...prev, is_contract_contact: event.target.checked }))
                 }
               />
-              계약담당자
+              담당자
             </label>
 
             <Field label="비고">

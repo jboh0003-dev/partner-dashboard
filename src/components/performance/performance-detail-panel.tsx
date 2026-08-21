@@ -11,8 +11,8 @@ import {
 import { TableCopyToolbar } from "@/components/common/table-copy-toolbar";
 import { useTableSelection } from "@/hooks/use-table-selection";
 import { PerformanceMatchModal } from "@/components/performance/performance-match-modal";
-import { formatCount, formatEok, formatMillion } from "@/lib/performance/format";
-import { isFy26, isRegisteredYear2026 } from "@/lib/performance/format";
+import { formatCount, formatEok, formatMillion, isFy26, isRegisteredYear2026 } from "@/lib/performance/format";
+import { isExpectedWinPartnerPipeline } from "@/lib/performance/expected-win";
 import {
   canManualMatchPerformance,
   needsPerformanceReview,
@@ -28,7 +28,8 @@ import type { CsvRow } from "@/lib/csv";
 
 type TabKey =
   | "summary"
-  | "win_forecast"
+  | "all_opportunity"
+  | "expected_win"
   | "new_reg"
   | "top_win"
   | "top_new"
@@ -82,15 +83,17 @@ function displayPartnerName(row: PartnerPipelineOpportunity): string {
 export function PerformanceDetailPanel({
   snapshot,
   opportunities,
-  stats
+  stats,
+  isAdmin = false
 }: {
   snapshot: PartnerPerformanceSnapshot | null;
   opportunities: PartnerPipelineOpportunity[];
   stats: ExecutivePerformanceStats;
+  isAdmin?: boolean;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  const [tab, setTab] = useState<TabKey>("summary");
+  const [tab, setTab] = useState<TabKey>("expected_win");
   const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
   const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(new Set());
   const [localRows, setLocalRows] = useState(opportunities);
@@ -107,10 +110,12 @@ export function PerformanceDetailPanel({
 
   const tabRows = useMemo(() => {
     switch (tab) {
-      case "win_forecast":
+      case "all_opportunity":
         return localRows.filter(
           (row) => row.is_product_revenue && row.is_partner_deal && isFy26(row.expected_win_year)
         );
+      case "expected_win":
+        return localRows.filter(isExpectedWinPartnerPipeline);
       case "new_reg":
         return localRows.filter(
           (row) =>
@@ -388,7 +393,7 @@ export function PerformanceDetailPanel({
       }
     ];
 
-    if (tab === "review") {
+    if (tab === "review" && isAdmin) {
       defs.push({
         key: "actions",
         label: "액션",
@@ -425,7 +430,7 @@ export function PerformanceDetailPanel({
     }
 
     return defs.filter((col) => !hiddenColumns.has(col.key));
-  }, [hiddenColumns, isPending, runMatchAction, savingMatch, tab]);
+  }, [hiddenColumns, isAdmin, isPending, runMatchAction, savingMatch, tab]);
 
   if (!snapshot) return null;
 
@@ -468,14 +473,15 @@ export function PerformanceDetailPanel({
       <div className="flex flex-wrap gap-2">
         {(
           [
-            ["summary", "Executive Summary"],
-            ["win_forecast", "수주예상 파이프라인"],
-            ["new_reg", "신규등록 파이프라인"],
-            ["top_win", "수주예상 Top 10"],
+            ["summary", "요약"],
+            ["expected_win", "수주 예상 프로젝트"],
+            ["all_opportunity", "전체 영업기회"],
+            ["new_reg", "신규등록"],
+            ["top_win", "수주 예상 Top 10"],
             ["top_new", "신규등록 Top 10"],
             ["top_revenue", "매출 Top 10"],
             ["review", `검토 필요 (${reviewCount})`],
-            ["raw", "원천 데이터"]
+            ["raw", "전체 프로젝트"]
           ] as const
         ).map(([key, label]) => (
           <button
@@ -496,23 +502,23 @@ export function PerformanceDetailPanel({
       {tab === "summary" ? (
         <div className="grid gap-4 xl:grid-cols-2">
           <SummaryCard
-            title="2026 수주예상 파트너 파이프라인"
-            amount={latest.partner_pipeline_amount_million}
-            count={latest.partner_pipeline_count}
-            total={latest.total_pipeline_amount_million}
+            title="파트너 전체 영업기회"
+            amount={stats.all_opportunity_amount_million}
+            count={stats.all_opportunity_count}
+            total={null}
           />
           <SummaryCard
-            title="2026 신규등록 파트너 파이프라인"
-            amount={latest.new_partner_pipeline_amount_million}
-            count={latest.new_partner_pipeline_count}
-            total={latest.new_total_pipeline_amount_million}
+            title="수주 예상 프로젝트"
+            amount={stats.expected_win_amount_million}
+            count={stats.expected_win_count}
+            total={stats.all_opportunity_amount_million}
           />
         </div>
       ) : null}
 
       {tab === "top_win" ? (
         <HorizontalBarChart
-          data={stats.win_forecast_top10.map((row) => ({
+          data={stats.expected_win_top10.map((row) => ({
             label: row.partner_name,
             value: row.amount_million
           }))}
@@ -535,7 +541,7 @@ export function PerformanceDetailPanel({
         />
       ) : null}
 
-      {["win_forecast", "new_reg", "review", "raw"].includes(tab) ? (
+      {["all_opportunity", "expected_win", "new_reg", "review", "raw"].includes(tab) ? (
         <>
           <FilterToolbar
             filters={filters}
@@ -653,7 +659,9 @@ function SummaryCard({
       <p className="mt-1 text-sm text-slate-600">
         {formatCount(count)} · {formatMillion(amount)}
       </p>
-      <p className="mt-2 text-xs text-slate-500">전체 대비 약 {share}%</p>
+      {share > 0 ? (
+        <p className="mt-2 text-xs text-slate-500">파트너 파이프라인 대비 약 {share}%</p>
+      ) : null}
     </div>
   );
 }

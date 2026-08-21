@@ -2,6 +2,7 @@ import { cache } from "react";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isFy26, isRegisteredYear2026 } from "@/lib/performance/format";
 import { isExpectedWinPartnerPipeline } from "@/lib/performance/expected-win";
+import { buildWinProbabilityBucketStats } from "@/lib/performance/win-probability-buckets";
 import { needsPerformanceReview } from "@/lib/performance/match-status";
 import type {
   ExecutivePerformanceStats,
@@ -180,11 +181,42 @@ function isNewRegPipelineRow(row: PartnerPipelineOpportunity): boolean {
   );
 }
 
+function uniqueCountAndAmount(rows: PartnerPipelineOpportunity[]): { count: number; amount: number } {
+  const codes = new Set<string>();
+  let amount = 0;
+  for (const row of rows) {
+    if (row.project_code) codes.add(row.project_code);
+    amount += row.product_amount_million ?? 0;
+  }
+  return { count: codes.size, amount: Math.round(amount * 1000) / 1000 };
+}
+
+async function fetchSnapshotOpportunityRows(
+  supabase: ReturnType<typeof createAdminClient>,
+  snapshotId: string,
+  columns: string
+): Promise<Record<string, unknown>[]> {
+  const pageSize = 1000;
+  const rows: Record<string, unknown>[] = [];
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await supabase
+      .from("partner_pipeline_opportunities")
+      .select(columns)
+      .eq("snapshot_id", snapshotId)
+      .range(from, from + pageSize - 1);
+    if (error) break;
+    const batch = (data ?? []) as unknown as Record<string, unknown>[];
+    rows.push(...batch);
+    if (batch.length < pageSize) break;
+  }
+  return rows;
+}
+
 const SNAPSHOT_SELECT =
   "id, snapshot_date, snapshot_label, source_file_name, total_pipeline_amount_million, total_pipeline_count, partner_pipeline_amount_million, partner_pipeline_count, new_total_pipeline_amount_million, new_total_pipeline_count, new_partner_pipeline_amount_million, new_partner_pipeline_count, is_current, uploaded_at, uploaded_by, version, created_at, updated_at";
 
 const OPPORTUNITY_EXEC_SELECT =
-  "id, snapshot_id, snapshot_date, project_code, customer_name, project_name, project_registered_year, division, expected_win_year, win_probability_label, is_partner_deal, partner_grade, partner_name, raw_partner_name, matched_partner_id, matched_partner_name, match_status, is_product_revenue, product_amount_million";
+  "id, snapshot_id, snapshot_date, project_code, customer_name, project_name, project_registered_year, division, expected_win_year, win_probability_label, win_probability_value, is_partner_deal, partner_grade, partner_name, raw_partner_name, matched_partner_id, matched_partner_name, match_status, is_product_revenue, product_amount_million";
 
 const REVENUE_EXEC_SELECT =
   "id, partner_name, matched_partner_id, partner_grade, match_status, product_revenue_million, project_count, revenue_year";
@@ -245,6 +277,12 @@ export const fetchExecutivePerformanceStats = cache(
       latest_snapshot: null,
       previous_snapshot: null,
       snapshot_trend: [],
+      all_opportunity_amount_million: 0,
+      all_opportunity_count: 0,
+      expected_win_amount_million: 0,
+      expected_win_count: 0,
+      all_opportunity_top10: [],
+      expected_win_top10: [],
       win_forecast_top10: [],
       new_reg_top10: [],
       revenue_top10: [],
@@ -264,11 +302,8 @@ export const fetchExecutivePerformanceStats = cache(
     };
   }
 
-  const [{ data: opportunities }, { data: revenueRows }] = await Promise.all([
-    supabase
-      .from("partner_pipeline_opportunities")
-      .select(OPPORTUNITY_EXEC_SELECT)
-      .eq("snapshot_id", latest.id),
+  const [opportunityRows, { data: revenueRows }] = await Promise.all([
+    fetchSnapshotOpportunityRows(supabase, latest.id, OPPORTUNITY_EXEC_SELECT),
     supabase
       .from("partner_revenue_records")
       .select(REVENUE_EXEC_SELECT)
@@ -277,11 +312,8 @@ export const fetchExecutivePerformanceStats = cache(
       .limit(200)
   ]);
 
-  const rows = (opportunities ?? []).map((row) =>
-    mapOpportunity(row as Record<string, unknown>)
-  );
+  const rows = opportunityRows.map((row) => mapOpportunity(row));
 
-  const winFilter = isWinForecastPipelineRow;
   const newFilter = isNewRegPipelineRow;
 
   const matchedRevenueRecords = (revenueRows ?? []).filter((row) => {
@@ -339,11 +371,17 @@ export const fetchExecutivePerformanceStats = cache(
       top_partner_name: top?.partner_name ?? null,
       top_partner_million: top?.product_revenue_million ?? 0,
       top_partner_project_count: top?.project_count ?? 0,
-      has_data: total_million > 0
+      has_data: totals.length > 0
     };
   })();
 
   const partnerDealRows = rows.filter((row) => row.is_partner_deal && row.is_product_revenue);
+  const allOpportunityRows = rows.filter(isWinForecastPipelineRow);
+  const expectedWinRows = rows.filter(isExpectedWinPartnerPipeline);
+  const allOpportunityStats = uniqueCountAndAmount(allOpportunityRows);
+  const expectedWinStats = uniqueCountAndAmount(expectedWinRows);
+  const all_opportunity_top10 = aggregateByPartner(rows, isWinForecastPipelineRow).slice(0, 10);
+  const expected_win_top10 = aggregateByPartner(rows, isExpectedWinPartnerPipeline).slice(0, 10);
 
   const unmatched_partner_count = new Set(
     partnerDealRows
@@ -362,20 +400,23 @@ export const fetchExecutivePerformanceStats = cache(
       new_partner_pipeline_amount_million: snapshot.new_partner_pipeline_amount_million ?? 0,
       new_partner_pipeline_count: snapshot.new_partner_pipeline_count ?? 0
     })),
-    win_forecast_top10: aggregateByPartner(rows, winFilter).slice(0, 10),
+    all_opportunity_amount_million: allOpportunityStats.amount,
+    all_opportunity_count: allOpportunityStats.count,
+    expected_win_amount_million: expectedWinStats.amount,
+    expected_win_count: expectedWinStats.count,
+    all_opportunity_top10,
+    expected_win_top10,
+    win_forecast_top10: expected_win_top10,
     new_reg_top10: aggregateByPartner(rows, newFilter).slice(0, 10),
     revenue_top10,
     revenue_summary,
-    win_probability_breakdown: aggregateBreakdown(
-      partnerDealRows.filter(winFilter),
-      (row) => row.win_probability_label
-    ),
+    win_probability_breakdown: buildWinProbabilityBucketStats(allOpportunityRows),
     division_breakdown: aggregateBreakdown(
-      partnerDealRows.filter(winFilter),
+      allOpportunityRows,
       (row) => row.division
     ),
     grade_breakdown: aggregateBreakdown(
-      partnerDealRows.filter(winFilter),
+      allOpportunityRows,
       (row) => row.partner_grade
     ),
     review_count: partnerDealRows.filter(needsPerformanceReview).length,
@@ -398,6 +439,7 @@ export async function fetchPartnerPerformanceBundle(partnerId: string) {
       new_reg_count: 0,
       revenue_amount_million: 0,
       revenue_count: 0,
+      revenue_has_data: false,
       opportunities: [] as PartnerPipelineOpportunity[],
       win_probability_breakdown: [] as Array<{ label: string; amount_million: number; count: number }>
     };
@@ -445,8 +487,9 @@ export async function fetchPartnerPerformanceBundle(partnerId: string) {
     new_reg_count: new Set(newRows.map((row) => row.project_code)).size,
     revenue_amount_million: Math.round(revenue_amount_million),
     revenue_count: (revenueRows ?? []).length,
+    revenue_has_data: (revenueRows ?? []).length > 0,
     opportunities: rows,
-    win_probability_breakdown: aggregateBreakdown(allOpportunityRows, (row) => row.win_probability_label)
+    win_probability_breakdown: buildWinProbabilityBucketStats(allOpportunityRows)
   };
 }
 
@@ -459,19 +502,15 @@ export async function fetchPerformanceOpportunities(snapshotId?: string) {
   }
   if (!targetSnapshotId) return { snapshot: null, opportunities: [] as PartnerPipelineOpportunity[] };
 
-  const [{ data: snapshot }, { data: opportunities }] = await Promise.all([
+  const [snapshotResult, opportunityRows] = await Promise.all([
     supabase.from("partner_performance_snapshots").select("*").eq("id", targetSnapshotId).single(),
-    supabase
-      .from("partner_pipeline_opportunities")
-      .select("*")
-      .eq("snapshot_id", targetSnapshotId)
-      .order("product_amount_million", { ascending: false })
+    fetchSnapshotOpportunityRows(supabase, targetSnapshotId, "*")
   ]);
 
   return {
-    snapshot: snapshot ? mapSnapshot(snapshot as Record<string, unknown>) : null,
-    opportunities: (opportunities ?? []).map((row) =>
-      mapOpportunity(row as Record<string, unknown>)
-    )
+    snapshot: snapshotResult.data ? mapSnapshot(snapshotResult.data as Record<string, unknown>) : null,
+    opportunities: opportunityRows
+      .map((row) => mapOpportunity(row))
+      .sort((a, b) => (b.product_amount_million ?? 0) - (a.product_amount_million ?? 0))
   };
 }

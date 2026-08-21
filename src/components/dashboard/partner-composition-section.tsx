@@ -95,7 +95,7 @@ function CompositionCard({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex min-h-[280px] flex-col rounded-xl border border-slate-300/90 bg-white p-5 shadow-sm">
+    <div className="flex min-h-[320px] flex-col rounded-xl border border-slate-300/90 bg-white p-5 shadow-sm">
       <div className="mb-4">
         <h3 className="text-sm font-bold text-slate-950">{title}</h3>
         {subtitle ? <p className="mt-1 text-xs font-medium text-slate-600">{subtitle}</p> : null}

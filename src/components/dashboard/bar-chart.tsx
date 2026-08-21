@@ -17,7 +17,7 @@ export function HorizontalBarChart({ data }: { data: HorizontalBarChartItem[] })
               <span className="font-semibold text-slate-800">{item.label}</span>
               <span className="tabular-nums font-bold text-slate-900">{item.value}</span>
             </div>
-            <div className="h-3 w-full overflow-hidden rounded-full bg-slate-200">
+            <div className="h-3.5 w-full overflow-hidden rounded-full bg-slate-200">
               <div
                 style={{ width: `${pct}%` }}
                 className={["h-full rounded-full", item.color ?? "bg-blue-600"].join(" ")}
@@ -62,7 +62,7 @@ export function ExecutiveRankBarChart({
                 {formatValue(item.value)}
               </span>
             </div>
-            <div className="h-3 w-full overflow-hidden rounded-full bg-slate-200">
+            <div className="h-3.5 w-full overflow-hidden rounded-full bg-slate-200">
               <div
                 style={{ width: `${pct}%` }}
                 className={["h-full rounded-full", item.color ?? "bg-blue-600"].join(" ")}
@@ -115,11 +115,11 @@ export function GradeDistributionChart({ data }: { data: HorizontalBarChartItem[
     );
   }
 
-  const size = 168;
+  const size = 220;
   const cx = size / 2;
   const cy = size / 2;
-  const radius = 58;
-  const strokeWidth = 22;
+  const radius = 78;
+  const strokeWidth = 26;
 
   let cumulative = -Math.PI / 2;
   const segments = data.map((item) => {

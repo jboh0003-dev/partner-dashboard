@@ -17,6 +17,7 @@ import {
 import { isMultiDocumentAllowed } from "@/lib/documents/duplicate-detection";
 import { resolveSaveAction } from "@/lib/imports/partner-documents";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { rejectUnlessAdmin } from "@/lib/auth/require-admin";
 import type { DocumentMatchSource, DocumentReviewStatus } from "@/lib/documents/constants";
 
 const ParsedRowSchema = z.object({
@@ -79,7 +80,8 @@ type ExistingDocumentRow = {
 };
 
 export async function POST(request: Request) {
-  // TODO(auth): 추후 admin 세션 도입 시 requireAdmin() 복원. 현재는 service role로 처리.
+  const denied = await rejectUnlessAdmin();
+  if (denied) return denied;
   const supabase = createAdminClient();
   let importJobId: string | null = null;
 

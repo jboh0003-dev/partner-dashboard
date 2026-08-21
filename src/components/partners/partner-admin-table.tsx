@@ -7,7 +7,8 @@ import {
   ClientSortableTable,
   type SortableColumn
 } from "@/components/common/client-sortable-table";
-import { ConfirmDialog } from "@/components/common/confirm-dialog";
+import { PartnerDeleteDialog } from "@/components/partners/partner-delete-dialog";
+import type { PartnerDeleteMode } from "@/lib/partners/delete-types";
 import { CopyToast } from "@/components/common/copy-toast";
 import { TableCopyToolbar } from "@/components/common/table-copy-toolbar";
 import { TableText } from "@/components/common/table-cells";
@@ -30,14 +31,13 @@ import type { CsvRow } from "@/lib/csv";
 type PartnerAdminTableProps = {
   rows: PartnerListRow[];
   csvRows?: CsvRow[];
+  isAdmin?: boolean;
 };
 
 type DeleteConfirmState =
   | { type: "single"; row: PartnerListRow }
   | { type: "bulk"; ids: string[] }
   | null;
-
-const PREVIEW_NAME_LIMIT = 3;
 
 function buildDuplicatePartnerNos(rows: PartnerListRow[]): Set<string> {
   const counts = new Map<string, number>();
@@ -51,17 +51,7 @@ function buildDuplicatePartnerNos(rows: PartnerListRow[]): Set<string> {
   );
 }
 
-function buildDeletePreviewItems(
-  rows: PartnerListRow[],
-  ids: string[]
-): Array<{ id: string; company_name: string }> {
-  const idSet = new Set(ids);
-  return rows
-    .filter((row) => idSet.has(row.partner.id))
-    .map((row) => ({ id: row.partner.id, company_name: row.partner.company_name }));
-}
-
-export function PartnerAdminTable({ rows, csvRows }: PartnerAdminTableProps) {
+export function PartnerAdminTable({ rows, csvRows, isAdmin = false }: PartnerAdminTableProps) {
   const router = useRouter();
   const [localRows, setLocalRows] = useState(rows);
   const [isPending, startTransition] = useTransition();
@@ -203,15 +193,19 @@ export function PartnerAdminTable({ rows, csvRows }: PartnerAdminTableProps) {
         render: (row) => (
           <div className="flex flex-wrap items-center justify-end gap-1.5 select-none">
             <ActionLink href={`/dashboard/partners/${row.partner.id}`}>보기</ActionLink>
-            <ActionButton onClick={() => setEditPartner(row.partner)}>수정</ActionButton>
-            <ActionButton danger onClick={() => setConfirmState({ type: "single", row })}>
-              삭제
-            </ActionButton>
+            {isAdmin ? (
+              <>
+                <ActionButton onClick={() => setEditPartner(row.partner)}>수정</ActionButton>
+                <ActionButton danger onClick={() => setConfirmState({ type: "single", row })}>
+                  삭제
+                </ActionButton>
+              </>
+            ) : null}
           </div>
         )
       }
     ],
-    [duplicatePartnerNos]
+    [duplicatePartnerNos, isAdmin]
   );
 
   const getRowClassName = useCallback(
@@ -220,11 +214,13 @@ export function PartnerAdminTable({ rows, csvRows }: PartnerAdminTableProps) {
     [selection.selectedIds]
   );
 
-  function runDeleteSingle(row: PartnerListRow) {
+  function runDeleteSingle(row: PartnerListRow, mode: PartnerDeleteMode) {
     startTransition(async () => {
       setError(null);
       const response = await fetch(`/api/partners/${row.partner.id}`, {
-        method: "DELETE"
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode })
       });
       const json = (await response.json().catch(() => null)) as {
         ok?: boolean;
@@ -242,13 +238,13 @@ export function PartnerAdminTable({ rows, csvRows }: PartnerAdminTableProps) {
     });
   }
 
-  function runBulkDelete(ids: string[]) {
+  function runBulkDelete(ids: string[], mode: PartnerDeleteMode) {
     startTransition(async () => {
       setError(null);
       const response = await fetch("/api/partners/bulk", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ids })
+        body: JSON.stringify({ ids, mode })
       });
       const json = (await response.json().catch(() => null)) as {
         ok?: boolean;
@@ -278,13 +274,6 @@ export function PartnerAdminTable({ rows, csvRows }: PartnerAdminTableProps) {
     });
   }
 
-  const bulkPreviewItems =
-    confirmState?.type === "bulk"
-      ? buildDeletePreviewItems(localRows, confirmState.ids)
-      : [];
-  const bulkDeleteCount =
-    confirmState?.type === "bulk" ? confirmState.ids.length : 0;
-
   return (
     <>
       <CopyToast message={toast} onDismiss={() => setToast(null)} />
@@ -297,21 +286,23 @@ export function PartnerAdminTable({ rows, csvRows }: PartnerAdminTableProps) {
           </span>
           개의 파트너사가 검색되었습니다.
         </div>
-        <button
-          type="button"
-          disabled={selection.selectedCount === 0 || isPending}
-          onClick={() =>
-            setConfirmState({
-              type: "bulk",
-              ids: [...selection.selectedIds]
-            })
-          }
-          className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-semibold text-rose-800 hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {selection.selectedCount > 0
-            ? `선택 삭제 (${selection.selectedCount})`
-            : "선택 삭제"}
-        </button>
+        {isAdmin ? (
+          <button
+            type="button"
+            disabled={selection.selectedCount === 0 || isPending}
+            onClick={() =>
+              setConfirmState({
+                type: "bulk",
+                ids: [...selection.selectedIds]
+              })
+            }
+            className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-semibold text-rose-800 hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {selection.selectedCount > 0
+              ? `선택 삭제 (${selection.selectedCount})`
+              : "선택 삭제"}
+          </button>
+        ) : null}
       </div>
 
       {error ? (
@@ -338,7 +329,7 @@ export function PartnerAdminTable({ rows, csvRows }: PartnerAdminTableProps) {
         defaultDir="asc"
         minWidth="1280px"
         rowKey={(row) => row.partner.id}
-        selectable
+        selectable={isAdmin}
         selectedIds={selection.selectedIds}
         onToggleRow={selection.toggleRow}
         onToggleAll={selection.toggleAll}
@@ -358,48 +349,27 @@ export function PartnerAdminTable({ rows, csvRows }: PartnerAdminTableProps) {
         />
       ) : null}
 
-      <ConfirmDialog
+      <PartnerDeleteDialog
         open={confirmState?.type === "single"}
         title="파트너사 삭제"
-        message={
-          "정말 이 파트너사를 삭제하시겠습니까?\n연결된 담당자, 문서, 교육 이력은 보존되지만 화면에서는 숨김 처리됩니다."
-        }
-        confirmLabel="삭제"
-        danger
         loading={isPending}
+        ids={confirmState?.type === "single" ? [confirmState.row.partner.id] : []}
         onCancel={() => setConfirmState(null)}
-        onConfirm={() => {
-          if (confirmState?.type === "single") runDeleteSingle(confirmState.row);
+        onConfirm={(mode) => {
+          if (confirmState?.type === "single") runDeleteSingle(confirmState.row, mode);
         }}
       />
 
-      <ConfirmDialog
+      <PartnerDeleteDialog
         open={confirmState?.type === "bulk"}
         title="선택 파트너사 삭제"
-        message={`선택한 파트너사 ${bulkDeleteCount}개를 삭제하시겠습니까?\n연결된 담당자, 문서, 교육 이력은 보존되지만 화면에서는 숨김 처리됩니다.`}
-        confirmLabel={`삭제 (${bulkDeleteCount})`}
-        danger
         loading={isPending}
+        ids={confirmState?.type === "bulk" ? confirmState.ids : []}
         onCancel={() => setConfirmState(null)}
-        onConfirm={() => {
-          if (confirmState?.type === "bulk") runBulkDelete(confirmState.ids);
+        onConfirm={(mode) => {
+          if (confirmState?.type === "bulk") runBulkDelete(confirmState.ids, mode);
         }}
-      >
-        {bulkPreviewItems.length > 0 ? (
-          <ul className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
-            {bulkPreviewItems.slice(0, PREVIEW_NAME_LIMIT).map((item) => (
-              <li key={item.id} className="truncate py-0.5">
-                · {item.company_name}
-              </li>
-            ))}
-            {bulkPreviewItems.length > PREVIEW_NAME_LIMIT ? (
-              <li className="py-0.5 text-slate-500">
-                · 외 {bulkPreviewItems.length - PREVIEW_NAME_LIMIT}건
-              </li>
-            ) : null}
-          </ul>
-        ) : null}
-      </ConfirmDialog>
+      />
     </>
   );
 }

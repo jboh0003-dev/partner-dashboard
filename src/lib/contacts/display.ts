@@ -8,7 +8,7 @@ export type ContactAssignmentInput = {
 
 /** 화면에 표시할 담당구분 문구 */
 export function getContactAssignmentLabel(contact: ContactAssignmentInput): string {
-  if (contact.is_contract_contact) return "계약담당자";
+  if (contact.is_contract_contact) return "담당자";
 
   const role = contact.role_type ?? "etc";
   if (role === "etc") {

@@ -1,12 +1,15 @@
 import { NextResponse } from "next/server";
-import { requireUser, unauthorizedJson } from "@/lib/auth/require-user";
+import { forbiddenJson, requireAdmin } from "@/lib/auth/require-admin";
+import { unauthorizedJson } from "@/lib/auth/require-user";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
 
 export async function GET(request: Request) {
-  const auth = await requireUser();
-  if (!auth.ok) return unauthorizedJson(auth.message);
+  const auth = await requireAdmin();
+  if (!auth.ok) {
+    return auth.status === 401 ? unauthorizedJson(auth.message) : forbiddenJson(auth.message);
+  }
 
   const url = new URL(request.url);
   const status = url.searchParams.get("status");

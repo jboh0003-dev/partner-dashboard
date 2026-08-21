@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { deleteTempImportFile, writeImportLog } from "@/lib/imports/import-logs";
 import {
   analyzeTrainingAttendanceRows,
+  attendanceLookupKey,
   type ExistingTrainingAttendanceRow,
   type TrainingAttendancePartnerRow,
   type TrainingMasterRow
@@ -20,7 +21,6 @@ import {
   type PartnerContactRow,
   type TrainingContactSyncInput
 } from "@/lib/imports/training-attendance-contact-sync";
-import { normalizeCompanyName } from "@/lib/partner-match";
 import {
   buildAttendancePayload,
   buildTrainingFillEmptyPatch,
@@ -88,7 +88,7 @@ export async function POST(request: Request) {
         ),
       supabase
         .from("training_attendance")
-        .select("id, partner_id, training_id, attendee_name"),
+        .select("id, partner_id, training_id, attendee_name, company_name_raw"),
       supabase
         .from("partner_contacts")
         .select("id, partner_id, name, department, position, email, phone, memo")
@@ -107,13 +107,9 @@ export async function POST(request: Request) {
     );
     const analysisMap = new Map(analysis.items.map((item) => [item.row_number, item]));
 
-    const partnerByNormalized = new Map<string, TrainingAttendancePartnerRow>();
-    for (const partner of (partners ?? []) as TrainingAttendancePartnerRow[]) {
-      const key = normalizeCompanyName(partner.company_name);
-      if (key && !partnerByNormalized.has(key)) {
-        partnerByNormalized.set(key, partner);
-      }
-    }
+    const partnerById = new Map(
+      ((partners ?? []) as TrainingAttendancePartnerRow[]).map((partner) => [partner.id, partner])
+    );
 
     const trainingCache = new Map(
       ((trainings ?? []) as TrainingMasterRow[]).map((training) => [
@@ -128,7 +124,12 @@ export async function POST(request: Request) {
     );
     const attendanceCache = new Map(
       ((attendances ?? []) as ExistingTrainingAttendanceRow[]).map((attendance) => [
-        `${attendance.partner_id}|${attendance.training_id}|${normalizeName(attendance.attendee_name)}`,
+        attendanceLookupKey(
+          attendance.partner_id,
+          attendance.training_id,
+          attendance.attendee_name,
+          attendance.company_name_raw
+        ),
         attendance
       ])
     );
@@ -162,9 +163,7 @@ export async function POST(request: Request) {
         continue;
       }
 
-      const partnerKey = normalizeCompanyName(row.company_name);
-      const partner = partnerKey ? partnerByNormalized.get(partnerKey) : undefined;
-      if (!partner || item.matched_partner_id !== partner.id) {
+      if (item.action === "review") {
         reviewCount += 1;
         reviewRows.push({ row, reason: item.reason });
         results.push({
@@ -179,6 +178,25 @@ export async function POST(request: Request) {
         });
         continue;
       }
+
+      const partner = item.matched_partner_id ? partnerById.get(item.matched_partner_id) : undefined;
+      if (item.matched_partner_id && !partner) {
+        reviewCount += 1;
+        reviewRows.push({ row, reason: "매칭된 파트너를 찾지 못했습니다." });
+        results.push({
+          company_name: row.company_name,
+          attendee_name: row.attendee_name,
+          training_name: row.training_name,
+          status: "review",
+          partner_id: item.matched_partner_id,
+          training_id: item.matched_training_id,
+          attendance_id: item.matched_attendance_id,
+          message: "매칭된 파트너를 찾지 못했습니다."
+        });
+        continue;
+      }
+
+      const partnerId = partner?.id ?? null;
 
       let trainingId = item.matched_training_id;
       const trainingKey = getTrainingKey(
@@ -216,7 +234,7 @@ export async function POST(request: Request) {
           attendee_name: row.attendee_name,
           training_name: row.training_name,
           status: "review",
-          partner_id: partner.id,
+          partner_id: partnerId,
           training_id: null,
           attendance_id: null,
           message: "교육을 찾지 못했습니다."
@@ -226,9 +244,14 @@ export async function POST(request: Request) {
 
       await patchTrainingMetadata(supabase, trainingId, row);
 
-      const attendanceKey = `${partner.id}|${trainingId}|${normalizeName(row.attendee_name)}`;
+      const attendanceKey = attendanceLookupKey(
+        partnerId,
+        trainingId,
+        row.attendee_name,
+        row.company_name
+      );
       const existingAttendance = attendanceCache.get(attendanceKey);
-      const payload = buildAttendancePayload(asParsedRow(row), partner.id, trainingId);
+      const payload = buildAttendancePayload(asParsedRow(row), partnerId, trainingId);
 
       if (existingAttendance) {
         const { error } = await supabase
@@ -238,14 +261,16 @@ export async function POST(request: Request) {
         if (error) {
           throw new Error(error.message);
         }
-        await syncPartnerContactFromTrainingRow(supabase, contactRows, row, partner.id);
+        if (partnerId) {
+          await syncPartnerContactFromTrainingRow(supabase, contactRows, row, partnerId);
+        }
         updatedCount += 1;
         results.push({
           company_name: row.company_name,
           attendee_name: row.attendee_name,
           training_name: row.training_name,
           status: "updated",
-          partner_id: partner.id,
+          partner_id: partnerId,
           training_id: trainingId,
           attendance_id: existingAttendance.id,
           message: item.reason
@@ -262,13 +287,16 @@ export async function POST(request: Request) {
         throw new Error(createAttendanceError?.message ?? "참석자 생성 실패");
       }
 
-      await syncPartnerContactFromTrainingRow(supabase, contactRows, row, partner.id);
+      if (partnerId) {
+        await syncPartnerContactFromTrainingRow(supabase, contactRows, row, partnerId);
+      }
 
       attendanceCache.set(attendanceKey, {
         id: createdAttendance.id as string,
-        partner_id: partner.id,
+        partner_id: partnerId,
         training_id: trainingId,
-        attendee_name: row.attendee_name
+        attendee_name: row.attendee_name,
+        company_name_raw: row.company_name
       });
       createdAttendanceCount += 1;
       createdCount += 1;
@@ -277,7 +305,7 @@ export async function POST(request: Request) {
         attendee_name: row.attendee_name,
         training_name: row.training_name,
         status: "created",
-        partner_id: partner.id,
+        partner_id: partnerId,
         training_id: trainingId,
         attendance_id: createdAttendance.id as string,
         message: item.reason

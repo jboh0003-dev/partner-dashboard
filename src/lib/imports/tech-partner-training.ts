@@ -2,6 +2,7 @@ import type { ParsedTechPartnerExamRow } from "@/lib/excel/parse-tech-partner-ex
 import { examRowHasScore } from "@/lib/excel/parse-tech-partner-exam";
 import type { ParsedTechPartnerRosterRow } from "@/lib/excel/parse-tech-partner-roster";
 import { companyNamesMatchWithVariants } from "@/lib/documents/partner-aliases";
+import { resolveTrainingCompanyAliasKey } from "@/lib/imports/training-company-aliases";
 import { normalizeCompanyName } from "@/lib/partner-match";
 import {
   TECH_PARTNER_TRAINING_SESSION,
@@ -302,6 +303,17 @@ function matchPartner(
   if (exact.length === 1) return { partner: exact[0]!, candidates: exact, reason: null };
   if (exact.length > 1) {
     return { partner: null, candidates: exact, reason: "동일 파트너사명이 여러 건입니다." };
+  }
+
+  const aliasKey = resolveTrainingCompanyAliasKey(companyName);
+  if (aliasKey) {
+    const aliasMatches = partners.filter((p) => normalizeCompanyName(p.company_name) === aliasKey);
+    if (aliasMatches.length === 1) {
+      return { partner: aliasMatches[0]!, candidates: aliasMatches, reason: null };
+    }
+    if (aliasMatches.length > 1) {
+      return { partner: null, candidates: aliasMatches, reason: "별칭 기준 파트너사명이 여러 건입니다." };
+    }
   }
 
   const variantMatches = partners.filter((p) =>

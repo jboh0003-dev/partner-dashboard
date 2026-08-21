@@ -19,7 +19,7 @@ import {
 import { EmptyState } from "@/components/common/empty-state";
 import { ContactTagsBadges } from "@/components/contacts/contact-tags-badges";
 import { mergePartnerOrganizationContacts } from "@/lib/contacts/organization-merge";
-import { DOCUMENT_TYPE_LABEL, POC_RESULT_STATUS_LABEL } from "@/lib/constants";
+import { DOCUMENT_TYPE_LABEL } from "@/lib/constants";
 import { getDisplayPartnerGrade, getDisplayPartnerGradeLabel } from "@/lib/partners/grade";
 import { PartnerBasicInfoEditModal } from "@/components/partners/partner-basic-info-edit-modal";
 import { PartnerOrganizationAdminPanel } from "@/components/partners/partner-organization-admin-panel";
@@ -28,6 +28,7 @@ import {
   countVisiblePartnerDocuments,
   countVisibleTrainingItems
 } from "@/lib/documents/partner-tab-counts";
+import { PartnerPocsPanel } from "@/components/partners/partner-pocs-panel";
 import { PartnerPerformanceTab } from "@/components/partners/partner-performance-tab";
 import { formatAssetUpdatedAt } from "@/lib/assets/display";
 import { formatAssetNodeDisplayName } from "@/lib/assets/partner-detail-assets";
@@ -35,6 +36,7 @@ import { pickPartnerAssetStatus } from "@/lib/assets/node-utils";
 import { AssetNodeCard } from "@/components/assets/asset-node-card";
 import { formatPartnerNo } from "@/lib/partners/partner-no";
 import { formatDate } from "@/lib/utils";
+import { formatTrainingGroupLabel, isTechPartnerTraining } from "@/lib/training-display";
 import type {
   PartnerDetailBundle,
   PartnerEventHistoryItem,
@@ -43,8 +45,6 @@ import type {
 } from "@/types/partner-detail";
 import type { PartnerTrainingMonthly } from "@/types/partner";
 import type { PartnerAsset } from "@/types/asset";
-import type { PartnerDocument } from "@/types/document";
-import type { PartnerPoc } from "@/types/poc";
 
 type TabKey =
   | "basic"
@@ -78,7 +78,7 @@ const TAB_KEYS: TabKey[] = [
 
 const TABS: Array<{ key: TabKey; label: string; icon: typeof Info }> = [
   { key: "basic", label: "기본정보", icon: Info },
-  { key: "organization", label: "조직현황", icon: Building2 },
+  { key: "organization", label: "파트너 담당자", icon: Building2 },
   { key: "trainings", label: "교육 이력", icon: GraduationCap },
   { key: "events", label: "행사 이력", icon: CalendarDays },
   { key: "pocs", label: "PoC 이력", icon: FlaskConical },
@@ -197,10 +197,10 @@ export function PartnerDetailTabs({
           />
         ) : null}
         {active === "events" ? <EventsTab events={events} /> : null}
-        {active === "pocs" ? <PocsTab pocs={pocs} /> : null}
+        {active === "pocs" ? <PartnerPocsPanel pocs={pocs} /> : null}
         {active === "assets" ? <AssetsTab assets={assets} /> : null}
         {active === "documents" ? (
-          <PartnerDocumentsTab partnerId={partner.id} documents={documents} />
+          <PartnerDocumentsTab partnerId={partner.id} documents={documents} isAdmin={isAdmin} />
         ) : null}
         {active === "performance" ? <PartnerPerformanceTab performance={performance} /> : null}
         {active === "notes" ? (
@@ -208,6 +208,7 @@ export function PartnerDetailTabs({
             partnerId={partner.id}
             notes={notes}
             addNoteAction={addNoteAction}
+            isAdmin={isAdmin}
           />
         ) : null}
       </div>
@@ -322,7 +323,7 @@ function OrganizationViewerTab({
     return (
       <EmptyState
         title="등록된 담당자가 없습니다."
-        description="파트너사의 영업·엔지니어·계약담당자·교육 참석자 정보를 등록하면 이 탭에 표시됩니다."
+        description="파트너사의 영업·엔지니어·담당자·교육 참석자 정보를 등록하면 이 탭에 표시됩니다."
       />
     );
   }
@@ -342,7 +343,7 @@ function OrganizationViewerTab({
     <div className="space-y-3">
       {!hasContractContact ? (
         <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm font-medium text-amber-800">
-          계약담당자가 아직 지정되지 않았습니다. 영업 시 연락할 담당자를 확인해 주세요.
+          파트너 담당자가 아직 지정되지 않았습니다. 영업 시 연락할 담당자를 확인해 주세요.
         </div>
       ) : null}
       <p className="text-xs text-slate-500">
@@ -502,9 +503,21 @@ function TrainingsTab({
         <div key={session.training_id} className="rounded-xl border border-slate-200 bg-white p-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h3 className="text-sm font-bold text-slate-900">{session.training_name}</h3>
+              <div className="flex flex-wrap items-center gap-2">
+                <h3 className="text-sm font-bold text-slate-900">{session.training_name}</h3>
+                <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-semibold text-indigo-800 ring-1 ring-indigo-100">
+                  기술파트너 교육
+                </span>
+              </div>
               <p className="mt-1 text-xs text-slate-500">
-                {session.training_type ?? "기술파트너 교육"} · {formatPeriod(session.start_date, session.end_date)}
+                {formatTrainingGroupLabel(
+                  yearMonthFromIso(session.end_date ?? session.start_date).year,
+                  yearMonthFromIso(session.end_date ?? session.start_date).month,
+                  true
+                )}
+                {session.start_date || session.end_date
+                  ? ` · ${formatPeriod(session.start_date, session.end_date)}`
+                  : ""}
               </p>
             </div>
             <div className="flex flex-wrap gap-2 text-xs">
@@ -539,6 +552,7 @@ function TrainingsTab({
                   <th className="px-3 py-2 text-right">총점</th>
                   <th className="px-3 py-2 text-right">환산</th>
                   <th className="px-3 py-2 text-right">솔루션</th>
+                  <th className="px-3 py-2 text-right">기술test</th>
                   <th className="px-3 py-2 text-right">심화</th>
                   <th className="px-3 py-2 text-right">운영</th>
                   <th className="px-3 py-2 text-right">TS</th>
@@ -572,6 +586,9 @@ function TrainingsTab({
                       <td className="px-3 py-2 text-right">{p.converted_score ?? "-"}</td>
                       <td className="px-3 py-2 text-right">
                         {formatExtraScore(extra, "solution_understanding_score")}
+                      </td>
+                      <td className="px-3 py-2 text-right">
+                        {formatExtraScore(extra, "technical_test_score")}
                       </td>
                       <td className="px-3 py-2 text-right">
                         {formatExtraScore(extra, "advanced_basic_score")}
@@ -612,10 +629,23 @@ function TrainingsTab({
                 {legacyTrainings.map((t) => (
                   <tr key={t.id} className="hover:bg-slate-50">
                     <td className="px-4 py-2.5 text-sm font-medium text-slate-900">
-                      {t.training_name}
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span>{t.training_name}</span>
+                        {isTechPartnerTraining(t) ? (
+                          <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-semibold text-indigo-800 ring-1 ring-indigo-100">
+                            기술파트너 교육
+                          </span>
+                        ) : null}
+                      </div>
                     </td>
                     <td className="px-4 py-2.5 text-sm text-slate-700">
-                      {[t.training_type, t.product_name].filter(Boolean).join(" · ") || "-"}
+                      {isTechPartnerTraining(t)
+                        ? formatTrainingGroupLabel(
+                            yearMonthFromIso(t.end_date ?? t.start_date).year,
+                            yearMonthFromIso(t.end_date ?? t.start_date).month,
+                            true
+                          )
+                        : [t.training_type, t.product_name].filter(Boolean).join(" · ") || "정기교육"}
                     </td>
                     <td className="px-4 py-2.5 text-sm tabular-nums text-slate-700">
                       {formatPeriod(t.start_date, t.end_date)}
@@ -651,7 +681,7 @@ function TrainingsTab({
       {monthly.length > 0 ? (
         <div>
           <h3 className="mb-2 text-sm font-bold text-slate-900">
-            월별 교육 출석 ({monthly.length})
+            월별 정기교육 출석 ({monthly.length})
           </h3>
           <p className="mb-3 text-xs text-slate-500">
             엑셀 업로드에서 추출한 월별 출석 여부입니다.
@@ -677,6 +707,9 @@ function TrainingsTab({
                     <tr key={m.id} className="hover:bg-slate-50">
                       <td className="px-4 py-2.5 text-sm font-medium text-slate-900">
                         {m.training_year}년 {m.training_month}월
+                        <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
+                          정기교육
+                        </span>
                       </td>
                       <td className="px-4 py-2.5 text-center">
                         <AttendMark attended={m.attended} />
@@ -752,64 +785,6 @@ function EventsTab({ events }: { events: PartnerEventHistoryItem[] }) {
   );
 }
 
-function PocsTab({ pocs }: { pocs: PartnerPoc[] }) {
-  if (pocs.length === 0) {
-    return (
-      <EmptyState
-        title="등록된 PoC 이력이 없습니다."
-        description="partner_pocs 테이블에 PoC 프로젝트 이력을 등록하면 여기에 표시됩니다."
-      />
-    );
-  }
-
-  return (
-    <div className="overflow-hidden rounded-xl border border-slate-200">
-      <table className="min-w-full divide-y divide-slate-200">
-        <thead className="bg-slate-50">
-          <tr>
-            <Th>PoC명</Th>
-            <Th>고객사</Th>
-            <Th>제품</Th>
-            <Th>기간</Th>
-            <Th>역할</Th>
-            <Th>결과</Th>
-            <Th>요약</Th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-slate-100">
-          {pocs.map((p) => (
-            <tr key={p.id} className="hover:bg-slate-50">
-              <td className="px-4 py-2.5 text-sm font-medium text-slate-900">
-                {p.poc_name ?? "-"}
-              </td>
-              <td className="px-4 py-2.5 text-sm text-slate-700">{p.customer_name ?? "-"}</td>
-              <td className="px-4 py-2.5 text-sm text-slate-700">{p.product_name ?? "-"}</td>
-              <td className="px-4 py-2.5 text-sm tabular-nums text-slate-700">
-                {formatPeriod(p.start_date, p.end_date)}
-              </td>
-              <td className="px-4 py-2.5 text-sm text-slate-700">
-                {p.role_description ?? "-"}
-              </td>
-              <td className="px-4 py-2.5 text-sm">
-                {p.result_status ? (
-                  <span className="inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-700">
-                    {POC_RESULT_STATUS_LABEL[p.result_status] ?? p.result_status}
-                  </span>
-                ) : (
-                  "-"
-                )}
-              </td>
-              <td className="max-w-[280px] px-4 py-2.5 text-sm text-slate-600">
-                {p.result_summary ?? p.memo ?? "-"}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
 function AssetsTab({ assets }: { assets: PartnerAsset[] }) {
   if (assets.length === 0) {
     return (
@@ -856,14 +831,17 @@ function parseInitialTab(value: string | undefined): TabKey {
 function NotesTab({
   partnerId,
   notes,
-  addNoteAction
+  addNoteAction,
+  isAdmin
 }: {
   partnerId: string;
   notes: PartnerDetailBundle["notes"];
   addNoteAction: (formData: FormData) => Promise<void>;
+  isAdmin: boolean;
 }) {
   return (
     <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
+      {isAdmin ? (
       <form
         action={addNoteAction}
         className="rounded-xl border border-slate-200 bg-slate-50 p-4"
@@ -889,6 +867,7 @@ function NotesTab({
           </button>
         </div>
       </form>
+      ) : null}
 
       <div className="space-y-3">
         {notes.length === 0 ? (
@@ -969,6 +948,15 @@ function formatExtraScore(extra: Record<string, unknown>, key: string): string {
   const value = extra[key];
   if (value == null || value === "") return "-";
   return String(value);
+}
+
+function yearMonthFromIso(value: string | null | undefined): {
+  year: number | null;
+  month: number | null;
+} {
+  const match = value?.match(/^(\d{4})-(\d{1,2})/);
+  if (!match) return { year: null, month: null };
+  return { year: Number(match[1]), month: Number(match[2]) };
 }
 
 function formatPeriod(start: string | null, end: string | null): string {

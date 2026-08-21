@@ -7,7 +7,7 @@ export default function PolicyUploadPage() {
       <PageHero
         compact
         title="파트너 정책 업로드"
-        description="정책 PPT/PDF를 업로드하고 버전별로 관리합니다. 최신 정책이 파트너 정책 화면과 오케 AI에 반영됩니다."
+        description="정책 PPT/PDF를 업로드하고 버전별로 관리합니다. 최신 정책이 파트너 정책 화면과 Partner AI에 반영됩니다."
       />
       <PolicyUploadPanel />
     </>

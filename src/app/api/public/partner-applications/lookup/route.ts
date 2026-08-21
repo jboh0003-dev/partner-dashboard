@@ -47,7 +47,7 @@ export async function POST(request: Request) {
 
   const { data, error } = await query;
   if (error) {
-    return NextResponse.json({ ok: false, message: error.message }, { status: 500 });
+    return NextResponse.json({ ok: false, message: "신청서를 찾지 못했습니다." }, { status: 500 });
   }
 
   const hit = (data ?? []).find(

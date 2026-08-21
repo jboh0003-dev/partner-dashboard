@@ -3,8 +3,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { deletePartnerDocumentHard } from "@/lib/documents/document-lifecycle";
 import { createAdminClient } from "@/lib/supabase/admin";
-
-// TODO(auth): 추후 admin/user 권한 적용 예정 — requireAdmin() 검증 추가
+import { rejectUnlessAdmin } from "@/lib/auth/require-admin";
 
 const UpdateSchema = z.object({
   display_name: z.string().min(1).optional(),
@@ -17,6 +16,8 @@ export async function PATCH(
   request: Request,
   context: { params: Promise<{ id: string }> }
 ) {
+  const denied = await rejectUnlessAdmin();
+  if (denied) return denied;
   try {
     const { id } = await context.params;
     const body = UpdateSchema.parse(await request.json());
@@ -67,6 +68,8 @@ export async function DELETE(
   _request: Request,
   context: { params: Promise<{ id: string }> }
 ) {
+  const denied = await rejectUnlessAdmin();
+  if (denied) return denied;
   try {
     const { id } = await context.params;
     const supabase = createAdminClient();

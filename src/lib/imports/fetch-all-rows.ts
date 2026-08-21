@@ -37,7 +37,7 @@ export async function fetchAllCanonicalContacts(supabase: SupabaseClient) {
     supabase
       .from("partner_contacts")
       .select(
-        "id, partner_id, name, department, position, role_type, role_raw, email, phone, is_primary, is_contract_contact, is_active, in_current_full_db, deleted_at, merged_into_contact_id, review_required, review_reason, source_file, created_at"
+        "id, partner_id, name, department, position, role_type, role_raw, email, phone, is_primary, is_contract_contact, is_active, in_current_full_db, deleted_at, merged_into_contact_id, review_required, review_reason, source_file, contact_source, created_at"
       )
       .is("deleted_at", null)
       .is("merged_into_contact_id", null)
