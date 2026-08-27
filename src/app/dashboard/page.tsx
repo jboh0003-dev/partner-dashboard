@@ -9,7 +9,7 @@ import {
   ExecutivePipelineTrendSection,
   ExecutiveTopPartnersSection
 } from "@/components/performance/executive-performance-section";
-import { fetchDashboardStats } from "@/lib/data/dashboard";
+import { fetchDashboardRuntimeStats } from "@/lib/data/dashboard-runtime";
 import { fetchExecutivePerformanceStats } from "@/lib/data/partner-performance";
 
 /** 통계는 짧게 캐시해 초기 접속·페이지 전환을 가볍게 유지 */
@@ -36,7 +36,7 @@ function DashboardHero() {
 }
 
 async function DashboardKpiBlock() {
-  const stats = await fetchDashboardStats();
+  const stats = await fetchDashboardRuntimeStats();
   const currentYear = new Date().getFullYear();
   return (
     <AnimatedSection delayMs={60} className="mt-4">
@@ -56,7 +56,7 @@ async function DashboardPipelineSummaryBlock() {
 
 async function DashboardDeferredCharts() {
   const [stats, performanceStats] = await Promise.all([
-    fetchDashboardStats(),
+    fetchDashboardRuntimeStats(),
     fetchExecutivePerformanceStats()
   ]);
   return (
