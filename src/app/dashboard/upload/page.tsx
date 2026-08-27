@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -60,6 +60,7 @@ type UploadTypeMeta = {
   sourceFile: string;
   order: number;
   mode: "active" | "preview_only";
+  showInMenu?: boolean;
 };
 
 type PartnerMasterUploadMode = "update" | "full_sync";
@@ -272,23 +273,24 @@ const UPLOAD_TYPES: UploadTypeMeta[] = [
   },
   {
     key: "partner_training_summary",
-    menuTitle: "파트너 교육",
-    menuHint: "파트너 교육 이력",
-    workTitle: "파트너 교육 업로드",
-    workDescription: "파트너 교육 이력을 반영합니다.",
+    menuTitle: "교육 이력 일괄 업로드",
+    menuHint: "월별 교육 참석 이력을 일괄 반영",
+    workTitle: "교육 이력 일괄 업로드",
+    workDescription: "정기교육 및 기존 교육 참석 이력을 일괄 반영합니다.",
     sourceFile: "파트너 교육.xlsx",
     order: 3,
     mode: "active"
   },
   {
     key: "training_attendance_detail",
-    menuTitle: "정기교육 참석자",
-    menuHint: "정기교육 상세 참석자",
+    menuTitle: "정기교육 참석자 업로드",
+    menuHint: "특정 정기교육 회차의 실제 참석자 반영",
     workTitle: "정기교육 참석자 업로드",
-    workDescription: "정기교육 상세 참석자 명단을 반영합니다.",
+    workDescription: "특정 정기교육 회차의 실제 참석자를 반영합니다.",
     sourceFile: "2026 오케스트로 정기교육 관리시트.xlsx",
     order: 4,
-    mode: "active"
+    mode: "active",
+    showInMenu: false
   },
   {
     key: "partner_equipment",
@@ -324,6 +326,7 @@ const UPLOAD_TYPES: UploadTypeMeta[] = [
 
 export default function UploadPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [selectedType, setSelectedType] = useState<UploadType>("partner_master");
@@ -427,6 +430,13 @@ export default function UploadPage() {
 
   const selectedMeta = UPLOAD_TYPES.find((item) => item.key === selectedType)!;
   const saveError = saveErrorsByType[selectedType] ?? null;
+
+  useEffect(() => {
+    const type = searchParams.get("type");
+    if (type && UPLOAD_TYPES.some((item) => item.key === type)) {
+      setSelectedType(type as UploadType);
+    }
+  }, [searchParams]);
 
   const emptyContactsSummary = (): PartnerContactsAnalysisSummary => ({
     total: 0,
@@ -1593,8 +1603,9 @@ function UploadTypeSelector({
       <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
         업로드 종류
       </div>
-      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-7">
-        {UPLOAD_TYPES.map((item) => {
+      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-6">
+        {UPLOAD_TYPES.filter((item) => item.showInMenu !== false || item.key === selectedType).map(
+          (item) => {
           const selected = item.key === selectedType;
           return (
             <button
@@ -1613,7 +1624,8 @@ function UploadTypeSelector({
               <div className="mt-1 text-xs leading-snug text-slate-500">{item.menuHint}</div>
             </button>
           );
-        })}
+        }
+        )}
       </div>
     </section>
   );

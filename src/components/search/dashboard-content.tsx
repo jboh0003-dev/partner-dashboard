@@ -14,11 +14,11 @@ export function DashboardContent({ children }: { children: ReactNode }) {
 
   return (
     <div
-      className="ml-64 flex min-h-screen transition-[gap] duration-200"
+      className="flex min-h-screen md:ml-64"
       style={layoutStyle}
     >
       <main className="min-h-screen min-w-0 flex-1">
-        <div className="w-full px-7 py-7 lg:px-8">
+        <div className="w-full max-w-none px-6 py-6 lg:pr-8">
           {children}
         </div>
       </main>

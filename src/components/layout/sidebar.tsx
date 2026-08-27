@@ -51,11 +51,12 @@ type NavGroup = {
 const PARTNER_ACCORDION_ID = "partner";
 
 const PARTNER_CHILD_PREFIXES = [
-  "/partner-apply",
-  "/dashboard/partner-applications",
   "/dashboard/contacts",
   "/dashboard/documents",
-  "/dashboard/platinum-upgrade"
+  "/dashboard/platinum-upgrade",
+  "/dashboard/performance",
+  "/partner-apply",
+  "/dashboard/partner-applications"
 ] as const;
 
 const NAV_GROUPS: NavGroup[] = [
@@ -73,14 +74,14 @@ const NAV_GROUPS: NavGroup[] = [
         label: "파트너",
         icon: Building2,
         children: [
-          { href: "/partner-apply", label: "신규 파트너 신청", icon: UserPlus },
-          { href: "/dashboard/partner-applications", label: "파트너 신청 관리", icon: ClipboardCheck },
           { href: "/dashboard/contacts", label: "인력·담당자", icon: Users },
           { href: "/dashboard/documents", label: "파트너 문서", icon: FileText },
-          { href: "/dashboard/platinum-upgrade", label: "플래티넘 승급", icon: ArrowUpCircle }
+          { href: "/dashboard/platinum-upgrade", label: "플래티넘 승급", icon: ArrowUpCircle },
+          { href: "/dashboard/performance", label: "실적/파이프라인", icon: TrendingUp },
+          { href: "/partner-apply", label: "신규 파트너 신청", icon: UserPlus },
+          { href: "/dashboard/partner-applications", label: "파트너 신청 관리", icon: ClipboardCheck }
         ]
-      },
-      { href: "/dashboard/performance", label: "실적/파이프라인", icon: TrendingUp }
+      }
     ]
   },
   {

@@ -1,3 +1,4 @@
+import { EmptyState } from "@/components/common/empty-state";
 import { formatCount, formatMillion } from "@/lib/performance/format";
 import { isExpectedWinPartnerPipeline } from "@/lib/performance/expected-win";
 import { isFy26 } from "@/lib/performance/format";
@@ -32,9 +33,11 @@ function isAllOpportunity(row: PartnerPipelineOpportunity): boolean {
 export function PartnerPerformanceTab({ performance }: { performance: PartnerPerformanceBundle }) {
   if (!performance.snapshot) {
     return (
-      <p className="text-sm text-slate-600">
-        등록된 파이프라인 스냅샷이 없습니다. 실적/파이프라인 업로드 후 표시됩니다.
-      </p>
+      <EmptyState
+        compact
+        title="실적 데이터가 없습니다"
+        description="실적/파이프라인 엑셀을 업로드하면 이 파트너의 수주 예상과 영업기회가 표시됩니다."
+      />
     );
   }
 
@@ -131,13 +134,11 @@ function RevenueCard({
 }) {
   if (!hasData) {
     return (
-      <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4">
-        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">2025 매출</p>
-        <p className="mt-2 text-lg font-semibold text-slate-800">실적 데이터 미연결</p>
-        <p className="mt-1 text-2xs leading-relaxed text-slate-500">
-          연간 매출 원장이 이 파트너에 매칭되지 않았습니다. 0백만원으로 표시하지 않습니다.
-        </p>
-      </div>
+      <EmptyState
+        compact
+        title="실적 데이터가 없습니다"
+        description="연간 매출 원장이 이 파트너에 매칭되지 않았습니다. 0으로 표시하지 않습니다."
+      />
     );
   }
 

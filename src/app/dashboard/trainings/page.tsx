@@ -52,6 +52,7 @@ type SearchParams = {
 type MonthlySummaryRow = {
   key: string;
   label: string;
+  isTech: boolean;
   attendanceCount: number;
   partnerCount: number;
   nonPartnerCount: number;
@@ -215,12 +216,18 @@ export default async function TrainingsPage({
             : "정기교육 월별 요약과 참석자 이력을 조회합니다."
         }
         action={
-          <Link
-            href="/dashboard/trainings/tech-partner-upload"
-            className="ui-btn-secondary text-sm"
-          >
-            기술파트너 교육 업로드
-          </Link>
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-start">
+            <UploadHintLink
+              href="/dashboard/upload?type=training_attendance_detail"
+              title="정기교육 참석자 업로드"
+              hint="특정 정기교육 회차의 실제 참석자 반영"
+            />
+            <UploadHintLink
+              href="/dashboard/trainings/tech-partner-upload"
+              title="기술파트너 교육 업로드"
+              hint="교육 출석 + 이론평가 + 기술평가 결과를 반영"
+            />
+          </div>
         }
       />
 
@@ -383,7 +390,18 @@ function SummarySection({
                       className="font-semibold text-blue-700 hover:text-blue-900 hover:underline"
                       title={`${row.label} 참석자 보기`}
                     >
-                      {row.label}
+                      <span className="inline-flex flex-wrap items-center gap-2">
+                        {row.label}
+                        <span
+                          className={
+                            row.isTech
+                              ? "rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-semibold text-indigo-800"
+                              : "rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600"
+                          }
+                        >
+                          {row.isTech ? "기술파트너" : "정기교육"}
+                        </span>
+                      </span>
                     </Link>
                   </td>
                   <td className="px-5 py-4 text-right text-sm tabular-nums text-slate-900">
@@ -659,6 +677,7 @@ function buildMonthlySummaryRows(
     .map(([key, bucket]) => ({
       key,
       label: formatTrainingGroupLabel(bucket.year, bucket.month, bucket.isTech),
+      isTech: bucket.isTech,
       attendanceCount: bucket.people.size,
       partnerCount: bucket.partners.size,
       nonPartnerCount: bucket.nonPartners.size
@@ -776,5 +795,25 @@ function KpiCard({
       <div className="text-sm font-semibold text-slate-800">{label}</div>
       <div className={`mt-2 text-xl font-bold ${toneClass}`}>{value}</div>
     </div>
+  );
+}
+
+function UploadHintLink({
+  href,
+  title,
+  hint
+}: {
+  href: string;
+  title: string;
+  hint: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-left shadow-sm transition hover:border-okestro-200 hover:bg-okestro-50/40"
+    >
+      <span className="block text-sm font-semibold text-slate-900">{title}</span>
+      <span className="mt-0.5 block text-[12px] leading-snug text-slate-500">{hint}</span>
+    </Link>
   );
 }

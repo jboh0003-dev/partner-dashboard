@@ -9,7 +9,7 @@ type LineChartProps = {
 
 export function LineChart({
   data,
-  height = 280,
+  height = 320,
   lineColor = "stroke-blue-600",
   fillColor = "fill-blue-500/10",
   formatValue,
@@ -17,22 +17,23 @@ export function LineChart({
 }: LineChartProps) {
   if (data.length === 0) {
     return (
-      <div className="flex h-[220px] items-center justify-center rounded-xl border border-dashed border-slate-200 text-xs text-slate-400">
+      <div className="flex h-full min-h-[16rem] items-center justify-center rounded-xl border border-dashed border-slate-200 text-sm text-slate-500">
         표시할 데이터가 없습니다.
       </div>
     );
   }
 
   const max = Math.max(1, ...data.map((item) => item.value));
-  const padLeft = 52;
-  const padRight = 28;
-  const padTop = 36;
-  const padBottom = 40;
+  const padLeft = 44;
+  const padRight = 12;
+  const padTop = 22;
+  const padBottom = 28;
   const innerHeight = height - padTop - padBottom;
   const totalWidth = 720;
   const innerWidth = totalWidth - padLeft - padRight;
   const labelInterval = data.length > 18 ? 4 : data.length > 12 ? 3 : data.length > 8 ? 2 : 1;
   const lastIndex = data.length - 1;
+  const yTicks = [0, 0.5, 1];
 
   const points = data.map((item, index) => {
     const x =
@@ -55,22 +56,40 @@ export function LineChart({
   ].join(" ");
 
   return (
-    <div className="flex h-full w-full flex-1 flex-col justify-center">
+    <div className="flex h-full w-full flex-1 flex-col">
       <svg
-        className="h-full min-h-[18rem] w-full"
+        className="h-full min-h-[22rem] w-full"
         viewBox={`0 0 ${totalWidth} ${height}`}
-        preserveAspectRatio="xMidYMid meet"
+        preserveAspectRatio="none"
         role="img"
-        aria-label="파트너 누적 증가 추이"
+        aria-label="파이프라인 추이"
       >
-        <line
-          x1={padLeft}
-          x2={totalWidth - padRight}
-          y1={padTop + innerHeight}
-          y2={padTop + innerHeight}
-          className="stroke-slate-200"
-          strokeWidth={1}
-        />
+        {yTicks.map((ratio) => {
+          const y = padTop + innerHeight * (1 - ratio);
+          const tickValue = max * ratio;
+          return (
+            <g key={ratio}>
+              <line
+                x1={padLeft}
+                x2={totalWidth - padRight}
+                y1={y}
+                y2={y}
+                className="stroke-slate-100"
+                strokeWidth={1}
+              />
+              {ratio > 0 ? (
+                <text
+                  x={padLeft - 6}
+                  y={y + 4}
+                  textAnchor="end"
+                  className="fill-slate-500 text-[10px] font-medium"
+                >
+                  {formatValue ? formatValue(tickValue) : tickValue}
+                </text>
+              ) : null}
+            </g>
+          );
+        })}
         <path d={areaPath} className={fillColor} />
         <path
           d={linePath}
@@ -82,8 +101,7 @@ export function LineChart({
         />
         {points.map((point) => {
           const isLast = point.index === lastIndex;
-          const showXLabel =
-            point.index % labelInterval === 0 || point.index === lastIndex;
+          const showXLabel = point.index % labelInterval === 0 || point.index === lastIndex;
           const showValue = isLast || point.index % labelInterval === 0;
 
           return (
@@ -91,20 +109,18 @@ export function LineChart({
               <circle
                 cx={point.x}
                 cy={point.y}
-                r={isLast ? 5.5 : 4}
-                className={
-                  isLast
-                    ? "fill-blue-600 stroke-white"
-                    : "fill-white stroke-blue-600"
-                }
-                strokeWidth={isLast ? 2.5 : 2}
+                r={isLast ? 5 : 3.5}
+                className={isLast ? "fill-blue-600 stroke-white" : "fill-white stroke-blue-600"}
+                strokeWidth={isLast ? 2 : 1.5}
               >
-                <title>{formatTooltip?.(point.value) ?? formatValue?.(point.value) ?? String(point.value)}</title>
+                <title>
+                  {formatTooltip?.(point.value) ?? formatValue?.(point.value) ?? String(point.value)}
+                </title>
               </circle>
               {showValue ? (
                 <text
                   x={point.x}
-                  y={point.y - (isLast ? 16 : 12)}
+                  y={point.y - (isLast ? 12 : 10)}
                   textAnchor="middle"
                   className={
                     isLast
@@ -118,12 +134,10 @@ export function LineChart({
               {showXLabel ? (
                 <text
                   x={point.x}
-                  y={height - 12}
+                  y={height - 8}
                   textAnchor="middle"
                   className={
-                    isLast
-                      ? "fill-blue-700 text-[10px] font-semibold"
-                      : "fill-slate-500 text-[9px]"
+                    isLast ? "fill-blue-700 text-[10px] font-semibold" : "fill-slate-500 text-[9px]"
                   }
                 >
                   {point.label}

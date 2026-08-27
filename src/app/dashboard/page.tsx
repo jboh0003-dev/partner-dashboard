@@ -6,8 +6,7 @@ import { ExecutiveKpiGrid } from "@/components/dashboard/executive-kpi-grid";
 import { PartnerCompositionSection } from "@/components/dashboard/partner-composition-section";
 import {
   ExecutivePipelineSummarySection,
-  ExecutivePipelineTrendSection,
-  ExecutiveTopPartnersSection
+  ExecutivePipelineTrendSection
 } from "@/components/performance/executive-performance-section";
 import { fetchDashboardRuntimeStats } from "@/lib/data/dashboard-runtime";
 import { fetchExecutivePerformanceStats } from "@/lib/data/partner-performance";
@@ -66,9 +65,6 @@ async function DashboardDeferredCharts() {
       </AnimatedSection>
       <AnimatedSection delayMs={90}>
         <PartnerCompositionSection stats={stats} />
-      </AnimatedSection>
-      <AnimatedSection delayMs={140}>
-        <ExecutiveTopPartnersSection stats={performanceStats} />
       </AnimatedSection>
     </div>
   );

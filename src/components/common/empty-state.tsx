@@ -3,13 +3,20 @@ import { Inbox } from "lucide-react";
 type EmptyStateProps = {
   title: string;
   description?: string;
+  compact?: boolean;
 };
 
-export function EmptyState({ title, description }: EmptyStateProps) {
+export function EmptyState({ title, description, compact = false }: EmptyStateProps) {
   return (
-    <div className="ui-empty">
-      <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-400">
-        <Inbox size={22} strokeWidth={1.75} />
+    <div className={compact ? "rounded-xl border border-dashed border-slate-200 bg-slate-50/80 px-5 py-8 text-center" : "ui-empty"}>
+      <div
+        className={
+          compact
+            ? "mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-white text-slate-400 ring-1 ring-slate-200"
+            : "mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-400"
+        }
+      >
+        <Inbox size={compact ? 18 : 22} strokeWidth={1.75} />
       </div>
       <div className="text-base font-semibold text-slate-900">{title}</div>
       {description ? (

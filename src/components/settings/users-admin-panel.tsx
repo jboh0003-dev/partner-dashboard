@@ -142,7 +142,7 @@ export function UsersAdminPanel() {
                       disabled={pending}
                       onChange={(e) => changeRole(row.id, e.target.value as "viewer" | "admin")}
                     >
-                      <option value="viewer">조회 사용자</option>
+                      <option value="viewer">사내 사용자</option>
                       <option value="admin">관리자</option>
                     </select>
                   )}
@@ -182,7 +182,7 @@ export function UsersAdminPanel() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
           <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl">
             <h2 className="text-lg font-semibold">계정 추가</h2>
-            <p className="mt-1 text-xs text-slate-500">사내 이메일로 계정을 만듭니다. 기본 역할은 조회 사용자입니다.</p>
+            <p className="mt-1 text-xs text-slate-500">사내 이메일로 계정을 만듭니다. 기본 역할은 사내 사용자입니다.</p>
             <div className="mt-4 space-y-3">
               <label className="block text-sm">
                 이름
@@ -195,7 +195,7 @@ export function UsersAdminPanel() {
               <label className="block text-sm">
                 역할
                 <select className="mt-1 w-full rounded border px-3 py-2" value={role} onChange={(e) => setRole(e.target.value as "viewer" | "admin")}>
-                  <option value="viewer">조회 사용자</option>
+                  <option value="viewer">사내 사용자</option>
                   <option value="admin">관리자</option>
                 </select>
               </label>

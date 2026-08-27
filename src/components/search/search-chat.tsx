@@ -141,11 +141,12 @@ export function SearchChat({ variant = "page" }: SearchChatProps) {
       <div className="min-h-0 flex-1 overflow-y-auto p-4 md:p-6">
         {!hasResults && !isPanel ? (
           <div className="space-y-5">
+            <div className="rounded-2xl border border-okestro-100/80 bg-okestro-50/30 p-4">
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               {CAPABILITY_CARDS.map((card) => (
                 <div
                   key={card.title}
-                  className="ui-card p-4"
+                  className="rounded-xl border border-slate-200/80 bg-white p-4 shadow-sm"
                 >
                   <card.icon size={18} className="text-okestro-600" />
                   <p className="mt-3 text-sm font-semibold text-slate-900">{card.title}</p>
@@ -171,6 +172,7 @@ export function SearchChat({ variant = "page" }: SearchChatProps) {
                   </button>
                 ))}
               </div>
+            </div>
             </div>
           </div>
         ) : null}

@@ -33,7 +33,7 @@ export function resolveIsAdmin(role: string | null | undefined): boolean {
 
 export function displayRoleLabel(role: string | null | undefined): string {
   if (role === "admin") return "관리자";
-  return "조회 사용자";
+  return "사내 사용자";
 }
 
 export function isAdminOnlyDashboardPath(pathname: string): boolean {

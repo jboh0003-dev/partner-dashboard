@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import { EmptyState } from "@/components/common/empty-state";
 import { ApplicationStatusBadge } from "@/components/partner-applications/application-status-badge";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import type { PreReviewResult } from "@/lib/partner-applications/pre-review";
@@ -114,8 +115,12 @@ export function ApplicationAdminTable({
             ))}
             {rows.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-5 py-12 text-center text-slate-500">
-                  신청 내역이 없습니다. 테스트 작성분도 여기서 정리할 수 있습니다.
+                <td colSpan={7} className="px-5 py-8">
+                  <EmptyState
+                    compact
+                    title="신청 내역이 없습니다"
+                    description="제출·작성 중인 신청이 없습니다. 테스트 작성분도 여기서 정리할 수 있습니다."
+                  />
                 </td>
               </tr>
             ) : null}

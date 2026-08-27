@@ -66,7 +66,6 @@ function mockContext(): SearchContext {
     created_at: "",
     updated_at: ""
   };
-  const persimmon: Partner = { ...partner, id: "p-persimmon", company_name: "퍼시몬랩", business_number: null };
   const contacts: PartnerContact[] = [
     {
       id: "c-jyb",
@@ -124,7 +123,7 @@ function mockContext(): SearchContext {
   ];
 
   return {
-    partners: [partner, persimmon],
+    partners: [partner],
     contacts,
     assets: [],
     documents: [],
@@ -195,10 +194,10 @@ function run() {
     const result = resolveExactSearchResult(query, mockContext());
     assert.equal(result?.contacts[0]?.name, "전영봉", query);
   }
-  for (const query of ["퍼시몬랩 수주", "퍼시몬랩 수주예상", "퍼시몬랩 될만한거", "퍼시몬랩 수주할만한거", "퍼시몬랩 가능성높은거"]) {
+  for (const query of ["인터루바인 수주", "인터루바인 수주예상", "인터루바인 될만한거", "인터루바인 수주할만한거", "인터루바인 가능성높은거"]) {
     assert.ok(queryHasExpectedWinHint(query) || queryHasPipelineHint(query), query);
     assert.ok(isPipelineQuery(query), query);
-    assert.ok(leftoverQueryTokens(query).some((token) => token.includes("퍼시몬")), query);
+    assert.ok(leftoverQueryTokens(query).some((token) => token.includes("인터루바인")), query);
   }
 
   const email = resolveExactSearchResult("hwkang@intruevine.com", mockContext());
@@ -224,10 +223,10 @@ function run() {
 
   assert.ok(isTrainingLeaderboardQuery("교육많이참석파트너"));
   assert.ok(isTrainingLeaderboardQuery("교육 제일 많이 받은 회사"));
-  assert.ok(queryHasPipelineHint("퍼시몬랩 파이프라인"));
-  assert.ok(isPipelineQuery("퍼시몬랩 수주 예상"));
-  assert.ok(isPipelineQuery("퍼시몬랩 수주할만한거"));
-  assert.ok(isPipelineQuery("수주 가능성 높은 퍼시몬랩 건"));
+  assert.ok(queryHasPipelineHint("인터루바인 파이프라인"));
+  assert.ok(isPipelineQuery("인터루바인 수주 예상"));
+  assert.ok(isPipelineQuery("인터루바인 수주할만한거"));
+  assert.ok(isPipelineQuery("수주 가능성 높은 인터루바인 건"));
   assert.equal(detectQueryEntities("OP-25-0844").projectCodes[0], "OP-25-0844");
   assert.ok(queryHasContactHint("전영봉 연락처"));
 

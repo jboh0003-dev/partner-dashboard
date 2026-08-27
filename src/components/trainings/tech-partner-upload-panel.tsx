@@ -167,7 +167,7 @@ export function TechPartnerUploadPanel() {
       <div className="ui-card p-6">
         <h2 className="text-lg font-bold text-slate-900">기술파트너 교육 업로드</h2>
         <p className="mt-1 text-sm text-slate-600">
-          시험결과 파일과 교육생 관리대장을 함께 업로드하면 파트너·참석자 매칭 후 교육 이력에 반영됩니다.
+          기술파트너 출석 및 평가 결과를 반영합니다. 시험결과와 교육생 관리대장을 함께 올리면 파트너·참석자가 매칭됩니다.
         </p>
 
         <div className="mt-5 grid gap-4 md:grid-cols-2">
