@@ -2,7 +2,18 @@ import Link from "next/link";
 import type { DashboardStats } from "@/lib/data/dashboard";
 
 type ExecutiveKpiGridProps = {
-  stats: DashboardStats;
+  stats: Pick<
+    DashboardStats,
+    | "partnerCount"
+    | "platinumCount"
+    | "goldCount"
+    | "silverCount"
+    | "servicePartnerCount"
+    | "newContractsThisYear"
+    | "newContractsPreviousMonth"
+    | "contactCount"
+    | "trainingAttendeeCount"
+  >;
   currentYear: number;
 };
 
