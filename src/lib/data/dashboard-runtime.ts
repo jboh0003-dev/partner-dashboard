@@ -1,3 +1,4 @@
+import { unstable_cache } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { PARTNER_GRADE_LABEL, PARTNER_GRADE_ORDER } from "@/lib/constants";
 import { getDisplayPartnerGrade } from "@/lib/partners/grade";
@@ -81,29 +82,21 @@ async function countRowsByPartnerIds(
   if (partnerIds.length === 0) return 0;
 
   const supabase = createAdminClient();
-  const chunkSize = 150;
-  let total = 0;
+  let query = supabase
+    .from(table)
+    .select("id", { count: "exact", head: true })
+    .in("partner_id", partnerIds);
 
-  for (let i = 0; i < partnerIds.length; i += chunkSize) {
-    const chunk = partnerIds.slice(i, i + chunkSize);
-    let query = supabase
-      .from(table)
-      .select("id", { count: "exact", head: true })
-      .in("partner_id", chunk);
-
-    if (table === "partner_contacts") {
-      query = query
-        .eq("is_active", true)
-        .eq("in_current_full_db", true)
-        .is("deleted_at", null);
-    }
-
-    const { count, error } = await query;
-    if (error) throw new Error(error.message);
-    total += count ?? 0;
+  if (table === "partner_contacts") {
+    query = query
+      .eq("is_active", true)
+      .eq("in_current_full_db", true)
+      .is("deleted_at", null);
   }
 
-  return total;
+  const { count, error } = await query;
+  if (error) throw new Error(error.message);
+  return count ?? 0;
 }
 
 function buildGradeDist(partners: Partner[]) {
@@ -138,12 +131,7 @@ function buildRegionDist(partners: Partner[]) {
     }));
 }
 
-/**
- * 운영 대시보드 전용 읽기 경로.
- * 인증은 middleware에서 검증하고, 실제 KPI 조회는 서버 전용 service-role client로 수행한다.
- * SSR 세션 refresh/clock-skew가 통계 조회를 막지 않도록 사용자 JWT를 데이터 조회에 재사용하지 않는다.
- */
-export async function fetchDashboardRuntimeStats(): Promise<DashboardRuntimeStats> {
+async function fetchDashboardRuntimeStatsUncached(): Promise<DashboardRuntimeStats> {
   const rawPartners = await fetchAllPartners();
   const partners = filterOfficialPartnerStatsPartners(
     filterSamplePartners(rawPartners).filter((partner) => partner.is_active !== false)
@@ -176,10 +164,7 @@ export async function fetchDashboardRuntimeStats(): Promise<DashboardRuntimeStat
     const contractDate = parseDate(partner.contract_start_date);
     if (!contractDate) continue;
 
-    if (contractDate.getFullYear() === currentYear) {
-      newContractsThisYear += 1;
-    }
-
+    if (contractDate.getFullYear() === currentYear) newContractsThisYear += 1;
     if (
       contractDate.getFullYear() === prev.getFullYear() &&
       contractDate.getMonth() === prev.getMonth()
@@ -201,4 +186,14 @@ export async function fetchDashboardRuntimeStats(): Promise<DashboardRuntimeStat
     gradeDist: buildGradeDist(partners),
     regionDist: buildRegionDist(partners)
   };
+}
+
+const getCachedDashboardRuntimeStats = unstable_cache(
+  fetchDashboardRuntimeStatsUncached,
+  ["dashboard-runtime-stats-v2"],
+  { revalidate: 60 }
+);
+
+export async function fetchDashboardRuntimeStats(): Promise<DashboardRuntimeStats> {
+  return getCachedDashboardRuntimeStats();
 }
