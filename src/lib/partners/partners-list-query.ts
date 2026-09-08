@@ -99,7 +99,7 @@ export async function fetchPartnersList(
     let query = supabase
       .from("partners")
       .select(
-        "id, company_name, contract_display_name, external_no, memo, grade, grade_override, grade_change_raw, grade_original, contract_start_date, is_active, deleted_at, ceo_name, sales_owner, okestro_owner, main_phone, business_number, contract_contact_name, contract_contact_email, contract_contact_phone"
+        PARTNER_LIST_SELECT
       )
       .is("deleted_at", null)
       .order("company_name", { ascending: true })
@@ -191,15 +191,9 @@ export async function fetchPartnersList(
       };
     }
 
-    // 파트너 상세 행과 담당자 목록은 서로 독립적이므로 병렬 조회한다.
-    const [partnersRes, contactsRes] = await Promise.all([
-      supabase
-        .from("partners")
-        .select(PARTNER_LIST_SELECT)
-        .in("id", matchedIds)
-        .is("deleted_at", null)
-        .limit(PARTNERS_LIST_MAX),
-      supabase
+    // 첫 번째 파트너 조회가 이미 목록에 필요한 전체 필드를 포함하므로
+    // 동일한 파트너 행을 다시 조회하지 않는다. 담당자만 병렬로 보강한다.
+    const contactsRes = await supabase
         .from("partner_contacts")
         .select(
           "id, partner_id, name, department, position, email, phone, is_primary, is_contract_contact, is_active, deleted_at"
@@ -207,14 +201,12 @@ export async function fetchPartnersList(
         .in("partner_id", matchedIds)
         .eq("is_active", true)
         .is("deleted_at", null)
-        .limit(PARTNERS_LIST_MAX)
-    ]);
+        .limit(PARTNERS_LIST_MAX);
 
-    if (partnersRes.error) throw new Error(partnersRes.error.message);
     if (contactsRes.error) throw new Error(contactsRes.error.message);
 
     const partnerMap = new Map(
-      ((partnersRes.data ?? []) as Partner[]).map((partner) => [partner.id, partner])
+      ((lightRows ?? []) as unknown as Partner[]).map((partner) => [partner.id, partner])
     );
     const partners = matchedIds
       .map((id) => partnerMap.get(id))

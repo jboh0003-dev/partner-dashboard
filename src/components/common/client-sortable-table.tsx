@@ -283,6 +283,7 @@ export function ClientSortableTable<T>({
                 <tr
                   key={id}
                   className={["ui-table-row", extraRowClass].filter(Boolean).join(" ")}
+                  style={{ contentVisibility: "auto", containIntrinsicSize: "0 58px" }}
                 >
                   {selectable ? (
                     <td
