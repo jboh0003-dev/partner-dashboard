@@ -46,6 +46,7 @@ type TableCopyToolbarProps = {
   selectedRowTsv: SelectedRowTsvConfig;
   csvRows?: CsvRow[];
   csvFilenamePrefix?: string;
+  csvLabel?: string;
   className?: string;
 };
 
@@ -60,6 +61,7 @@ export function TableCopyToolbar({
   selectedRowTsv,
   csvRows,
   csvFilenamePrefix,
+  csvLabel,
   className
 }: TableCopyToolbarProps) {
   const [message, setMessage] = useState<string | null>(null);
@@ -172,7 +174,11 @@ export function TableCopyToolbar({
             ) : null}
           </div>
           {csvRows && csvFilenamePrefix ? (
-            <CsvDownloadButton rows={csvRows} filenamePrefix={csvFilenamePrefix} />
+            <CsvDownloadButton
+              rows={csvRows}
+              filenamePrefix={csvFilenamePrefix}
+              label={csvLabel}
+            />
           ) : null}
         </div>
       </div>

@@ -25,6 +25,7 @@ type CopyableDataTableProps<T> = {
   minWidth?: string;
   csvRows?: CsvRow[];
   csvFilenamePrefix?: string;
+  csvLabel?: string;
   scrollable?: boolean;
   scrollMaxHeight?: string;
 };
@@ -40,6 +41,7 @@ export function CopyableDataTable<T>({
   minWidth,
   csvRows,
   csvFilenamePrefix,
+  csvLabel,
   scrollable = false,
   scrollMaxHeight = "calc(100vh - 320px)"
 }: CopyableDataTableProps<T>) {
@@ -62,6 +64,7 @@ export function CopyableDataTable<T>({
         selectedRowTsv={selectedRowTsv}
         csvRows={csvRows}
         csvFilenamePrefix={csvFilenamePrefix}
+        csvLabel={csvLabel}
       />
       <ClientSortableTable
         rows={rows}

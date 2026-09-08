@@ -204,10 +204,12 @@ const columns: SortableColumn<TrainingAttendeeRow>[] = [
 
 export function TrainingAttendeesTable({
   rows,
-  csvRows
+  csvRows,
+  csvLabel
 }: {
   rows: TrainingAttendeeRow[];
   csvRows?: CsvRow[];
+  csvLabel?: string;
 }) {
   return (
     <CopyableDataTable
@@ -221,6 +223,7 @@ export function TrainingAttendeesTable({
       selectedRowTsv={TRAINING_ATTENDEE_SELECTED_ROW_TSV}
       csvRows={csvRows}
       csvFilenamePrefix="training-attendees"
+      csvLabel={csvLabel}
       scrollable
       scrollMaxHeight="calc(100vh - 360px)"
     />

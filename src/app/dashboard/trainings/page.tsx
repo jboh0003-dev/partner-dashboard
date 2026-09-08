@@ -1,6 +1,7 @@
 ﻿import Link from "next/link";
 import { PageHeader } from "@/components/layout/page-header";
 import { EmptyState } from "@/components/common/empty-state";
+import { EducationStatusExcelButton } from "@/components/trainings/education-status-excel-button";
 import { TrainingAttendeesTable } from "@/components/trainings/training-attendees-table";
 import { TrainingRecruitmentPanel } from "@/components/trainings/training-recruitment-panel";
 import { TrainingTabs } from "@/components/trainings/training-tabs";
@@ -29,7 +30,14 @@ import {
   isCountedTrainingAttendee,
   monthlyAttendeeUniqueKey
 } from "@/lib/trainings/attendance-stats";
+import { getCachedViewerAuthContext } from "@/lib/auth/require-admin";
 import { getRealPartnerIdSet, isSamplePartnerName } from "@/lib/partners/sample-filter";
+import {
+  EDUCATION_STATUS_ATTENDANCE_SELECT,
+  filterEducationStatusAttendees,
+  flattenAttendeeRows,
+  type EducationStatusAttendeeRow
+} from "@/lib/trainings/education-status-export";
 import type { Partner } from "@/types/partner";
 import type { Training } from "@/types/training";
 
@@ -58,30 +66,7 @@ type MonthlySummaryRow = {
   nonPartnerCount: number;
 };
 
-type AttendeeDetailRow = {
-  id: string;
-  training_id: string;
-  partner_id: string | null;
-  partner_name: string;
-  is_non_partner: boolean;
-  attendee_name: string;
-  training_year: number | null;
-  training_month: number | null;
-  training_name: string;
-  training_type: string | null;
-  training_level: string | null;
-  product: string | null;
-  attendee_position: string | null;
-  attendee_department: string | null;
-  attendee_phone: string | null;
-  attendee_email: string | null;
-  attended: boolean;
-  attendance_status: string | null;
-  completion_status: string | null;
-  score: number | null;
-  evaluation_result: string | null;
-  note: string | null;
-};
+type AttendeeDetailRow = EducationStatusAttendeeRow;
 
 export default async function TrainingsPage({
   searchParams
@@ -90,6 +75,7 @@ export default async function TrainingsPage({
 }) {
   const params = await searchParams;
   const tab = parseTrainingTab(params.tab);
+  const { isAdmin } = await getCachedViewerAuthContext();
   const supabase = await createClient();
 
   const [
@@ -112,9 +98,7 @@ export default async function TrainingsPage({
     ),
     supabase
       .from("training_attendance")
-      .select(
-        "id, training_id, partner_id, attendee_name, attendee_department, attendee_position, attendee_phone, attendee_email, attended, attendance_status, completion_status, score, evaluation_result, note, evaluation_memo, company_name_raw, partner:partners(company_name), training:trainings(training_name, training_type, training_level, product, product_name, training_year, training_month)"
-      )
+      .select(EDUCATION_STATUS_ATTENDANCE_SELECT)
       .order("created_at", { ascending: false }),
     supabase.from("partners").select("id, company_name, external_no, memo")
   ]);
@@ -137,7 +121,7 @@ export default async function TrainingsPage({
   const summaryRows = buildMonthlySummaryRows(trainings, countedAttendees, realPartnerIds);
   const monthOptions = buildMonthOptions(trainings);
   const trainingOptions = buildTrainingOptions(trainings, params.month);
-  const filteredAttendees = filterAttendees(allAttendees, params);
+  const filteredAttendees = filterEducationStatusAttendees(allAttendees, params);
 
   const uniquePeople = new Set(
     countedAttendees.map((row) =>
@@ -217,6 +201,13 @@ export default async function TrainingsPage({
         }
         action={
           <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-start">
+            {isAdmin && tab !== "recruitment" ? (
+              <EducationStatusExcelButton
+                q={tab === "attendees" ? params.q : undefined}
+                month={tab === "attendees" ? params.month : "all"}
+                training={tab === "attendees" ? params.training : "all"}
+              />
+            ) : null}
             <UploadHintLink
               href="/dashboard/upload?type=training_attendance_detail"
               title="정기교육 참석자 업로드"
@@ -494,129 +485,10 @@ function AttendeesSection({
           description="검색 조건을 변경하거나 정기교육 참석자 업로드 후 다시 확인해 주세요."
         />
       ) : (
-        <TrainingAttendeesTable rows={rows} csvRows={csvRows} />
+        <TrainingAttendeesTable rows={rows} csvRows={csvRows} csvLabel="CSV 다운로드" />
       )}
     </>
   );
-}
-
-function flattenAttendeeRows(data: unknown): AttendeeDetailRow[] {
-  if (!Array.isArray(data)) return [];
-
-  return (data as Array<{
-    id: string;
-    training_id: string;
-    partner_id?: string | null;
-    company_name_raw?: string | null;
-    attendee_name: string | null;
-    attendee_department: string | null;
-    attendee_position: string | null;
-    attendee_phone: string | null;
-    attendee_email: string | null;
-    attended: boolean;
-    attendance_status: string | null;
-    completion_status: string | null;
-    score: number | null;
-    evaluation_result: string | null;
-    note: string | null;
-    evaluation_memo: string | null;
-    partner: { company_name: string } | Array<{ company_name: string }> | null;
-    training:
-      | {
-          training_name: string;
-          training_type: string | null;
-          training_level: string | null;
-          product: string | null;
-          product_name: string | null;
-          training_year: number | null;
-          training_month: number | null;
-        }
-      | Array<{
-          training_name: string;
-          training_type: string | null;
-          training_level: string | null;
-          product: string | null;
-          product_name: string | null;
-          training_year: number | null;
-          training_month: number | null;
-        }>
-      | null;
-  }>).map((row) => {
-    const partner = Array.isArray(row.partner) ? row.partner[0] ?? null : row.partner;
-    const training = Array.isArray(row.training) ? row.training[0] ?? null : row.training;
-    const is_non_partner = !row.partner_id;
-    const partner_name = partner?.company_name ?? row.company_name_raw?.trim() ?? "-";
-
-    return {
-      id: row.id,
-      training_id: row.training_id,
-      partner_id: row.partner_id ?? null,
-      partner_name,
-      is_non_partner,
-      attendee_name: row.attendee_name?.trim() || "-",
-      training_year: training?.training_year ?? null,
-      training_month: training?.training_month ?? null,
-      training_name: training?.training_name ?? "-",
-      training_type: training?.training_type ?? null,
-      training_level: training?.training_level ?? null,
-      product: training?.product ?? training?.product_name ?? null,
-      attendee_position: row.attendee_position,
-      attendee_department: row.attendee_department,
-      attendee_phone: row.attendee_phone,
-      attendee_email: row.attendee_email,
-      attended: row.attended,
-      attendance_status: row.attendance_status,
-      completion_status: row.completion_status,
-      score: row.score,
-      evaluation_result: row.evaluation_result,
-      note: row.note ?? row.evaluation_memo
-    };
-  });
-}
-
-function filterAttendees(rows: AttendeeDetailRow[], params: SearchParams): AttendeeDetailRow[] {
-  const q = (params.q ?? "").trim().toLowerCase();
-  const month = params.month ?? "all";
-  const training = params.training ?? "all";
-
-  return rows.filter((row) => {
-    if (q) {
-      const haystack = [
-        row.partner_name,
-        row.attendee_name,
-        row.training_name,
-        row.attendee_email
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
-      if (!haystack.includes(q)) return false;
-    }
-
-    if (month !== "all") {
-      const parsed = parseTrainingGroupKey(month);
-      if (
-        !parsed ||
-        row.training_year !== parsed.year ||
-        row.training_month !== parsed.month ||
-        isTechPartnerTraining(row) !== parsed.isTech
-      ) {
-        return false;
-      }
-
-      if (training !== "all" && row.training_id !== training) {
-        return false;
-      }
-
-      return true;
-    }
-
-    if (training !== "all" && row.training_id !== training) {
-      return false;
-    }
-
-    return true;
-  });
 }
 
 function buildMonthlySummaryRows(
