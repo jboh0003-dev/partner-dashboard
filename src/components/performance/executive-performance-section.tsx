@@ -59,7 +59,7 @@ export function ExecutivePipelineSummarySection({ stats }: { stats: ExecutivePer
         <PipelineCard
           title="수주 예상 파이프라인"
           amount={stats.expected_win_amount_million}
-          supporting={`${yearLabel}년 · ${stats.expected_win_count.toLocaleString("ko-KR")}건 · 50%(F) 이상`}
+          supporting={`수주확도 50% 이상 기준 · 총 ${stats.expected_win_count.toLocaleString("ko-KR")}건`}
           share={expectedShare}
           featured
         />
