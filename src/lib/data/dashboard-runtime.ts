@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { PARTNER_GRADE_LABEL, PARTNER_GRADE_ORDER } from "@/lib/constants";
 import { getDisplayPartnerGrade } from "@/lib/partners/grade";
@@ -143,7 +144,10 @@ function buildRegionDist(partners: Partner[]) {
  * 인증은 middleware에서 검증하고, 실제 KPI 조회는 서버 전용 service-role client로 수행한다.
  * SSR 세션 refresh/clock-skew가 통계 조회를 막지 않도록 사용자 JWT를 데이터 조회에 재사용하지 않는다.
  */
-export async function fetchDashboardRuntimeStats(): Promise<DashboardRuntimeStats> {
+// The dashboard renders KPI and chart sections in separate Suspense boundaries.
+// Keep one in-flight calculation per server render so both sections share the
+// same partner/count queries instead of hitting Supabase twice.
+export const fetchDashboardRuntimeStats = cache(async (): Promise<DashboardRuntimeStats> => {
   const rawPartners = await fetchAllPartners();
   const partners = filterOfficialPartnerStatsPartners(
     filterSamplePartners(rawPartners).filter((partner) => partner.is_active !== false)
@@ -201,4 +205,4 @@ export async function fetchDashboardRuntimeStats(): Promise<DashboardRuntimeStat
     gradeDist: buildGradeDist(partners),
     regionDist: buildRegionDist(partners)
   };
-}
+});
