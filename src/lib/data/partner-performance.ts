@@ -1,4 +1,4 @@
-import { cache } from "react";
+import { unstable_cache } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isFy26, isRegisteredYear2026 } from "@/lib/performance/format";
 import { isExpectedWinPartnerPipeline } from "@/lib/performance/expected-win";
@@ -261,7 +261,7 @@ export async function fetchLatestSnapshots(limit = 12): Promise<PartnerPerforman
   return fetchSnapshotTimeline(limit);
 }
 
-export const fetchExecutivePerformanceStats = cache(
+export const fetchExecutivePerformanceStats = unstable_cache(
   async (): Promise<ExecutivePerformanceStats> => {
   const supabase = createAdminClient();
   // timeline 한 번으로 current/previous 결정 (중복 select 제거)
@@ -422,7 +422,9 @@ export const fetchExecutivePerformanceStats = cache(
     review_count: partnerDealRows.filter(needsPerformanceReview).length,
     unmatched_partner_count
   };
-  }
+  },
+  ["dashboard-executive-performance-v1"],
+  { revalidate: 120 }
 );
 
 export async function fetchPartnerPerformanceBundle(partnerId: string) {
