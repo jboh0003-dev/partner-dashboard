@@ -232,7 +232,7 @@ export function Sidebar({
         <Link href="/dashboard" className="inline-flex">
           <BrandLogo className="h-8 w-auto object-contain" priority />
         </Link>
-        <p className="mt-2.5 text-2xs font-medium uppercase tracking-wider text-slate-400">OKESTRO Partner Portal</p>
+        <p className="mt-2.5 text-2xs font-medium uppercase tracking-wider text-slate-400">Partner Hub</p>
         <GlobalPartnerSearch />
       </div>
 
