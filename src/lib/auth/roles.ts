@@ -1,7 +1,7 @@
 /**
  * 사용자 구분 (권한은 profiles.role 기준, 이메일 하드코딩 없음)
  * - admin: 내부 포털 전체 + 파트너 신청 관리자 검토/승인
- * - viewer | legacy user: 내부 포털 조회 + Partner AI + /partner-apply 작성
+ * - viewer | legacy user: 내부 포털 조회 + Partner Agent + /partner-apply 작성
  * - 외부 신청자: Auth 계정 없음, /partner-apply 와 /api/public/* 만
  */
 export type AppRole = "admin" | "viewer" | "user";

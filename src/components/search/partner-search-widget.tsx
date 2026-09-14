@@ -42,7 +42,7 @@ export function PartnerSearchWidget() {
         <>
           <button
             type="button"
-            aria-label="Partner AI 패널 닫기"
+            aria-label="Partner Agent 패널 닫기"
             className="fixed inset-0 z-40 bg-slate-950/30 backdrop-blur-[2px]"
             onClick={closePanel}
           />
@@ -56,7 +56,7 @@ export function PartnerSearchWidget() {
         <>
           <button
             type="button"
-            aria-label="Partner AI 패널 닫기"
+            aria-label="Partner Agent 패널 닫기"
             className="fixed inset-0 z-40 bg-slate-950/30 backdrop-blur-[2px] md:hidden"
             onClick={closePanel}
           />

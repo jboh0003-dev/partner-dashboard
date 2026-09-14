@@ -64,7 +64,7 @@ export function buildWinProbabilityBucketStats(
   });
 }
 
-/** Partner AI "50%(F) 이상" = 수주 예상 집합과 동일 (50%(U) 제외) */
+/** Partner Agent "50%(F) 이상" = 수주 예상 집합과 동일 (50%(U) 제외) */
 export function isExpectedWinOrHigher(row: {
   win_probability_label?: string | null;
   win_probability_value?: number | null;

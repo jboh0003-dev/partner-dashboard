@@ -67,7 +67,7 @@ export function PartnerDeleteDialog({
           {title}
         </h2>
         <p className="mt-2 text-sm leading-relaxed text-slate-600">
-          파트너는 목록·검색·Partner AI에서 숨김 처리됩니다. 문서와 교육 이력은 보존됩니다.
+          파트너는 목록·검색·Partner Agent에서 숨김 처리됩니다. 문서와 교육 이력은 보존됩니다.
         </p>
 
         {impactError ? <p className="mt-3 text-sm text-rose-700">{impactError}</p> : null}

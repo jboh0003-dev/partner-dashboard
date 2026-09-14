@@ -14,7 +14,7 @@ function pipelineResult(partial: Partial<SearchResult> & Pick<SearchResult, "ans
     items: [],
     matchStrategy: "none",
     confidence: 1,
-    sources: [{ type: "partner_knowledge", label: "파트너 파이프라인 DB" }],
+    sources: [{ type: "partner_knowledge", label: "엑셀 업로드 기반 파트너 파이프라인 DB" }],
     ...partial
   };
 }

@@ -1,4 +1,4 @@
-/** Partner AI 검색 예시 질문 */
+/** Partner Agent 검색 예시 질문 */
 export const OKE_EXAMPLE_QUERIES = [
   "전영봉 누구지?",
   "연락처 뭐야 전영봉",

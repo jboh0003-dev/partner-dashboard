@@ -157,7 +157,7 @@ export function SearchChat({ variant = "page" }: SearchChatProps) {
 
             <div className="ui-card border-okestro-100/80 bg-gradient-to-br from-white to-okestro-50/35 p-5">
               <p className="text-xs font-semibold tracking-wide text-okestro-800">
-                Partner AI에게 물어보기
+                Partner Agent에게 물어보기
               </p>
               <div className="mt-3 flex flex-col gap-2">
                 {PAGE_EXAMPLE_QUESTIONS.map((question) => (

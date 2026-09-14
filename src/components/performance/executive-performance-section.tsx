@@ -53,8 +53,9 @@ export function ExecutivePipelineSummarySection({ stats }: { stats: ExecutivePer
         hrefLabel="파이프라인 상세"
       />
       <p className="text-sm text-slate-500">
-        기준일 {latest.snapshot_date} ({latest.snapshot_label}) · FY26 · 파트너딜 · 제품매출
+        기준일 {latest.snapshot_date} ({latest.snapshot_label}) · 엑셀 업로드 기준 · 파트너딜 · 제품매출
       </p>
+      <p className="text-xs text-slate-500">CXMS 자동 연계 전으로, 등록된 스냅샷을 조회합니다. 최신 실적 반영 여부는 기준일을 확인해 주세요.</p>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <PipelineCard
           title="수주 예상 파이프라인"
