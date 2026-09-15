@@ -4,6 +4,7 @@ import type { ContactListView } from "@/lib/contacts/contact-views";
 import {
   dedupePersonRows,
   mapContactToPersonRow,
+  resolveContactPartner,
   type ContactListDbRow
 } from "@/lib/contacts/map-contact-list-row";
 import type { PersonContactRow } from "@/lib/contacts/person-groups";
@@ -13,7 +14,7 @@ import { normalizeCompanyName } from "@/lib/partner-match";
 export const CONTACTS_LIST_MAX = 5000;
 
 export const CONTACT_LIST_SELECT =
-  "id, partner_id, name, department, position, role_type, role_raw, email, phone, phone_display, phone_normalized, is_contract_contact, is_primary, review_required, review_reason, memo, created_at, is_active, in_current_full_db";
+  "id, partner_id, name, department, position, role_type, role_raw, email, phone, phone_display, phone_normalized, is_contract_contact, is_primary, review_required, review_reason, memo, created_at, is_active, in_current_full_db, partner:partners!partner_contacts_partner_id_fkey(company_name, external_no, deleted_at, is_active)";
 
 export function normalizeContactsRoleFilter(role?: string | null): string {
   const normalized = (role ?? "").trim();
@@ -149,42 +150,6 @@ function applyListFilters(query: any, input: ContactsListQueryInput, useBaseline
   return filtered;
 }
 
-async function attachPartnersToRows(
-  supabase: SupabaseClient,
-  rows: ContactListDbRow[]
-): Promise<ContactListDbRow[]> {
-  const partnerIds = [...new Set(rows.map((row) => row.partner_id).filter(Boolean))];
-  if (partnerIds.length === 0) return rows;
-
-  const { data: partners, error } = await supabase
-    .from("partners")
-    .select("id, company_name, external_no, deleted_at, is_active")
-    .in("id", partnerIds);
-
-  if (error) {
-    return rows;
-  }
-
-  const partnerMap = new Map(
-    (partners ?? [])
-      .filter((partner) => !partner.deleted_at && partner.is_active !== false)
-      .map((partner) => [
-        String(partner.id),
-        {
-          company_name: String(partner.company_name),
-          external_no: partner.external_no ? String(partner.external_no) : null
-        }
-      ])
-  );
-
-  return rows
-    .filter((row) => partnerMap.has(row.partner_id))
-    .map((row) => ({
-      ...row,
-      partner: partnerMap.get(row.partner_id) ?? null
-    }));
-}
-
 async function resolveCompanyMatchPartnerIds(
   supabase: SupabaseClient,
   q: string
@@ -257,9 +222,13 @@ async function runListQuery(
   }
 
   const total = count ?? 0;
-  const rawRows = (data ?? []) as ContactListDbRow[];
-  const rowsWithPartners = await attachPartnersToRows(supabase, rawRows);
-  let rows = rowsWithPartners.map((row) => mapContactToPersonRow(row));
+  const rawRows = (data ?? []) as unknown as ContactListDbRow[];
+  let rows = rawRows
+    .filter((row) => {
+      const partner = resolveContactPartner(row);
+      return Boolean(partner && !partner.deleted_at && partner.is_active !== false);
+    })
+    .map((row) => mapContactToPersonRow(row));
 
   if (input.view === "review") {
     rows = dedupePersonRows(rows);
