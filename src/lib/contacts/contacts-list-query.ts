@@ -9,7 +9,7 @@ import {
 import type { PersonContactRow } from "@/lib/contacts/person-groups";
 import { normalizeCompanyName } from "@/lib/partner-match";
 
-/** 기본 목록은 페이지네이션 없이 전체 조회 (현재 전체DB ~600명 수준) */
+/** 기본 목록은 페이지네이션 없이 전체 조회 */
 export const CONTACTS_LIST_MAX = 5000;
 
 export const CONTACT_LIST_SELECT =
@@ -241,29 +241,16 @@ async function runListQuery(
     companyMatchPartnerIds
   };
 
-  let query = applyListFilters(
-    supabase.from("partner_contacts").select(CONTACT_LIST_SELECT),
+  const query = applyListFilters(
+    supabase.from("partner_contacts").select(CONTACT_LIST_SELECT, { count: "exact" }),
     queryInput,
     useBaselineColumns
   );
 
-  const countQuery = applyListFilters(
-    supabase.from("partner_contacts").select("id", { count: "exact", head: true }),
-    queryInput,
-    useBaselineColumns
-  );
-
-  const [{ count, error: countError }, { data, error }] = await Promise.all([
-    countQuery,
-    query
-      .order("name", { ascending: true })
-      .order("id", { ascending: true })
-      .range(0, CONTACTS_LIST_MAX - 1)
-  ]);
-
-  if (countError) {
-    throw new Error(countError.message);
-  }
+  const { count, data, error } = await query
+    .order("name", { ascending: true })
+    .order("id", { ascending: true })
+    .range(0, CONTACTS_LIST_MAX - 1);
 
   if (error) {
     throw new Error(error.message);
