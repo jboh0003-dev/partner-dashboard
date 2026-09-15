@@ -16,10 +16,11 @@ async function getJson(url: string) {
 
 export async function GET() {
   try {
-    const [kospiRt, fxRaw, topRaw] = await Promise.all([
+    const [kospiRt, fxRaw, topRaw, hyundaiRaw] = await Promise.all([
       getJson('https://polling.finance.naver.com/api/realtime/domestic/index/KOSPI'),
       getJson('https://api.stock.naver.com/marketindex/exchange/FX_USDKRW/prices?page=1&pageSize=1'),
       getJson('https://m.stock.naver.com/api/stocks/marketValue/KOSPI?page=1&pageSize=10'),
+      getJson('https://polling.finance.naver.com/api/realtime/domestic/stock/005380'),
     ]);
 
     const kospi = kospiRt?.datas?.[0] ?? kospiRt?.result?.datas?.[0] ?? kospiRt;
@@ -35,7 +36,18 @@ export async function GET() {
       highlighted: s.itemCode === '005380' || s.stockName === '현대차',
     }));
 
-    const hyundai = stocks.find((s: any) => s.highlighted) ?? null;
+    const hyundaiRt = hyundaiRaw?.datas?.[0] ?? hyundaiRaw?.result?.datas?.[0] ?? hyundaiRaw;
+    const hyundaiFromTop10 = stocks.find((s: any) => s.highlighted);
+    const hyundai = hyundaiFromTop10 ?? {
+      rank: null,
+      code: '005380',
+      name: '현대차',
+      price: hyundaiRt?.closePrice ?? null,
+      change: hyundaiRt?.fluctuationsRatio ?? null,
+      marketValue: null,
+      volume: hyundaiRt?.accumulatedTradingVolume ?? null,
+      highlighted: true,
+    };
 
     return NextResponse.json({
       ok: true,
