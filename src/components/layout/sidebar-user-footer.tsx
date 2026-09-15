@@ -40,11 +40,12 @@ export function SidebarUserFooter({ name, email, roleLabel }: SidebarUserFooterP
           {roleLabel ? <p className="mt-0.5 text-[11px] font-medium text-slate-500">{roleLabel}</p> : null}
         </div>
       ) : (
-        <p className="text-2xs text-slate-400">OKESTRO Partner Portal</p>
+        <p className="text-2xs text-slate-400">OKESTRO Partner Eco</p>
       )}
       <div className="mt-3 space-y-1.5">
         <Link
           href="/dashboard/settings/account"
+          prefetch={false}
           className="inline-flex w-full items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
         >
           <UserRound size={13} />
@@ -52,6 +53,7 @@ export function SidebarUserFooter({ name, email, roleLabel }: SidebarUserFooterP
         </Link>
         <Link
           href="/dashboard/settings/account"
+          prefetch={false}
           className="inline-flex w-full items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
         >
           <KeyRound size={13} />
