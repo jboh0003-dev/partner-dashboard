@@ -9,6 +9,13 @@ import { collectDisplayRoleLabels } from "@/lib/contacts/role-labels";
 import { resolvePhoneDisplay } from "@/lib/contacts/phone-normalize";
 import type { PersonContactRow } from "@/lib/contacts/person-groups";
 
+type ContactPartnerEmbed = {
+  company_name: string;
+  external_no: string | null;
+  deleted_at?: string | null;
+  is_active?: boolean | null;
+};
+
 export type ContactListDbRow = {
   id: string;
   partner_id: string;
@@ -31,19 +38,16 @@ export type ContactListDbRow = {
   is_active?: boolean | null;
   in_current_full_db?: boolean | null;
   source_file?: string | null;
-  partner?:
-    | { company_name: string; external_no: string | null }
-    | { company_name: string; external_no: string | null }[]
-    | null;
+  partner?: ContactPartnerEmbed | ContactPartnerEmbed[] | null;
 };
 
-function resolvePartner(row: ContactListDbRow) {
+export function resolveContactPartner(row: ContactListDbRow): ContactPartnerEmbed | null | undefined {
   return Array.isArray(row.partner) ? row.partner[0] : row.partner;
 }
 
 /** 기본 목록용 — child table 없이 partner_contacts 컬럼만으로 PersonContactRow 생성 */
 export function mapContactToPersonRow(row: ContactListDbRow): PersonContactRow {
-  const partner = resolvePartner(row);
+  const partner = resolveContactPartner(row);
   const sanitized = sanitizeContactEmailPhone({ email: row.email, phone: row.phone });
   const normalized = normalizeSanitizedContactFields(sanitized);
 
