@@ -20,19 +20,24 @@ export function resolveViewerIsAdmin(role: string | null | undefined): boolean {
   return resolveIsAdmin(role);
 }
 
+function claimString(value: unknown): string | null {
+  return typeof value === "string" && value.trim() ? value : null;
+}
+
 export async function getViewerAuthContext(): Promise<ViewerAuthContext> {
   const supabase = await createClient();
-  const {
-    data: { user }
-  } = await supabase.auth.getUser();
+  const { data: claimsData } = await supabase.auth.getClaims();
+  const claims = claimsData?.claims;
+  const userId = claimString(claims?.sub);
+  const userEmail = claimString(claims?.email);
 
   let profile: ViewerAuthContext["profile"] = null;
 
-  if (user) {
+  if (userId) {
     const { data } = await supabase
       .from("profiles")
       .select("id, role, name, email")
-      .eq("id", user.id)
+      .eq("id", userId)
       .maybeSingle();
 
     if (data) {
@@ -40,7 +45,7 @@ export async function getViewerAuthContext(): Promise<ViewerAuthContext> {
         id: String(data.id),
         role: data.role ? String(data.role) : null,
         name: data.name ? String(data.name) : null,
-        email: data.email ? String(data.email) : user.email ?? null
+        email: data.email ? String(data.email) : userEmail
       };
     }
   }
@@ -50,7 +55,7 @@ export async function getViewerAuthContext(): Promise<ViewerAuthContext> {
   const devBypass = isDevAdminBypassEnabled() && !isAdminRoleSafe(role) && isAdmin;
 
   return {
-    user: user ? { id: user.id, email: user.email ?? null } : null,
+    user: userId ? { id: userId, email: userEmail } : null,
     profile,
     role,
     isAdmin,
@@ -85,16 +90,15 @@ export async function rejectUnlessAdmin(): Promise<Response | null> {
 
 export async function requireAdmin(): Promise<AdminAuthResult> {
   const supabase = await createClient();
-  const {
-    data: { user },
-    error: authError
-  } = await supabase.auth.getUser();
+  const { data: claimsData, error: authError } = await supabase.auth.getClaims();
+  const claims = claimsData?.claims;
+  const userId = claimString(claims?.sub);
 
-  if (user) {
+  if (userId) {
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
       .select("role")
-      .eq("id", user.id)
+      .eq("id", userId)
       .maybeSingle();
 
     if (profileError) {
@@ -103,11 +107,11 @@ export async function requireAdmin(): Promise<AdminAuthResult> {
 
     const role = profile?.role ? String(profile.role) : null;
     if (resolveIsAdmin(role)) {
-      return { ok: true, userId: user.id, role: role ?? "admin" };
+      return { ok: true, userId, role: role ?? "admin" };
     }
   }
 
-  if (authError || !user) {
+  if (authError || !userId) {
     return {
       ok: false,
       status: 401,
