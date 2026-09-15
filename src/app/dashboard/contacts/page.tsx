@@ -42,6 +42,8 @@ export default async function ContactsPage({
   const hrefParams = { q: params.q, role: params.role, partnerId };
   const role = normalizeContactsRoleFilter(params.role);
   const q = (params.q ?? "").trim();
+  const canReuseDefaultListForActiveCount =
+    view === "all" && !partnerId && !q && role === "all";
 
   let loadError: string | null = null;
   let contacts = [] as Awaited<ReturnType<typeof fetchContactsList>>["rows"];
@@ -64,7 +66,9 @@ export default async function ContactsPage({
         role,
         bouncedContactIds
       }),
-      fetchContactsQuickStats(supabase),
+      canReuseDefaultListForActiveCount
+        ? Promise.resolve({ activeCount: 0, reviewCount: 0, excludedCount: 0, error: null as string | null })
+        : fetchContactsQuickStats(supabase),
       supabase
         .from("partners")
         .select("id, company_name")
@@ -86,7 +90,9 @@ export default async function ContactsPage({
     if (quickStats.error && !loadError) {
       loadError = quickStats.error;
     }
-    stats = quickStats;
+    stats = canReuseDefaultListForActiveCount
+      ? { ...quickStats, activeCount: listResult.rows.length }
+      : quickStats;
 
     if (partnersResult.error && !loadError) {
       loadError = partnersResult.error.message;
