@@ -106,6 +106,7 @@ export function ContactsAdminTable({
         render: (row) => (
           <Link
             href={`/dashboard/partners/${row.partner_id}`}
+            prefetch={false}
             className="tabular-nums font-medium text-okestro-600 select-text hover:text-okestro-700 hover:underline"
             title={formatPartnerNo({ external_no: row.partner_no })}
             data-no-drag-scroll
@@ -123,6 +124,7 @@ export function ContactsAdminTable({
         render: (row) => (
           <Link
             href={`/dashboard/partners/${row.partner_id}`}
+            prefetch={false}
             className={`${TABLE_LINK_NAME_CLASS} max-w-[11rem]`}
             title={row.company_name}
             data-no-drag-scroll
