@@ -64,14 +64,14 @@ export async function middleware(request: NextRequest) {
     }
   });
 
-  // getUser()로 서버 검증 (localStorage/쿠키 위조만 믿지 않음)
-  const {
-    data: { user }
-  } = await supabase.auth.getUser();
+  // JWT 서명을 로컬/JWKS로 검증해 매 요청마다 Auth 서버 왕복을 만들지 않는다.
+  const { data: claimsData } = await supabase.auth.getClaims();
+  const claims = claimsData?.claims;
+  const userId = typeof claims?.sub === "string" ? claims.sub : null;
 
-  // 로그인 페이지: 이미 세션 있으면면 redirect/dashboard로
+  // 로그인 페이지: 이미 세션 있으면 redirect/dashboard로
   if (pathname === "/login") {
-    if (user) {
+    if (userId) {
       const redirectParam = request.nextUrl.searchParams.get("redirect");
       const target = getSafeRedirectPath(redirectParam, "/dashboard");
       const url = request.nextUrl.clone();
@@ -82,10 +82,10 @@ export async function middleware(request: NextRequest) {
     return supabaseResponse;
   }
 
-  // 루트: 세션 있으면면 대시보드, 없으면 로그인
+  // 루트: 세션 있으면 대시보드, 없으면 로그인
   if (pathname === "/") {
     const url = request.nextUrl.clone();
-    if (user) {
+    if (userId) {
       url.pathname = "/dashboard";
       url.search = "";
       return NextResponse.redirect(url);
@@ -99,7 +99,7 @@ export async function middleware(request: NextRequest) {
     return supabaseResponse;
   }
 
-  if (!user) {
+  if (!userId) {
     if (pathname.startsWith("/api/")) {
       return NextResponse.json(
         { ok: false, message: "로그인이 필요합니다. 다시 로그인해주세요." },
@@ -116,7 +116,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  const denied = await enforceAdminAccess(request, supabase, user.id, supabaseResponse);
+  const denied = await enforceAdminAccess(request, supabase, userId, supabaseResponse);
   if (denied) return denied;
 
   return supabaseResponse;
