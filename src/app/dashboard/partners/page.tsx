@@ -23,9 +23,13 @@ export default async function PartnersPage({
 }) {
   const params = await searchParams;
   const supabase = await createClient();
-  const auth = await getCachedViewerAuthContext();
+
+  // 권한 조회와 목록 조회를 직렬로 기다리지 않는다.
+  const [auth, result] = await Promise.all([
+    getCachedViewerAuthContext(),
+    fetchPartnersList(supabase, params)
+  ]);
   const isAdmin = auth.isAdmin;
-  const result = await fetchPartnersList(supabase, params);
   const {
     rows,
     totalCount,
