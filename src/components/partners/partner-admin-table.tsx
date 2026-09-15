@@ -106,6 +106,7 @@ export function PartnerAdminTable({ rows, csvRows, isAdmin = false }: PartnerAdm
             <div className="flex flex-col gap-1">
               <Link
                 href={`/dashboard/partners/${row.partner.id}`}
+                prefetch={false}
                 className="tabular-nums font-medium text-okestro-600 select-text hover:text-okestro-700 hover:underline"
                 title={partnerNo}
               >
@@ -129,6 +130,7 @@ export function PartnerAdminTable({ rows, csvRows, isAdmin = false }: PartnerAdm
         render: (row) => (
           <Link
             href={`/dashboard/partners/${row.partner.id}`}
+            prefetch={false}
             title={row.partner.company_name}
             className="block min-w-[11rem] max-w-[18rem] truncate whitespace-nowrap font-semibold text-blue-700 transition select-text hover:text-blue-900 hover:underline"
           >
@@ -378,6 +380,7 @@ function ActionLink({ href, children }: { href: string; children: React.ReactNod
   return (
     <Link
       href={href}
+      prefetch={false}
       className="inline-flex items-center rounded-lg border border-slate-200 px-2.5 py-1 text-[11px] font-semibold text-slate-700 hover:border-blue-500 hover:text-blue-700"
     >
       {children}
