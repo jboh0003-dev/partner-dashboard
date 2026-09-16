@@ -46,7 +46,8 @@ function LoginForm() {
       }
 
       // 쿠키 세션이 middleware/server에 확실히 반영되도록 풀 네비게이션
-      window.location.assign(redirectTo);    } catch {
+      window.location.assign(redirectTo);
+    } catch {
       setError("로그인 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
       setLoading(false);
     }
@@ -58,7 +59,7 @@ function LoginForm() {
         <BrandLogo className="h-10 w-auto object-contain" priority />
       </div>
 
-      <h1 className="text-center text-xl font-bold text-slate-950">Partner Eco</h1>
+      <h1 className="text-center text-xl font-bold text-slate-950">Partner Connect</h1>
       <p className="mt-2 text-center text-sm text-slate-500">
         승인된 사내 계정으로 로그인하세요.
       </p>
