@@ -1,14 +1,27 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 export default function WorkHubPage() {
+  const frameRef = useRef<HTMLIFrameElement>(null);
+
   useEffect(() => {
     document.title = "Work Hub";
   }, []);
 
+  const patchFavorites = () => {
+    const doc = frameRef.current?.contentDocument;
+    if (!doc || doc.getElementById("workhub-favorites-script")) return;
+    const script = doc.createElement("script");
+    script.id = "workhub-favorites-script";
+    script.src = "/work-hub/favorites.js";
+    doc.body.appendChild(script);
+  };
+
   return (
     <iframe
+      ref={frameRef}
+      onLoad={patchFavorites}
       src="/work-hub/index.html"
       title="Work Hub"
       style={{
