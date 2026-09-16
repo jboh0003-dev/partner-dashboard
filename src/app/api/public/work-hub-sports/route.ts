@@ -72,13 +72,20 @@ function parseSoccerEvent(event: any, league: string, leagueName: string): Socce
   return game;
 }
 
+async function fetchLeagueWindow(slug: string, name: string) {
+  const base = `https://site.api.espn.com/apis/site/v2/sports/soccer/${slug}/scoreboard`;
+  const seed = await getJson(base);
+  const from = seoulDate(-2), to = seoulDate(7);
+  const calendar: string[] = Array.isArray(seed?.leagues?.[0]?.calendar) ? seed.leagues[0].calendar : [];
+  const dates = [...new Set(calendar.map((x: string) => String(x).slice(0,10)).filter((d: string) => d >= from && d <= to))];
+  const payloads = await Promise.allSettled(dates.map(d => getJson(`${base}?dates=${compact(d)}`)));
+  const games = payloads.flatMap(r => r.status === "fulfilled" ? (r.value?.events ?? []) : [])
+    .map((e: any) => parseSoccerEvent(e, slug, name)).filter(Boolean) as SoccerGame[];
+  return games.filter((g, i, arr) => arr.findIndex(x => x.id === g.id) === i);
+}
+
 async function fetchSoccer() {
-  const from = compact(seoulDate(-2));
-  const to = compact(seoulDate(7));
-  const results = await Promise.allSettled(SOCCER_LEAGUES.map(async ([slug, name]) => {
-    const raw = await getJson(`https://site.api.espn.com/apis/site/v2/sports/soccer/${slug}/scoreboard?dates=${from}-${to}`);
-    return (raw?.events ?? []).map((e: any) => parseSoccerEvent(e, slug, name)).filter(Boolean) as SoccerGame[];
-  }));
+  const results = await Promise.allSettled(SOCCER_LEAGUES.map(([slug,name]) => fetchLeagueWindow(slug,name)));
   const all = results.flatMap(r => r.status === "fulfilled" ? r.value : []);
   const epl = all.filter(g => g.league === "eng.1").sort((a,b) => a.date.localeCompare(b.date));
   const korean = all.filter(g => (g.koreanPlayers?.length ?? 0) > 0)
