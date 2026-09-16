@@ -29,6 +29,7 @@ export default function WorkHubPage() {
     addScript("workhub-favorites-script", "/work-hub/favorites.js?v=3");
     addScript("workhub-workflow-script", "/work-hub/workflow.js?v=1");
     addScript("workhub-calendar-script", "/work-hub/calendar.js?v=2");
+    addScript("workhub-create-script", "/work-hub/create.js?v=1");
 
     return true;
   };
