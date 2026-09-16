@@ -59,7 +59,12 @@ function LoginForm() {
         <BrandLogo className="h-10 w-auto object-contain" priority />
       </div>
 
-      <h1 className="text-center text-xl font-bold text-slate-950">Partner Connect</h1>
+      <h1 className="text-center text-xl font-bold text-slate-950">
+        Partner{" "}
+        <span className="bg-gradient-to-r from-okestro-600 via-blue-500 to-cyan-500 bg-clip-text font-black italic tracking-[-0.045em] text-transparent">
+          Connect
+        </span>
+      </h1>
       <p className="mt-2 text-center text-sm text-slate-500">
         승인된 사내 계정으로 로그인하세요.
       </p>
