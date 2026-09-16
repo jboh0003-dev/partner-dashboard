@@ -35,7 +35,7 @@ function normalizeConversationalQuery(query: string): string {
     .replace(/기술\s*하는\s*사람/gi, "기술 담당자")
     .replace(/계약\s*하는\s*사람/gi, "계약 담당자")
     .replace(/연락\s*어떻게/gi, "연락처")
-    .replace(/번호\s*(?:좀|줘|알려)?/gi, "연락처")
+    .replace(/(?:전화|폰|휴대폰)\s*번호\s*(?:좀|줘|알려)?/gi, "연락처")
     .replace(/메일\s*(?:좀|줘|알려)?/gi, "이메일")
     .replace(/올라가려면/gi, "승급 조건")
     .replace(/올라가는\s*법/gi, "승급 조건")
@@ -75,7 +75,7 @@ function expandNaturalLanguageQuery(query: string): string {
     return `${normalized} 파트너 장비 리소스 보유 현황`;
   }
 
-  if (/(담당자|연락처|전화|번호|메일|이메일|인력|소속|영업\s*담당|기술\s*담당)/i.test(lower)) {
+  if (/(담당자|연락처|전화|폰\s*번호|휴대폰\s*번호|메일|이메일|인력|소속|영업\s*담당|기술\s*담당)/i.test(lower)) {
     return `${normalized} 파트너 담당자 연락처 인력 소속`;
   }
 
