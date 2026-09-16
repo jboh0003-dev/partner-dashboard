@@ -1,9 +1,10 @@
 import { Suspense } from "react";
 import { AnimatedSection } from "@/components/common/animated-section";
 import { Skeleton } from "@/components/common/skeleton";
-import { PageHero } from "@/components/layout/page-hero";
+import { DashboardQuickActions } from "@/components/dashboard/dashboard-quick-actions";
 import { ExecutiveKpiGrid } from "@/components/dashboard/executive-kpi-grid";
 import { PartnerCompositionSection } from "@/components/dashboard/partner-composition-section";
+import { PageHero } from "@/components/layout/page-hero";
 import {
   ExecutivePipelineSummarySection,
   ExecutivePipelineTrendSection
@@ -28,14 +29,13 @@ function DashboardHero() {
         eyebrow={null}
         prominentTitle
         title={
-          <>
-            OKESTRO Partner{" "}
-            <span className="bg-gradient-to-r from-sky-300 via-blue-300 to-cyan-200 bg-clip-text font-black italic tracking-[-0.045em] text-transparent">
+          <span className="inline-flex flex-wrap items-baseline gap-x-2 overflow-visible leading-[1.08]">
+            <span>OKESTRO Partner</span>
+            <span className="inline-block overflow-visible bg-gradient-to-r from-sky-300 via-blue-300 to-cyan-200 bg-clip-text pr-2 font-black italic tracking-[-0.025em] text-transparent">
               Connect
             </span>
-          </>
+          </span>
         }
-        description="파트너 정보·담당자·교육·문서·실적을 하나의 흐름으로 연결하고, Partner Agent로 자연어 조회할 수 있습니다."
       />
     </AnimatedSection>
   );
@@ -58,6 +58,10 @@ async function DashboardOverviewColumns() {
         <AnimatedSection delayMs={110}>
           <ExecutivePipelineSummarySection compact stats={performanceStats} />
         </AnimatedSection>
+
+        <AnimatedSection delayMs={150}>
+          <DashboardQuickActions />
+        </AnimatedSection>
       </div>
 
       <div className="min-w-0 space-y-4">
@@ -76,11 +80,11 @@ async function DashboardOverviewColumns() {
 export default function DashboardPage() {
   return (
     <>
-      <Suspense fallback={<SectionSkeleton height="h-28" />}>
+      <Suspense fallback={<SectionSkeleton height="h-24" />}>
         <DashboardHero />
       </Suspense>
 
-      <Suspense fallback={<SectionSkeleton height="h-[38rem]" />}>
+      <Suspense fallback={<SectionSkeleton height="h-[44rem]" />}>
         <DashboardOverviewColumns />
       </Suspense>
     </>
