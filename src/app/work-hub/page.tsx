@@ -5,21 +5,33 @@ import { useEffect, useRef } from "react";
 export default function WorkHubPage() {
   const frameRef = useRef<HTMLIFrameElement>(null);
 
-  const patchFavorites = () => {
+  const patchAssets = () => {
     const doc = frameRef.current?.contentDocument;
-    if (!doc?.body || doc.getElementById("workhub-favorites-script")) return false;
-    const script = doc.createElement("script");
-    script.id = "workhub-favorites-script";
-    script.src = "/work-hub/favorites.js?v=3";
-    doc.body.appendChild(script);
+    if (!doc?.body || !doc.head) return false;
+
+    if (!doc.getElementById("workhub-large-css")) {
+      const link = doc.createElement("link");
+      link.id = "workhub-large-css";
+      link.rel = "stylesheet";
+      link.href = "/work-hub/large.css?v=1";
+      doc.head.appendChild(link);
+    }
+
+    if (!doc.getElementById("workhub-favorites-script")) {
+      const script = doc.createElement("script");
+      script.id = "workhub-favorites-script";
+      script.src = "/work-hub/favorites.js?v=3";
+      doc.body.appendChild(script);
+    }
+
     return true;
   };
 
   useEffect(() => {
     document.title = "Work Hub";
-    patchFavorites();
+    patchAssets();
     const timer = window.setInterval(() => {
-      if (patchFavorites()) window.clearInterval(timer);
+      if (patchAssets()) window.clearInterval(timer);
     }, 400);
     const stop = window.setTimeout(() => window.clearInterval(timer), 8000);
     return () => {
@@ -31,7 +43,7 @@ export default function WorkHubPage() {
   return (
     <iframe
       ref={frameRef}
-      onLoad={patchFavorites}
+      onLoad={patchAssets}
       src="/work-hub/index.html"
       title="Work Hub"
       style={{
