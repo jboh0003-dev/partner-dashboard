@@ -238,7 +238,12 @@ export function Sidebar({
         <Link href="/dashboard" prefetch={false} className="inline-flex">
           <BrandLogo className="h-8 w-auto object-contain" priority />
         </Link>
-        <p className="mt-2.5 text-2xs font-medium uppercase tracking-wider text-slate-400">Partner Connect</p>
+        <p className="mt-2.5 text-[12px] font-semibold tracking-[0.035em] text-slate-400">
+          Partner{" "}
+          <span className="bg-gradient-to-r from-okestro-600 via-blue-500 to-cyan-500 bg-clip-text font-black italic tracking-[-0.045em] text-transparent">
+            Connect
+          </span>
+        </p>
         <GlobalPartnerSearch />
       </div>
 
