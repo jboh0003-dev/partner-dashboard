@@ -104,22 +104,33 @@ const GRADE_FILL: Record<string, string> = {
   "bg-slate-300": "#cbd5e1"
 };
 
-export function GradeDistributionChart({ data }: { data: HorizontalBarChartItem[] }) {
+export function GradeDistributionChart({
+  data,
+  compact = false
+}: {
+  data: HorizontalBarChartItem[];
+  compact?: boolean;
+}) {
   const total = data.reduce((sum, item) => sum + item.value, 0);
 
   if (total === 0) {
     return (
-      <div className="flex h-[220px] items-center justify-center rounded-xl border border-dashed border-slate-200 text-xs text-slate-400">
+      <div
+        className={[
+          "flex items-center justify-center rounded-xl border border-dashed border-slate-200 text-xs text-slate-400",
+          compact ? "h-[170px]" : "h-[220px]"
+        ].join(" ")}
+      >
         표시할 데이터가 없습니다.
       </div>
     );
   }
 
-  const size = 220;
+  const size = compact ? 170 : 220;
   const cx = size / 2;
   const cy = size / 2;
-  const radius = 78;
-  const strokeWidth = 26;
+  const radius = compact ? 59 : 78;
+  const strokeWidth = compact ? 20 : 26;
 
   let cumulative = -Math.PI / 2;
   const segments = data.map((item) => {
@@ -138,7 +149,12 @@ export function GradeDistributionChart({ data }: { data: HorizontalBarChartItem[
   });
 
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-5 py-1 lg:flex-row lg:items-center lg:gap-6">
+    <div
+      className={[
+        "flex flex-1 flex-col items-center justify-center lg:flex-row lg:items-center",
+        compact ? "gap-3 py-0 lg:gap-4" : "gap-5 py-1 lg:gap-6"
+      ].join(" ")}
+    >
       <div className="relative shrink-0">
         <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} role="img" aria-label="등급별 파트너 분포">
           {segments.map((segment) =>
@@ -155,19 +171,24 @@ export function GradeDistributionChart({ data }: { data: HorizontalBarChartItem[
           )}
           <text
             x={cx}
-            y={cy - 6}
+            y={cy - (compact ? 4 : 6)}
             textAnchor="middle"
-            className="fill-slate-950 text-2xl font-bold"
+            className={compact ? "fill-slate-950 text-xl font-bold" : "fill-slate-950 text-2xl font-bold"}
           >
             {total}
           </text>
-          <text x={cx} y={cy + 14} textAnchor="middle" className="fill-slate-600 text-[11px] font-medium">
+          <text
+            x={cx}
+            y={cy + (compact ? 13 : 14)}
+            textAnchor="middle"
+            className="fill-slate-600 text-[10px] font-medium"
+          >
             전체 파트너
           </text>
         </svg>
       </div>
 
-      <div className="w-full min-w-0 flex-1 space-y-3">
+      <div className={compact ? "w-full min-w-0 flex-1 space-y-1.5" : "w-full min-w-0 flex-1 space-y-3"}>
         {data.map((item) => {
           const pct = ((item.value / total) * 100).toFixed(1);
           const isMuted = item.muted === true;
@@ -175,22 +196,24 @@ export function GradeDistributionChart({ data }: { data: HorizontalBarChartItem[
             <div
               key={item.label}
               className={[
-                "rounded-xl px-3 py-2.5",
+                "rounded-xl",
+                compact ? "px-2.5 py-1.5" : "px-3 py-2.5",
                 isMuted ? "bg-slate-50/80" : "bg-slate-50"
               ].join(" ")}
             >
-              <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center justify-between gap-2">
                 <div className="flex min-w-0 items-center gap-2">
                   <span
                     className={[
-                      "h-3 w-3 shrink-0 rounded-full",
+                      compact ? "h-2.5 w-2.5" : "h-3 w-3",
+                      "shrink-0 rounded-full",
                       item.color ?? "bg-blue-500",
                       isMuted ? "opacity-50" : ""
                     ].join(" ")}
                   />
                   <span
                     className={[
-                      "text-sm font-semibold",
+                      compact ? "text-xs font-semibold" : "text-sm font-semibold",
                       isMuted ? "text-slate-500" : "text-slate-800"
                     ].join(" ")}
                   >
@@ -200,7 +223,7 @@ export function GradeDistributionChart({ data }: { data: HorizontalBarChartItem[
                 <div className="shrink-0 text-right tabular-nums">
                   <span
                     className={[
-                      "text-sm font-bold",
+                      compact ? "text-xs font-bold" : "text-sm font-bold",
                       isMuted ? "text-slate-500" : "text-slate-950"
                     ].join(" ")}
                   >
@@ -208,7 +231,7 @@ export function GradeDistributionChart({ data }: { data: HorizontalBarChartItem[
                   </span>
                   <span
                     className={[
-                      "ml-2 text-xs font-semibold",
+                      "ml-1.5 text-[10px] font-semibold",
                       isMuted ? "text-slate-500" : "text-slate-600"
                     ].join(" ")}
                   >
@@ -216,7 +239,7 @@ export function GradeDistributionChart({ data }: { data: HorizontalBarChartItem[
                   </span>
                 </div>
               </div>
-              <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-slate-200/80">
+              <div className={compact ? "mt-1 h-1.5 w-full overflow-hidden rounded-full bg-slate-200/80" : "mt-2 h-2 w-full overflow-hidden rounded-full bg-slate-200/80"}>
                 <div
                   style={{ width: `${pct}%` }}
                   className={[
