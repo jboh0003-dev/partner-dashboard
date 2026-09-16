@@ -24,11 +24,18 @@ export default function WorkHubPage() {
       doc.body.appendChild(script);
     }
 
+    if (!doc.getElementById("workhub-workflow-script")) {
+      const script = doc.createElement("script");
+      script.id = "workhub-workflow-script";
+      script.src = "/work-hub/workflow.js?v=1";
+      doc.body.appendChild(script);
+    }
+
     return true;
   };
 
   useEffect(() => {
-    document.title = "Work Hub";
+    document.title = "워크허브";
     patchAssets();
     const timer = window.setInterval(() => {
       if (patchAssets()) window.clearInterval(timer);
@@ -45,7 +52,7 @@ export default function WorkHubPage() {
       ref={frameRef}
       onLoad={patchAssets}
       src="/work-hub/index.html"
-      title="Work Hub"
+      title="워크허브"
       style={{
         position: "fixed",
         inset: 0,
