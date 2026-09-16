@@ -2,7 +2,7 @@ import Image from "next/image";
 import type { ReactNode } from "react";
 
 type PageHeroProps = {
-  title: string;
+  title: ReactNode;
   description?: string;
   action?: ReactNode;
   children?: ReactNode;
