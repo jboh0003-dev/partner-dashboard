@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { AnimatedSection } from "@/components/common/animated-section";
-import { KpiGridSkeleton, Skeleton } from "@/components/common/skeleton";
+import { Skeleton } from "@/components/common/skeleton";
 import { PageHero } from "@/components/layout/page-hero";
 import { ExecutiveKpiGrid } from "@/components/dashboard/executive-kpi-grid";
 import { PartnerCompositionSection } from "@/components/dashboard/partner-composition-section";
@@ -27,44 +27,46 @@ function DashboardHero() {
         compact
         eyebrow={null}
         prominentTitle
-        title="OKESTRO Partner Connect"
+        title={
+          <>
+            OKESTRO Partner{" "}
+            <span className="bg-gradient-to-r from-sky-300 via-blue-300 to-cyan-200 bg-clip-text font-black italic tracking-[-0.045em] text-transparent">
+              Connect
+            </span>
+          </>
+        }
         description="파트너 정보·담당자·교육·문서·실적을 하나의 흐름으로 연결하고, Partner Agent로 자연어 조회할 수 있습니다."
       />
     </AnimatedSection>
   );
 }
 
-async function DashboardKpiBlock() {
+async function DashboardPartnerOverviewBlock() {
   const stats = await fetchDashboardRuntimeStats();
   const currentYear = new Date().getFullYear();
-  return (
-    <AnimatedSection delayMs={60} className="mt-4">
-      <ExecutiveKpiGrid stats={stats} currentYear={currentYear} />
-    </AnimatedSection>
-  );
-}
 
-async function DashboardPipelineSummaryBlock() {
-  const performanceStats = await fetchExecutivePerformanceStats();
   return (
-    <AnimatedSection delayMs={120} className="mt-4">
-      <ExecutivePipelineSummarySection stats={performanceStats} />
-    </AnimatedSection>
-  );
-}
-
-async function DashboardDeferredCharts() {
-  const [stats, performanceStats] = await Promise.all([
-    fetchDashboardRuntimeStats(),
-    fetchExecutivePerformanceStats()
-  ]);
-  return (
-    <div className="mt-4 space-y-4">
-      <AnimatedSection delayMs={40}>
-        <ExecutivePipelineTrendSection stats={performanceStats} />
+    <div className="mt-4 grid items-stretch gap-4 xl:grid-cols-[0.92fr_1.48fr]">
+      <AnimatedSection delayMs={60}>
+        <ExecutiveKpiGrid compact stats={stats} currentYear={currentYear} />
       </AnimatedSection>
       <AnimatedSection delayMs={90}>
-        <PartnerCompositionSection stats={stats} />
+        <PartnerCompositionSection compact stats={stats} />
+      </AnimatedSection>
+    </div>
+  );
+}
+
+async function DashboardPipelineBlock() {
+  const performanceStats = await fetchExecutivePerformanceStats();
+
+  return (
+    <div className="mt-4 grid items-stretch gap-4 xl:grid-cols-[0.92fr_1.48fr]">
+      <AnimatedSection delayMs={110}>
+        <ExecutivePipelineSummarySection compact stats={performanceStats} />
+      </AnimatedSection>
+      <AnimatedSection delayMs={140}>
+        <ExecutivePipelineTrendSection compact stats={performanceStats} />
       </AnimatedSection>
     </div>
   );
@@ -77,22 +79,12 @@ export default function DashboardPage() {
         <DashboardHero />
       </Suspense>
 
-      <Suspense
-        fallback={
-          <div className="mt-4">
-            <KpiGridSkeleton />
-          </div>
-        }
-      >
-        <DashboardKpiBlock />
+      <Suspense fallback={<SectionSkeleton height="h-[21rem]" />}>
+        <DashboardPartnerOverviewBlock />
       </Suspense>
 
-      <Suspense fallback={<SectionSkeleton height="h-48" />}>
-        <DashboardPipelineSummaryBlock />
-      </Suspense>
-
-      <Suspense fallback={<SectionSkeleton height="h-64" />}>
-        <DashboardDeferredCharts />
+      <Suspense fallback={<SectionSkeleton height="h-[20rem]" />}>
+        <DashboardPipelineBlock />
       </Suspense>
     </>
   );
