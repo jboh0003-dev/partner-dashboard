@@ -17,19 +17,18 @@ export default function WorkHubPage() {
       doc.head.appendChild(link);
     }
 
-    if (!doc.getElementById("workhub-favorites-script")) {
+    const addScript = (id: string, src: string) => {
+      if (doc.getElementById(id)) return;
       const script = doc.createElement("script");
-      script.id = "workhub-favorites-script";
-      script.src = "/work-hub/favorites.js?v=3";
+      script.id = id;
+      script.src = src;
+      script.async = false;
       doc.body.appendChild(script);
-    }
+    };
 
-    if (!doc.getElementById("workhub-workflow-script")) {
-      const script = doc.createElement("script");
-      script.id = "workhub-workflow-script";
-      script.src = "/work-hub/workflow.js?v=1";
-      doc.body.appendChild(script);
-    }
+    addScript("workhub-favorites-script", "/work-hub/favorites.js?v=3");
+    addScript("workhub-workflow-script", "/work-hub/workflow.js?v=1");
+    addScript("workhub-calendar-script", "/work-hub/calendar.js?v=1");
 
     return true;
   };
