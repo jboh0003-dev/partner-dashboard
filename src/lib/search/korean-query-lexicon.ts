@@ -1,3 +1,5 @@
+import { normalizeSearchQuery } from "@/lib/search/query-normalize";
+
 export type QueryConcept =
   | "phone"
   | "email"
@@ -21,6 +23,9 @@ const CONCEPT_SYNONYMS: Record<QueryConcept, string[]> = {
     "연락처",
     "연락",
     "폰번호",
+    "번호줘",
+    "전화줘",
+    "전화좀",
     "직통",
     "모바일",
     "전화",
@@ -32,6 +37,8 @@ const CONCEPT_SYNONYMS: Record<QueryConcept, string[]> = {
   email: [
     "이메일주소",
     "메일주소",
+    "이메일줘",
+    "메일줘",
     "이메일",
     "메일",
     "e-mail",
@@ -47,6 +54,8 @@ const CONCEPT_SYNONYMS: Record<QueryConcept, string[]> = {
     "어느파트너",
     "어느업체",
     "어디다녀",
+    "어디사람",
+    "회사어디야",
     "사람들",
     "인력",
     "소속",
@@ -54,10 +63,13 @@ const CONCEPT_SYNONYMS: Record<QueryConcept, string[]> = {
   ],
   person_profile: [
     "뭐하는사람",
+    "뭐하는분",
     "무슨담당",
     "어떤사람",
     "담당뭐야",
     "어디회사사람",
+    "누구였지",
+    "누구더라",
     "누구지",
     "누구야",
     "누군데",
@@ -65,20 +77,36 @@ const CONCEPT_SYNONYMS: Record<QueryConcept, string[]> = {
   ],
   sales_contact: [
     "영업담당자",
+    "영업하는사람",
     "영업담당",
     "영업누구야",
     "영업누구",
     "계약담당",
+    "세일즈담당",
     "세일즈",
     "영업",
     "sales"
   ],
-  engineer_contact: ["기술담당", "기술인력", "엔지니어", "기술", "engineer", "se"],
+  engineer_contact: [
+    "기술담당자",
+    "기술하는사람",
+    "기술담당",
+    "기술인력",
+    "엔지니어",
+    "기술",
+    "engineer",
+    "se"
+  ],
   training: [
     "교육많이받은",
     "교육많이받",
     "교육받았",
     "교육받",
+    "교육이력",
+    "교육내역",
+    "안들은",
+    "못들은",
+    "미수강",
     "들었",
     "배웠",
     "수강",
@@ -87,7 +115,16 @@ const CONCEPT_SYNONYMS: Record<QueryConcept, string[]> = {
     "수료",
     "교육"
   ],
-  pipeline: ["파이프라인", "영업기회", "프로젝트", "딜", "사업"],
+  pipeline: [
+    "파이프라인",
+    "영업기회",
+    "수주건",
+    "프로젝트",
+    "딜",
+    "deal",
+    "opportunity",
+    "사업"
+  ],
   expected_win: [
     "수주가능성",
     "수주예상",
@@ -97,13 +134,34 @@ const CONCEPT_SYNONYMS: Record<QueryConcept, string[]> = {
     "가능성높은",
     "가능성있는",
     "될만한거",
+    "될만한건",
     "될만한",
     "따낼만",
     "유력",
     "수주"
   ],
-  asset: ["보유장비", "하드웨어", "리소스", "서버", "스펙", "사양", "장비", "hardware", "hw"],
-  document: ["사업자등록증", "사업자등록", "회사소개서", "계약서", "신청서", "서류", "문서"]
+  asset: [
+    "보유장비",
+    "장비리소스",
+    "하드웨어",
+    "리소스",
+    "서버",
+    "스펙",
+    "사양",
+    "장비",
+    "hardware",
+    "hw"
+  ],
+  document: [
+    "사업자등록증",
+    "사업자등록",
+    "회사소개서",
+    "신용평가",
+    "계약서",
+    "신청서",
+    "서류",
+    "문서"
+  ]
 };
 
 const CONTACT_CONCEPTS = new Set<QueryConcept>([
@@ -133,7 +191,6 @@ const PARTICLE_SUFFIXES = [
   "에서",
   "이란",
   "라는",
-  "으로",
   "은",
   "는",
   "이",
@@ -150,7 +207,8 @@ const PARTICLE_SUFFIXES = [
 ].sort((a, b) => b.length - a.length);
 
 export function compactKoreanQuery(query: string): string {
-  return query
+  const normalized = normalizeSearchQuery(query) || query;
+  return normalized
     .toLowerCase()
     .replace(/e-mail/g, "email")
     .replace(/[\s?!,.~'"“”‘’()[\]{}/\\]/g, "");
