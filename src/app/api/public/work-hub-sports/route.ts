@@ -45,7 +45,6 @@ function seoulDate(offsetDays = 0) {
   return `${get("year")}-${get("month")}-${get("day")}`;
 }
 function compact(d: string) { return d.replaceAll("-", ""); }
-
 async function getJson(url: string, headers?: Record<string,string>) {
   const res = await fetch(url, { cache: "no-store", headers });
   if (!res.ok) throw new Error(`${res.status} ${url}`);
@@ -75,7 +74,7 @@ function parseSoccerEvent(event: any, league: string, leagueName: string): Socce
 async function fetchLeagueWindow(slug: string, name: string) {
   const base = `https://site.api.espn.com/apis/site/v2/sports/soccer/${slug}/scoreboard`;
   const seed = await getJson(base);
-  const from = seoulDate(-2), to = seoulDate(7);
+  const from = seoulDate(-3), to = seoulDate(7);
   const calendar: string[] = Array.isArray(seed?.leagues?.[0]?.calendar) ? seed.leagues[0].calendar : [];
   const dates = [...new Set(calendar.map((x: string) => String(x).slice(0,10)).filter((d: string) => d >= from && d <= to))];
   const payloads = await Promise.allSettled(dates.map(d => getJson(`${base}?dates=${compact(d)}`)));
@@ -88,15 +87,16 @@ async function fetchSoccer() {
   const results = await Promise.allSettled(SOCCER_LEAGUES.map(([slug,name]) => fetchLeagueWindow(slug,name)));
   const all = results.flatMap(r => r.status === "fulfilled" ? r.value : []);
   const epl = all.filter(g => g.league === "eng.1").sort((a,b) => a.date.localeCompare(b.date));
+  const chelsea = epl.filter(g => g.home.name.includes("Chelsea") || g.away.name.includes("Chelsea"));
   const korean = all.filter(g => (g.koreanPlayers?.length ?? 0) > 0)
     .filter((g, i, arr) => arr.findIndex(x => x.id === g.id) === i)
     .sort((a,b) => a.date.localeCompare(b.date));
-  return { epl, korean };
+  return { epl, chelsea, korean };
 }
 
 async function fetchKbo() {
-  const day = seoulDate();
-  const url = `https://api-gw.sports.naver.com/schedule/games?fields=basic,schedule,baseball&categoryId=kbo&fromDate=${day}&toDate=${day}&size=500`;
+  const from = seoulDate(-3), to = seoulDate(1);
+  const url = `https://api-gw.sports.naver.com/schedule/games?fields=basic,schedule,baseball&categoryId=kbo&fromDate=${from}&toDate=${to}&size=500`;
   const raw = await getJson(url, {
     "User-Agent": "Mozilla/5.0 WorkHub/1.0",
     Referer: "https://m.sports.naver.com/kbaseball/schedule/index",
@@ -111,32 +111,41 @@ async function fetchKbo() {
     if (s === "5") return "postponed";
     return "scheduled";
   };
-  return games.map((g: any) => ({
-    id: String(g.gameId ?? ""), date: day,
-    time: String(g.gameDateTime ?? "").slice(11,16) || "-",
-    stadium: String(g.stadium ?? g.stadiumName ?? ""),
-    homeCode: String(g.homeTeamCode ?? g.homeTeamId ?? ""),
-    awayCode: String(g.awayTeamCode ?? g.awayTeamId ?? ""),
-    home: String(g.homeTeamName ?? TEAM_NAMES[String(g.homeTeamCode ?? g.homeTeamId ?? "")] ?? g.homeTeamCode ?? "-"),
-    away: String(g.awayTeamName ?? TEAM_NAMES[String(g.awayTeamCode ?? g.awayTeamId ?? "")] ?? g.awayTeamCode ?? "-"),
-    homeScore: g.homeTeamScore != null ? Number(g.homeTeamScore) : null,
-    awayScore: g.awayTeamScore != null ? Number(g.awayTeamScore) : null,
-    status: status(g.statusCode),
-    statusInfo: String(g.statusInfo ?? ""),
-    gameId: String(g.gameId ?? ""),
-  }));
+  const parsed = games.map((g: any) => {
+    const gameDateTime = String(g.gameDateTime ?? "");
+    const date = gameDateTime.slice(0,10) || seoulDate();
+    const homeCode = String(g.homeTeamCode ?? g.homeTeamId ?? "");
+    const awayCode = String(g.awayTeamCode ?? g.awayTeamId ?? "");
+    return {
+      id: String(g.gameId ?? ""), date,
+      time: gameDateTime.slice(11,16) || "-",
+      stadium: String(g.stadium ?? g.stadiumName ?? ""),
+      homeCode, awayCode,
+      home: String(g.homeTeamName ?? TEAM_NAMES[homeCode] ?? homeCode ?? "-"),
+      away: String(g.awayTeamName ?? TEAM_NAMES[awayCode] ?? awayCode ?? "-"),
+      homeScore: g.homeTeamScore != null ? Number(g.homeTeamScore) : null,
+      awayScore: g.awayTeamScore != null ? Number(g.awayTeamScore) : null,
+      status: status(g.statusCode),
+      statusInfo: String(g.statusInfo ?? ""),
+      gameId: String(g.gameId ?? ""),
+    };
+  }).sort((a: any,b: any) => `${b.date} ${b.time}`.localeCompare(`${a.date} ${a.time}`));
+  const lotte = parsed.filter((g: any) => g.homeCode === "LT" || g.awayCode === "LT" || g.home.includes("롯데") || g.away.includes("롯데"));
+  return { games: parsed, lotte };
 }
 
 export async function GET() {
   const [kboRes, soccerRes] = await Promise.allSettled([fetchKbo(), fetchSoccer()]);
-  const kbo = kboRes.status === "fulfilled" ? kboRes.value : [];
-  const soccer = soccerRes.status === "fulfilled" ? soccerRes.value : { epl: [], korean: [] };
+  const kbo = kboRes.status === "fulfilled" ? kboRes.value : { games: [], lotte: [] };
+  const soccer = soccerRes.status === "fulfilled" ? soccerRes.value : { epl: [], chelsea: [], korean: [] };
   return NextResponse.json({
     ok: kboRes.status === "fulfilled" || soccerRes.status === "fulfilled",
     updatedAt: new Date().toISOString(),
-    kbo,
+    kbo: kbo.games,
+    favorites: { lotte: kbo.lotte, chelsea: soccer.chelsea },
     soccer,
     sources: { kbo: "NAVER Sports", soccer: "ESPN Scoreboard" },
+    favoriteTeams: { baseball: "롯데 자이언츠", football: "Chelsea" },
     koreanWatch: KOREAN_WATCH.map(({player,team}) => ({player,team})),
   }, { headers: { "Cache-Control": "no-store, max-age=0" } });
 }
