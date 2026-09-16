@@ -5,10 +5,8 @@ import { DashboardQuickActions } from "@/components/dashboard/dashboard-quick-ac
 import { ExecutiveKpiGrid } from "@/components/dashboard/executive-kpi-grid";
 import { PartnerCompositionSection } from "@/components/dashboard/partner-composition-section";
 import { PageHero } from "@/components/layout/page-hero";
-import {
-  ExecutivePipelineSummarySection,
-  ExecutivePipelineTrendSection
-} from "@/components/performance/executive-performance-section";
+import { DashboardPipelineTrends } from "@/components/performance/dashboard-pipeline-trends";
+import { ExecutivePipelineSummarySection } from "@/components/performance/executive-performance-section";
 import { fetchDashboardRuntimeStats } from "@/lib/data/dashboard-runtime";
 import { fetchExecutivePerformanceStats } from "@/lib/data/partner-performance";
 
@@ -70,7 +68,7 @@ async function DashboardOverviewColumns() {
         </AnimatedSection>
 
         <AnimatedSection delayMs={140}>
-          <ExecutivePipelineTrendSection compact stats={performanceStats} />
+          <DashboardPipelineTrends stats={performanceStats} />
         </AnimatedSection>
       </div>
     </div>
