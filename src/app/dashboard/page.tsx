@@ -41,33 +41,34 @@ function DashboardHero() {
   );
 }
 
-async function DashboardPartnerOverviewBlock() {
-  const stats = await fetchDashboardRuntimeStats();
+async function DashboardOverviewColumns() {
+  const [stats, performanceStats] = await Promise.all([
+    fetchDashboardRuntimeStats(),
+    fetchExecutivePerformanceStats()
+  ]);
   const currentYear = new Date().getFullYear();
 
   return (
-    <div className="mt-4 grid items-stretch gap-4 xl:grid-cols-[0.92fr_1.48fr]">
-      <AnimatedSection delayMs={60}>
-        <ExecutiveKpiGrid compact stats={stats} currentYear={currentYear} />
-      </AnimatedSection>
-      <AnimatedSection delayMs={90}>
-        <PartnerCompositionSection compact stats={stats} />
-      </AnimatedSection>
-    </div>
-  );
-}
+    <div className="mt-4 grid items-start gap-4 xl:grid-cols-[0.92fr_1.48fr]">
+      <div className="min-w-0 space-y-4">
+        <AnimatedSection delayMs={60}>
+          <ExecutiveKpiGrid compact stats={stats} currentYear={currentYear} />
+        </AnimatedSection>
 
-async function DashboardPipelineBlock() {
-  const performanceStats = await fetchExecutivePerformanceStats();
+        <AnimatedSection delayMs={110}>
+          <ExecutivePipelineSummarySection compact stats={performanceStats} />
+        </AnimatedSection>
+      </div>
 
-  return (
-    <div className="mt-4 grid items-stretch gap-4 xl:grid-cols-[0.92fr_1.48fr]">
-      <AnimatedSection delayMs={110}>
-        <ExecutivePipelineSummarySection compact stats={performanceStats} />
-      </AnimatedSection>
-      <AnimatedSection delayMs={140}>
-        <ExecutivePipelineTrendSection compact stats={performanceStats} />
-      </AnimatedSection>
+      <div className="min-w-0 space-y-4">
+        <AnimatedSection delayMs={90}>
+          <PartnerCompositionSection compact stats={stats} />
+        </AnimatedSection>
+
+        <AnimatedSection delayMs={140}>
+          <ExecutivePipelineTrendSection compact stats={performanceStats} />
+        </AnimatedSection>
+      </div>
     </div>
   );
 }
@@ -79,12 +80,8 @@ export default function DashboardPage() {
         <DashboardHero />
       </Suspense>
 
-      <Suspense fallback={<SectionSkeleton height="h-[21rem]" />}>
-        <DashboardPartnerOverviewBlock />
-      </Suspense>
-
-      <Suspense fallback={<SectionSkeleton height="h-[20rem]" />}>
-        <DashboardPipelineBlock />
+      <Suspense fallback={<SectionSkeleton height="h-[38rem]" />}>
+        <DashboardOverviewColumns />
       </Suspense>
     </>
   );
