@@ -5,6 +5,7 @@ type LineChartProps = {
   fillColor?: string;
   formatValue?: (value: number) => string;
   formatTooltip?: (value: number) => string;
+  compact?: boolean;
 };
 
 export function LineChart({
@@ -13,11 +14,17 @@ export function LineChart({
   lineColor = "stroke-blue-600",
   fillColor = "fill-blue-500/10",
   formatValue,
-  formatTooltip
+  formatTooltip,
+  compact = false
 }: LineChartProps) {
   if (data.length === 0) {
     return (
-      <div className="flex h-full min-h-[16rem] items-center justify-center rounded-xl border border-dashed border-slate-200 text-sm text-slate-500">
+      <div
+        className={[
+          "flex h-full items-center justify-center rounded-xl border border-dashed border-slate-200 text-sm text-slate-500",
+          compact ? "min-h-[14rem]" : "min-h-[16rem]"
+        ].join(" ")}
+      >
         표시할 데이터가 없습니다.
       </div>
     );
@@ -58,7 +65,7 @@ export function LineChart({
   return (
     <div className="flex h-full w-full flex-1 flex-col">
       <svg
-        className="h-full min-h-[22rem] w-full"
+        className={compact ? "h-full min-h-[15rem] w-full" : "h-full min-h-[22rem] w-full"}
         viewBox={`0 0 ${totalWidth} ${height}`}
         preserveAspectRatio="none"
         role="img"
