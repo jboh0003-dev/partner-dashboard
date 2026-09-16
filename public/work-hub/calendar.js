@@ -40,12 +40,33 @@
     `;
     document.head.appendChild(style);
 
+    function weekdayTokens(title) {
+      const text = String(title || '');
+      const groups = [...text.matchAll(/\(([^)]*)\)/g)];
+      for (const group of groups) {
+        const raw = group[1].trim();
+        if (!raw) continue;
+        const cleaned = raw.replace(/[월화수목금토일\s,\/·&+]/g, '');
+        if (cleaned) continue;
+        const days = raw.match(/[월화수목금토일]/g) || [];
+        if (days.length) return [...new Set(days)];
+      }
+      return [];
+    }
+
+    function inferredDates(t) {
+      if (t.dueDate && /^\d{4}-\d{2}-\d{2}$/.test(t.dueDate)) return [t.dueDate];
+      if (t.scope === 'daily' && /^\d{4}-\d{2}-\d{2}$/.test(t.target||'')) return [t.target];
+      const days = weekdayTokens(t.title);
+      if (days.length && t.scope === 'weekly' && /^\d{4}-\d{2}-\d{2}$/.test(t.target||'')) {
+        const weekStart = mon(t.target);
+        return days.map(day => add(weekStart, weekMap[day]));
+      }
+      return [];
+    }
+
     function inferredDue(t) {
-      if (t.dueDate && /^\d{4}-\d{2}-\d{2}$/.test(t.dueDate)) return t.dueDate;
-      if (t.scope === 'daily' && /^\d{4}-\d{2}-\d{2}$/.test(t.target||'')) return t.target;
-      const match = String(t.title||'').match(/\(([월화수목금토일])\)(?:\s|$)/);
-      if (match && t.scope === 'weekly' && /^\d{4}-\d{2}-\d{2}$/.test(t.target||'')) return add(mon(t.target), weekMap[match[1]]);
-      return null;
+      return inferredDates(t)[0] || null;
     }
 
     function dateKey(d) {
@@ -65,7 +86,9 @@
       const year = first.getFullYear(), month = first.getMonth();
       const start = new Date(first); start.setDate(1-first.getDay());
       const byDate = {};
-      S.workItems.forEach(t => { const d=inferredDue(t); if(d) (byDate[d] ||= []).push(t); });
+      S.workItems.forEach(t => {
+        inferredDates(t).forEach(d => (byDate[d] ||= []).push(t));
+      });
       const cells=[];
       for(let i=0;i<42;i++){
         const d=new Date(start); d.setDate(start.getDate()+i); const key=dateKey(d), items=byDate[key]||[];
@@ -74,7 +97,7 @@
         const tooltip=items.length?`<div class="cal-tooltip"><b>${d.getMonth()+1}월 ${d.getDate()}일 · ${items.length}건</b>${items.map(t=>`<div class="cal-tip-item"><span class="cal-tip-status">${statusName(t.status)}</span>${esc(t.title)}</div>`).join('')}</div>`:'';
         cells.push(`<div class="${cls}" data-cal-date="${key}"><span class="cal-num">${d.getDate()}</span>${items.length?`<span class="cal-count">${items.length}</span><div class="cal-preview">${preview}${items.length>2?`<span>+${items.length-2}건 더보기</span>`:''}</div>${tooltip}`:''}</div>`);
       }
-      return `<section class="calendar-card"><div class="calendar-head"><div><h3>업무 캘린더</h3><p>Due Date 또는 제목의 (월)~(일) 요일을 자동 인식합니다.</p></div><div class="calendar-nav"><button class="btn" data-cal-act="prev">←</button><span class="calendar-label">${year}년 ${month+1}월</span><button class="btn" data-cal-act="next">→</button><button class="btn" data-cal-act="today">오늘</button></div></div><div class="calendar-weekdays"><div>일</div><div>월</div><div>화</div><div>수</div><div>목</div><div>금</div><div>토</div></div><div class="calendar-grid">${cells.join('')}</div></section>`;
+      return `<section class="calendar-card"><div class="calendar-head"><div><h3>업무 캘린더</h3><p>Due Date 또는 제목의 (수), (화,수), (화/수) 같은 요일을 자동 인식합니다.</p></div><div class="calendar-nav"><button class="btn" data-cal-act="prev">←</button><span class="calendar-label">${year}년 ${month+1}월</span><button class="btn" data-cal-act="next">→</button><button class="btn" data-cal-act="today">오늘</button></div></div><div class="calendar-weekdays"><div>일</div><div>월</div><div>화</div><div>수</div><div>목</div><div>금</div><div>토</div></div><div class="calendar-grid">${cells.join('')}</div></section>`;
     }
 
     const previousDashboard = dashboard;
@@ -86,8 +109,11 @@
     const previousTask = task;
     task = function(t, compact=false){
       let html = previousTask(t, compact);
-      const d = inferredDue(t);
-      if (d) html = html.replace('</div><div class="statusbar">', `<span class="chip due-chip">마감 ${fmt(d)}</span></div><div class="statusbar">`);
+      const dates = inferredDates(t);
+      if (dates.length) {
+        const label = t.dueDate ? `마감 ${fmt(dates[0])}` : dates.length > 1 ? `일정 ${dates.map(fmt).join(' · ')}` : `일정 ${fmt(dates[0])}`;
+        html = html.replace('</div><div class="statusbar">', `<span class="chip due-chip">${label}</span></div><div class="statusbar">`);
+      }
       return html;
     };
 
@@ -118,7 +144,7 @@
     };
 
     function openDay(date){
-      const items=S.workItems.filter(t=>inferredDue(t)===date);
+      const items=S.workItems.filter(t=>inferredDates(t).includes(date));
       $('#modalRoot').innerHTML=`<div class="modalbg"><div class="modal"><h2>${date} 업무 ${items.length}건</h2><div class="day-list">${items.length?items.map(t=>`<div class="day-list-item"><h4>${esc(t.title)}</h4><p>${statusName(t.status)} · ${esc(t.category||'기타')}</p><div style="margin-top:8px"><button class="btn" data-day-edit="${t.id}">수정</button></div></div>`).join(''):'<div class="empty">등록된 업무가 없습니다.</div>'}</div><div class="modalactions"><button class="btn primary" id="closeDay">닫기</button></div></div></div>`;
       $('#closeDay').onclick=()=>$('#modalRoot').innerHTML='';
       $$('[data-day-edit]').forEach(b=>b.onclick=()=>openEditor(S.workItems.find(x=>x.id===b.dataset.dayEdit)));
