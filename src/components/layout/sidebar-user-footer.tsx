@@ -17,13 +17,16 @@ export function SidebarUserFooter({ name, email, roleLabel }: SidebarUserFooterP
   async function handleLogout() {
     if (loading) return;
     setLoading(true);
+
     try {
       const supabase = createClient();
-      await supabase.auth.signOut();
+      // 다른 PC/브라우저의 동일 계정 세션까지 끊지 않고,
+      // 현재 브라우저의 세션만 제거한다.
+      await supabase.auth.signOut({ scope: "local" });
     } catch {
-      // ignore
+      // 로그인 쿠키가 이미 만료됐더라도 로그인 화면으로 이동한다.
     } finally {
-      window.location.assign("/login");
+      window.location.replace("/login?signedOut=1");
     }
   }
 
@@ -40,7 +43,7 @@ export function SidebarUserFooter({ name, email, roleLabel }: SidebarUserFooterP
           {roleLabel ? <p className="mt-0.5 text-[11px] font-medium text-slate-500">{roleLabel}</p> : null}
         </div>
       ) : (
-        <p className="text-2xs text-slate-400">OKESTRO Partner Eco</p>
+        <p className="text-2xs text-slate-400">OKESTRO Partner Connect</p>
       )}
       <div className="mt-3 space-y-1.5">
         <Link
