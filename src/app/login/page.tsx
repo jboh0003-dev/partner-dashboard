@@ -29,24 +29,41 @@ function LoginForm() {
     e.preventDefault();
     if (loading) return;
 
+    const requestedEmail = email.trim().toLowerCase();
     setLoading(true);
     setError(null);
 
     try {
       const supabase = createClient();
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+        email: requestedEmail,
         password
       });
 
-      if (signInError) {
+      if (signInError || !data.session || !data.user) {
         setError(mapAuthErrorMessage(signInError));
         setLoading(false);
         return;
       }
 
-      // 쿠키 세션이 middleware/server에 확실히 반영되도록 풀 네비게이션
-      window.location.assign(redirectTo);
+      // 로그인 직후 Auth 서버에서 현재 사용자를 다시 검증한다.
+      // 이전 브라우저 세션/캐시가 남아 있더라도 입력한 계정과 다른 사용자로
+      // 화면이 열리는 상황을 차단한다.
+      const {
+        data: { user: verifiedUser },
+        error: verifyError
+      } = await supabase.auth.getUser();
+
+      const verifiedEmail = verifiedUser?.email?.trim().toLowerCase() ?? null;
+      if (verifyError || !verifiedUser || verifiedEmail !== requestedEmail) {
+        await supabase.auth.signOut({ scope: "local" }).catch(() => undefined);
+        setError("로그인 계정 확인에 실패했습니다. 다시 로그인해주세요.");
+        setLoading(false);
+        return;
+      }
+
+      // /api/account/me는 no-store이고, 전체 페이지 이동으로 서버 세션도 즉시 재검증한다.
+      window.location.replace(redirectTo);
     } catch {
       setError("로그인 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
       setLoading(false);
