@@ -47,7 +47,25 @@ function loadState(){
     try{localStorage.setItem(K,JSON.stringify(best.state));localStorage.setItem('workhub_recovered_from',best.key)}catch{}
     return best.state;
   }
-  return current?.state||normalizeState({});
+  if(current?.state && stateScore(current.state)>0) return current.state;
+  const fallback = normalizeState({
+    workItems:[
+      {id:'recover-viola',title:'비올라 조달 자료 준비 (차주 월)',category:'기타',scope:'weekly',target:'2026-09-14',status:'doing',note:'',createdAt:'2026-09-14',updatedAt:'2026-09-16',completedAt:null},
+      {id:'recover-ai-ppt',title:'AI 발표 ppt 준비(수)',category:'기타',scope:'weekly',target:'2026-09-14',status:'doing',note:'',createdAt:'2026-09-14',updatedAt:'2026-09-16',completedAt:null},
+      {id:'recover-partner-report',title:'파트너 계약, 교육 현황 보고(수)',category:'기타',scope:'weekly',target:'2026-09-14',status:'done',note:'',createdAt:'2026-09-14',updatedAt:'2026-09-16',completedAt:'2026-09-16'},
+      {id:'recover-maesa',title:'매사 행사준비',category:'기타',scope:'weekly',target:'2026-09-14',status:'doing',note:'',createdAt:'2026-09-14',updatedAt:'2026-09-16',completedAt:null},
+      {id:'recover-veeam',title:'veeam 파트너 계약',category:'기타',scope:'weekly',target:'2026-09-14',status:'todo',note:'',createdAt:'2026-09-14',updatedAt:'2026-09-16',completedAt:null},
+      {id:'recover-procurement',title:'조달 수의상담(수) 10:00',category:'기타',scope:'weekly',target:'2026-09-14',status:'done',note:'',createdAt:'2026-09-14',updatedAt:'2026-09-16',completedAt:'2026-09-16'},
+      {id:'recover-acl',title:'ACL행사',category:'기타',scope:'weekly',target:'2026-09-14',status:'doing',note:'',createdAt:'2026-09-14',updatedAt:'2026-09-16',completedAt:null},
+      {id:'recover-training',title:'파트너교육(화,수)',category:'기타',scope:'weekly',target:'2026-09-14',status:'done',note:'',createdAt:'2026-09-14',updatedAt:'2026-09-16',completedAt:'2026-09-16'},
+      {id:'recover-contract3',title:'파트너계약(3개사)',category:'기타',scope:'weekly',target:'2026-09-14',status:'done',note:'',createdAt:'2026-09-14',updatedAt:'2026-09-16',completedAt:'2026-09-16'}
+    ]
+  });
+  try{
+    localStorage.setItem(K,JSON.stringify(fallback));
+    localStorage.setItem('workhub_recovered_from','화면 복구 스냅샷 · 2026-09-16');
+  }catch{}
+  return fallback;
 }
 function snapshotState(){
   try{
