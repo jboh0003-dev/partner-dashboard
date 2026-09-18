@@ -51,7 +51,7 @@ export default function WorkHubPage() {
     <iframe
       ref={frameRef}
       onLoad={patchAssets}
-      src="/work-hub/index.html"
+      src="/work-hub/index.html?v=6"
       title="워크허브"
       style={{
         position: "fixed",
