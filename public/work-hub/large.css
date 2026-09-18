@@ -13,3 +13,50 @@ header{height:92px!important;padding:0 28px!important}.title{font-size:34px!impo
 @media(min-width:1800px){.lane.focus .tasks{grid-template-columns:repeat(2,minmax(0,1fr))!important}.dashboard{grid-template-columns:minmax(0,1fr) 460px!important}}
 @media(max-width:1400px){.dashboard{grid-template-columns:1fr!important}.live{position:relative!important;top:auto!important;max-height:none!important}.livebody{max-height:none!important}.board{grid-template-columns:.72fr 1.5fr .72fr!important}}
 @media(max-width:980px){.side{width:78px!important}.main{margin-left:78px!important;width:calc(100% - 78px)!important}.brand{font-size:16px!important}.lane.focus .tasks{grid-template-columns:1fr!important}.board{grid-template-columns:1fr!important}.metrics{grid-template-columns:repeat(2,1fr)!important}}
+
+/* Work Hub readability + compact quick-entry refinement */
+.board{grid-template-columns:.78fr 1.9fr .78fr!important}
+.tasktitle{
+  min-width:0!important;
+  word-break:keep-all!important;
+  overflow-wrap:break-word!important;
+  line-break:strict!important;
+  text-wrap:pretty!important;
+  white-space:normal!important;
+}
+.lane:not(.focus) .tasktop{
+  display:grid!important;
+  grid-template-columns:34px minmax(0,1fr)!important;
+  column-gap:10px!important;
+  row-gap:5px!important;
+  align-items:start!important;
+}
+.lane:not(.focus) .check{grid-column:1;grid-row:1}
+.lane:not(.focus) .tasktitle{
+  grid-column:2!important;
+  grid-row:1!important;
+  width:100%!important;
+  font-size:17px!important;
+  line-height:1.42!important;
+}
+.lane:not(.focus) .taskactions{
+  grid-column:2!important;
+  grid-row:2!important;
+  width:100%!important;
+  justify-content:flex-end!important;
+  gap:10px!important;
+}
+.lane:not(.focus) .meta,
+.lane:not(.focus) .statusbar{
+  margin-left:0!important;
+  padding-left:44px!important;
+}
+.lane:not(.focus) .statusbar{row-gap:7px!important}
+.lane:not(.focus) .task{overflow:hidden}
+@media(max-width:1400px){
+  .board{grid-template-columns:.82fr 1.7fr .82fr!important}
+}
+@media(max-width:980px){
+  .board{grid-template-columns:1fr!important}
+  .lane:not(.focus) .tasktitle{font-size:18px!important}
+}
