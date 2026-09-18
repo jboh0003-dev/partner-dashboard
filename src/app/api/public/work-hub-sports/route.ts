@@ -103,12 +103,16 @@ async function fetchKbo() {
     Accept: "application/json",
   });
   const games = raw?.result?.games ?? raw?.games ?? [];
-  const status = (code: any) => {
-    const s = String(code ?? "0");
+  const status = (code: any, info: any) => {
+    const s = String(code ?? "0").toUpperCase();
+    const text = String(info ?? "").trim();
+    const normalized = text.toLowerCase();
+    if (/우천취소|경기취소|취소|cancel|노게임/.test(normalized)) return "cancelled";
+    if (/연기|postpon/.test(normalized)) return "postponed";
     if (s === "1" || s === "LIVE") return "live";
     if (s === "3" || s === "RESULT") return "final";
-    if (s === "4") return "cancelled";
-    if (s === "5") return "postponed";
+    if (s === "4" || s === "CANCEL") return "cancelled";
+    if (s === "5" || s === "POSTPONED") return "postponed";
     return "scheduled";
   };
   const parsed = games.map((g: any) => {
@@ -125,24 +129,58 @@ async function fetchKbo() {
       away: String(g.awayTeamName ?? TEAM_NAMES[awayCode] ?? awayCode ?? "-"),
       homeScore: g.homeTeamScore != null ? Number(g.homeTeamScore) : null,
       awayScore: g.awayTeamScore != null ? Number(g.awayTeamScore) : null,
-      status: status(g.statusCode),
+      status: status(g.statusCode, g.statusInfo),
       statusInfo: String(g.statusInfo ?? ""),
+      cancelReason: String(g.cancelReason ?? g.gameCancelReason ?? g.cancelInfo ?? ""),
       gameId: String(g.gameId ?? ""),
     };
   }).sort((a: any,b: any) => `${b.date} ${b.time}`.localeCompare(`${a.date} ${a.time}`));
-  const lotte = parsed.filter((g: any) => g.homeCode === "LT" || g.awayCode === "LT" || g.home.includes("롯데") || g.away.includes("롯데"));
-  return { games: parsed, lotte };
+  const isLotte = (g: any) => g.homeCode === "LT" || g.awayCode === "LT" || g.home.includes("롯데") || g.away.includes("롯데");
+  const favoriteFirst = (list: any[]) => [...list].sort((a,b) => {
+    const af = isLotte(a) ? 0 : 1, bf = isLotte(b) ? 0 : 1;
+    return af - bf || String(a.time).localeCompare(String(b.time));
+  });
+  const todayKey = seoulDate();
+  const yesterdayKey = seoulDate(-1);
+  const tomorrowKey = seoulDate(1);
+  const lotte = parsed.filter(isLotte);
+  const lottePast = lotte.filter((g: any) => g.date < todayKey).sort((a:any,b:any) => b.date.localeCompare(a.date));
+  const lotteToday = lotte.filter((g: any) => g.date === todayKey);
+  const lotteNext = lotte.filter((g: any) => g.date > todayKey && !["cancelled","postponed"].includes(g.status))
+    .sort((a:any,b:any) => a.date.localeCompare(b.date));
+  return {
+    games: parsed,
+    lotte,
+    days: {
+      yesterday: { date: yesterdayKey, games: favoriteFirst(parsed.filter((g:any) => g.date === yesterdayKey)) },
+      today: { date: todayKey, games: favoriteFirst(parsed.filter((g:any) => g.date === todayKey)) },
+      tomorrow: { date: tomorrowKey, games: favoriteFirst(parsed.filter((g:any) => g.date === tomorrowKey)) },
+    },
+    lotteSummary: {
+      previous: lottePast[0] ?? null,
+      today: lotteToday[0] ?? null,
+      next: lotteNext[0] ?? null,
+    },
+  };
 }
 
 export async function GET() {
   const [kboRes, soccerRes] = await Promise.allSettled([fetchKbo(), fetchSoccer()]);
-  const kbo = kboRes.status === "fulfilled" ? kboRes.value : { games: [], lotte: [] };
+  const kbo = kboRes.status === "fulfilled" ? kboRes.value : {
+    games: [], lotte: [], days: {
+      yesterday: { date: seoulDate(-1), games: [] },
+      today: { date: seoulDate(), games: [] },
+      tomorrow: { date: seoulDate(1), games: [] },
+    },
+    lotteSummary: { previous: null, today: null, next: null },
+  };
   const soccer = soccerRes.status === "fulfilled" ? soccerRes.value : { epl: [], chelsea: [], korean: [] };
   return NextResponse.json({
     ok: kboRes.status === "fulfilled" || soccerRes.status === "fulfilled",
     updatedAt: new Date().toISOString(),
     kbo: kbo.games,
-    favorites: { lotte: kbo.lotte, chelsea: soccer.chelsea },
+    kboDays: kbo.days,
+    favorites: { lotte: kbo.lotte, lotteSummary: kbo.lotteSummary, chelsea: soccer.chelsea },
     soccer,
     sources: { kbo: "NAVER Sports", soccer: "ESPN Scoreboard" },
     favoriteTeams: { baseball: "롯데 자이언츠", football: "Chelsea" },
