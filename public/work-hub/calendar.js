@@ -17,7 +17,7 @@
         word-break:keep-all!important;overflow-wrap:break-word!important;line-break:strict!important;text-wrap:pretty!important;white-space:normal!important
       }
       .tasktop{min-width:0}.tasktitle{min-width:0}.taskactions{flex-wrap:wrap;justify-content:flex-end}
-      .calendar-card{background:var(--card);border:1px solid var(--line);border-radius:17px;box-shadow:var(--shadow);margin-bottom:14px;overflow:visible}
+      .calendar-card{background:var(--card);border:1px solid var(--line);border-radius:17px;box-shadow:var(--shadow);margin-top:18px;margin-bottom:14px;overflow:visible}
       .calendar-head{display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:1px solid var(--line)}
       .calendar-head h3{margin:0;font-size:21px;font-weight:950}.calendar-head p{margin:4px 0 0;color:var(--muted);font-size:12px}
       .calendar-nav{display:flex;gap:7px;align-items:center}.calendar-label{font-size:15px;font-weight:900;min-width:105px;text-align:center}
@@ -97,13 +97,13 @@
         const tooltip=items.length?`<div class="cal-tooltip"><b>${d.getMonth()+1}월 ${d.getDate()}일 · ${items.length}건</b>${items.map(t=>`<div class="cal-tip-item"><span class="cal-tip-status">${statusName(t.status)}</span>${esc(t.title)}</div>`).join('')}</div>`:'';
         cells.push(`<div class="${cls}" data-cal-date="${key}"><span class="cal-num">${d.getDate()}</span>${items.length?`<span class="cal-count">${items.length}</span><div class="cal-preview">${preview}${items.length>2?`<span>+${items.length-2}건 더보기</span>`:''}</div>${tooltip}`:''}</div>`);
       }
-      return `<section class="calendar-card"><div class="calendar-head"><div><h3>업무 캘린더</h3><p>Due Date 또는 제목의 (수), (화,수), (화/수) 같은 요일을 자동 인식합니다.</p></div><div class="calendar-nav"><button class="btn" data-cal-act="prev">←</button><span class="calendar-label">${year}년 ${month+1}월</span><button class="btn" data-cal-act="next">→</button><button class="btn" data-cal-act="today">오늘</button></div></div><div class="calendar-weekdays"><div>일</div><div>월</div><div>화</div><div>수</div><div>목</div><div>금</div><div>토</div></div><div class="calendar-grid">${cells.join('')}</div></section>`;
+      return `<section class="calendar-card"><div class="calendar-head"><div><h3>업무 캘린더</h3><p>빠른 입력의 (수) 같은 요일은 해당 주 일정으로 자동 표시하고, 정확한 날짜는 Due Date를 우선 사용합니다.</p></div><div class="calendar-nav"><button class="btn" data-cal-act="prev">←</button><span class="calendar-label">${year}년 ${month+1}월</span><button class="btn" data-cal-act="next">→</button><button class="btn" data-cal-act="today">오늘</button></div></div><div class="calendar-weekdays"><div>일</div><div>월</div><div>화</div><div>수</div><div>목</div><div>금</div><div>토</div></div><div class="calendar-grid">${cells.join('')}</div></section>`;
     }
 
     const previousDashboard = dashboard;
     dashboard = function(){
       const html = previousDashboard();
-      return html.replace('<div class="dashboard">', monthCalendar() + '<div class="dashboard">');
+      return html + monthCalendar();
     };
 
     const previousTask = task;
