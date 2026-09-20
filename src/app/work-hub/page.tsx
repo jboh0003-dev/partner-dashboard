@@ -31,7 +31,7 @@ export default function WorkHubPage() {
     addScript("workhub-calendar-script", "/work-hub/calendar.js?v=3");
     addScript("workhub-create-script", "/work-hub/create.js?v=2");
     addScript("supabase-js", "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js");
-    addScript("workhub-cloud-script", "/work-hub/cloud.js?v=1");
+    addScript("workhub-cloud-script", "/work-hub/cloud.js?v=2");
 
     return true;
   };
