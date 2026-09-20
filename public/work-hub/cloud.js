@@ -208,8 +208,14 @@
           setBadge('☁ 클라우드 동기화');
           toast('클라우드 업무를 불러왔습니다.');
         } else if (localScore > 0) {
-          await pushCloud(false);
-          toast('이 기기의 업무를 클라우드에 올렸습니다.');
+          const recoveredFrom = localStorage.getItem('workhub_recovered_from') || '';
+          if (recoveredFrom.startsWith('화면 복구 스냅샷')) {
+            setBadge('☁ 연결됨 · 업로드 대기','saving');
+            toast('복구용 임시 스냅샷은 자동 업로드하지 않았습니다.');
+          } else {
+            await pushCloud(false);
+            toast('이 기기의 업무를 클라우드에 올렸습니다.');
+          }
         } else {
           setBadge('☁ 클라우드 연결됨');
           toast('클라우드 연결 완료');
