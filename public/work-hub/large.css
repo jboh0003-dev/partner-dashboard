@@ -60,3 +60,38 @@ header{height:92px!important;padding:0 28px!important}.title{font-size:34px!impo
   .board{grid-template-columns:1fr!important}
   .lane:not(.focus) .tasktitle{font-size:18px!important}
 }
+
+
+/* Dashboard flow: work board -> calendar -> live center */
+.dashboard{
+  display:block!important;
+  grid-template-columns:none!important;
+}
+.workarea{width:100%!important}
+.live-center-below{
+  width:100%;
+  margin-top:18px;
+}
+.live-center-below .live:not(.expanded){
+  position:relative!important;
+  top:auto!important;
+  width:100%!important;
+  max-height:none!important;
+  margin:0!important;
+}
+.live-center-below .live:not(.expanded) .livebody{
+  max-height:560px!important;
+}
+@media(min-width:1280px){
+  .live-center-below .live:not(.expanded) .market-list,
+  .live-center-below .live:not(.expanded) .score-list{
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:9px;
+  }
+}
+@media(max-width:900px){
+  .live-center-below .live:not(.expanded) .livebody{
+    max-height:none!important;
+  }
+}
