@@ -30,7 +30,7 @@ export default function WorkHubPage() {
     addScript("workhub-workflow-script", "/work-hub/workflow.js?v=3");
     addScript("workhub-calendar-script", "/work-hub/calendar.js?v=8");
     addScript("workhub-create-script", "/work-hub/create.js?v=2");
-    addScript("workhub-scratch-notes-script", "/work-hub/notes.js?v=1");
+    addScript("workhub-notes-script", "/work-hub/work-notes.js?v=2");
     addScript("supabase-js", "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js");
     addScript("workhub-cloud-script", "/work-hub/cloud.js?v=2");
     addScript("workhub-arcade-nav-script", "/work-hub/arcade-nav.js?v=2");
