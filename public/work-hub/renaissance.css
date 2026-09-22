@@ -50,3 +50,6 @@ html{font-size:16px!important}body{letter-spacing:0}.shell{display:block}.side{p
  .runner-message span{font-size:12px}
 }
 @media(prefers-reduced-motion:reduce){.arcade-game-card{transition:none!important;transform:none!important}}
+/* Dark-mode text needs a brighter accent than the filled button color. */
+.dark .metric strong,.dark .lane.focus .lanehead h3,.dark .count,.dark .lane.focus .count{color:#edc49b!important}
+.dark .lanehead{background:color-mix(in srgb,var(--card) 93%,#c5ac79)}
