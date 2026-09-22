@@ -44,6 +44,8 @@
       .cal-preview{margin-top:7px;display:flex;flex-direction:column;gap:4px}.cal-preview span{font-size:10px;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--muted)}
       .cal-preview span.done{color:#13865f;text-decoration:line-through}.cal-preview span.blocked{color:#c7652d}
       .cal-preview .vacation-preview{color:#6554e8;font-weight:900;text-decoration:none}
+      .cal-preview [data-cal-task-id]{cursor:grab;border-radius:4px;padding:1px 2px}.cal-preview [data-cal-task-id]:active{cursor:grabbing}
+      .cal-day.cal-drag-over{border:2px solid #3154f4!important;background:color-mix(in srgb,var(--card) 80%,#dfe7ff)!important;box-shadow:0 10px 28px rgba(49,84,244,.22)}
       .dark .cal-preview .vacation-preview{color:#bcb4ff}
       .cal-tooltip{display:none;position:absolute;left:8px;top:calc(100% - 2px);width:min(390px,80vw);background:#091322;color:#eef4ff;border:1px solid #2b4260;border-radius:12px;padding:10px;box-shadow:0 18px 45px rgba(3,8,15,.34);z-index:100}
       .cal-day:nth-child(7n+6) .cal-tooltip,.cal-day:nth-child(7n+7) .cal-tooltip{left:auto;right:8px}.cal-day:hover .cal-tooltip{display:block}
@@ -75,15 +77,83 @@
       return [];
     }
 
+    function validDate(value) {
+      return /^\d{4}-\d{2}-\d{2}$/.test(value || '');
+    }
+
+    function normalizedDueDate(t) {
+      if (!validDate(t?.dueDate)) return '';
+      if (t.scope === 'weekly' && validDate(t.target)) {
+        const targetWeek = mon(t.target);
+        if (mon(t.dueDate) !== targetWeek) {
+          const weekdayOffset = (dt(t.dueDate).getDay() + 6) % 7;
+          return add(targetWeek, weekdayOffset);
+        }
+      }
+      return t.dueDate;
+    }
+
+    function repairCalendarTargets() {
+      let changed = false;
+      S.workItems.forEach(t => {
+        if (t.scope === 'weekly' && validDate(t.target)) {
+          const fixedTarget = mon(t.target);
+          if (fixedTarget !== t.target) {
+            t.target = fixedTarget;
+            changed = true;
+          }
+        }
+        const fixedDue = normalizedDueDate(t);
+        if (fixedDue && fixedDue !== t.dueDate) {
+          t.dueDate = fixedDue;
+          changed = true;
+        }
+      });
+      if (changed) save('캘린더 주차 불일치를 자동 보정했습니다.');
+    }
+
     function inferredDates(t) {
-      if (t.dueDate && /^\d{4}-\d{2}-\d{2}$/.test(t.dueDate)) return [t.dueDate];
-      if (t.scope === 'daily' && /^\d{4}-\d{2}-\d{2}$/.test(t.target||'')) return [t.target];
+      const dueDate = normalizedDueDate(t);
+      if (dueDate) return [dueDate];
+      if (t.scope === 'daily' && validDate(t.target)) return [t.target];
       const days = weekdayTokens(t.title);
-      if (days.length && t.scope === 'weekly' && /^\d{4}-\d{2}-\d{2}$/.test(t.target||'')) {
+      if (days.length && t.scope === 'weekly' && validDate(t.target)) {
         const weekStart = mon(t.target);
         return days.map(day => add(weekStart, weekMap[day]));
       }
       return [];
+    }
+
+    function moveTaskToCalendarDate(taskId, date) {
+      const t = S.workItems.find(x => x.id === taskId);
+      if (!t || !validDate(date)) return;
+      const previous = { scope:t.scope, target:t.target || '', dueDate:t.dueDate || '' };
+
+      if (t.scope === 'daily') {
+        t.target = date;
+        t.dueDate = date;
+      } else if (t.scope === 'monthly') {
+        t.target = date.slice(0, 7);
+        t.dueDate = date;
+      } else {
+        t.scope = 'weekly';
+        t.target = mon(date);
+        t.dueDate = date;
+      }
+      t.updatedAt = today();
+
+      if (!Array.isArray(S.history)) S.history = [];
+      S.history.push({
+        id: 'calendar-move-' + uid(),
+        type: 'calendar-drag',
+        workItemId: t.id,
+        title: t.title,
+        at: new Date().toISOString(),
+        from: previous,
+        to: { scope:t.scope, target:t.target, dueDate:t.dueDate }
+      });
+      save(`“${t.title}” 일정을 ${fmt(date)}로 이동했습니다.`);
+      render();
     }
 
     function inferredDue(t) {
@@ -204,7 +274,7 @@
         const key=dateKey(d), items=byDate[key]||[], vacs=vacByDate[key]||[];
         const holiday=holidays.find(h=>h.date===key)||null;
         const cls=['cal-day', d.getMonth()!==month?'out':'', key===today()?'today':'', d.getDay()===0?'sun':'', d.getDay()===6?'sat':'', holiday?'holiday':''].filter(Boolean).join(' ');
-        const taskPreview=items.slice(0,2).map(t=>`<span class="${t.status==='done'?'done':t.status==='blocked'?'blocked':''}">${esc(t.title)}</span>`).join('');
+        const taskPreview=items.slice(0,2).map(t=>`<span draggable="true" data-cal-task-id="${t.id}" class="${t.status==='done'?'done':t.status==='blocked'?'blocked':''}">${esc(t.title)}</span>`).join('');
         const vacationPreview=vacs.slice(0,1).map(v=>`<span class="vacation-preview">🏖 ${esc(v.title||v.type)}</span>`).join('');
         const total=items.length+vacs.length;
         const tooltipParts=[];
@@ -277,16 +347,51 @@
     }
 
     function bindCalendar(){
-      $$('[data-cal-act]').forEach(b=>b.onclick=()=>{
+      $('[data-cal-act]').forEach(b=>b.onclick=()=>{
         if(b.dataset.calAct==='prev')calendarMonth=monthShift(calendarMonth,-1);
         if(b.dataset.calAct==='next')calendarMonth=monthShift(calendarMonth,1);
         if(b.dataset.calAct==='today')calendarMonth=`${today().slice(0,7)}-01`;
         if(b.dataset.calAct==='vacation'){openVacationEditor(today());return;}
         render();
       });
-      $$('[data-cal-date]').forEach(d=>d.onclick=e=>{if(e.target.closest('.cal-tooltip'))return;openDay(d.dataset.calDate)});
+
+      let draggingTaskId = '';
+      $('[data-cal-task-id]').forEach(item => {
+        item.ondragstart = e => {
+          draggingTaskId = item.dataset.calTaskId || '';
+          e.dataTransfer?.setData('text/workhub-task', draggingTaskId);
+          if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
+        };
+        item.ondragend = () => {
+          draggingTaskId = '';
+          $('.cal-drag-over').forEach(x=>x.classList.remove('cal-drag-over'));
+        };
+      });
+
+      $('[data-cal-date]').forEach(d=>{
+        d.ondragover = e => {
+          if (!draggingTaskId && !e.dataTransfer?.types?.includes('text/workhub-task')) return;
+          e.preventDefault();
+          d.classList.add('cal-drag-over');
+          if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+        };
+        d.ondragleave = e => {
+          if (!d.contains(e.relatedTarget)) d.classList.remove('cal-drag-over');
+        };
+        d.ondrop = e => {
+          e.preventDefault();
+          d.classList.remove('cal-drag-over');
+          const id = e.dataTransfer?.getData('text/workhub-task') || draggingTaskId;
+          if (id) moveTaskToCalendarDate(id, d.dataset.calDate);
+        };
+        d.onclick=e=>{
+          if(e.target.closest('.cal-tooltip') || e.target.closest('[data-cal-task-id]')) return;
+          openDay(d.dataset.calDate);
+        };
+      });
     }
 
+    repairCalendarTargets();
     const previousRender = render;
     render = function(){ previousRender(); bindCalendar(); };
     ensureHolidays(Number(today().slice(0,4)));
