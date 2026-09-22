@@ -13,7 +13,7 @@ export default function WorkHubPage() {
       const link = doc.createElement("link");
       link.id = "workhub-large-css";
       link.rel = "stylesheet";
-      link.href = "/work-hub/large.css?v=2";
+      link.href = "/work-hub/large.css?v=3";
       doc.head.appendChild(link);
     }
 
@@ -28,7 +28,7 @@ export default function WorkHubPage() {
 
     addScript("workhub-favorites-script", "/work-hub/favorites.js?v=4");
     addScript("workhub-workflow-script", "/work-hub/workflow.js?v=1");
-    addScript("workhub-calendar-script", "/work-hub/calendar.js?v=3");
+    addScript("workhub-calendar-script", "/work-hub/calendar.js?v=4");
     addScript("workhub-create-script", "/work-hub/create.js?v=2");
     addScript("supabase-js", "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js");
     addScript("workhub-cloud-script", "/work-hub/cloud.js?v=2");
