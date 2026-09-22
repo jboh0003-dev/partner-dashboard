@@ -26,21 +26,6 @@ export default function WorkHubPage() {
       doc.body.appendChild(script);
     };
 
-    const runner = doc.getElementById("workhub-runner");
-    const runnerIsCurrent = runner?.dataset.version === "2";
-
-    if (!runnerIsCurrent && !doc.getElementById("workhub-runner-script-v2")) {
-      runner?.remove();
-      doc.getElementById("workhub-runner-script")?.remove();
-      doc
-        .querySelectorAll<HTMLScriptElement>('script[src*="/work-hub/runner-engine.js"]')
-        .forEach((engineScript) => {
-          engineScript.onload = null;
-          engineScript.remove();
-        });
-      addScript("workhub-runner-script-v2", "/work-hub/runner.js?v=2");
-    }
-
     addScript("workhub-favorites-script", "/work-hub/favorites.js?v=4");
     addScript("workhub-workflow-script", "/work-hub/workflow.js?v=2");
     addScript("workhub-calendar-script", "/work-hub/calendar.js?v=5");
@@ -48,7 +33,7 @@ export default function WorkHubPage() {
     addScript("supabase-js", "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js");
     addScript("workhub-cloud-script", "/work-hub/cloud.js?v=2");
 
-    return doc.getElementById("workhub-runner")?.dataset.version === "2";
+    return true;
   };
 
   useEffect(() => {
