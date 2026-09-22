@@ -28,7 +28,7 @@ export default function WorkHubPage() {
 
     addScript("workhub-favorites-script", "/work-hub/favorites.js?v=4");
     addScript("workhub-workflow-script", "/work-hub/workflow.js?v=1");
-    addScript("workhub-calendar-script", "/work-hub/calendar.js?v=5");
+    addScript("workhub-calendar-script", "/work-hub/calendar.js?v=6");
     addScript("workhub-create-script", "/work-hub/create.js?v=2");
     addScript("supabase-js", "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js");
     addScript("workhub-cloud-script", "/work-hub/cloud.js?v=2");
@@ -53,7 +53,7 @@ export default function WorkHubPage() {
     <iframe
       ref={frameRef}
       onLoad={patchAssets}
-      src="/work-hub/index.html?v=9"
+      src="/work-hub/index.html?v=10"
       title="워크허브"
       style={{
         position: "fixed",
