@@ -6,3 +6,47 @@ html{font-size:16px!important}body{letter-spacing:0}.shell{display:block}.side{p
 @media(min-width:1700px){.board{grid-template-columns:1fr 1.3fr 1fr!important}.tasktop,.lane:not(.focus) .tasktop{grid-template-columns:26px minmax(0,1fr) auto!important}.taskactions,.lane:not(.focus) .taskactions{grid-column:3!important;grid-row:1!important}}
 @media(max-width:1100px){.board{grid-template-columns:1fr 1fr!important}.lane.focus{grid-column:1/-1;grid-row:1}.lane.focus .tasks{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important}.runner-layout{grid-template-columns:minmax(0,1fr) 220px}.brand small{display:none}}
 @media(max-width:700px){.side{padding:16px!important;display:block}.brand{margin-bottom:16px}.nav button{padding:10px 12px!important}.nav{gap:4px}header{height:auto!important;min-height:110px;padding:18px 16px!important;gap:12px;align-items:flex-start;flex-wrap:wrap}.headtools{flex-wrap:wrap}.title{font-size:26px!important}.wrap{padding:16px!important}.metrics{grid-template-columns:repeat(2,minmax(0,1fr))!important}.metric{border-bottom:1px solid var(--line);padding:14px!important}.metric:last-child{grid-column:1/-1}.board{grid-template-columns:1fr!important}.lane.focus .tasks{display:block!important}.lane{min-height:180px!important}.market-list,.score-list{grid-template-columns:1fr}.stock{grid-template-columns:20px minmax(0,1fr) 90px 62px!important;gap:5px!important}.calendar-head{align-items:flex-start!important;flex-direction:column;gap:12px}.calendar-head p{max-width:100%}.runner{margin:20px 16px}.runner-heading{padding:16px;align-items:flex-start;flex-direction:column}.runner-layout{grid-template-columns:1fr}.runner-records{border-left:0;border-top:1px solid var(--line)}.runner canvas{aspect-ratio:600/360}.runner-hud{gap:12px;font-size:12px}.runner-message{padding:14px;min-width:220px}.runner-message b{font-size:20px}.planlist,.reportgrid,.partnergrid{grid-template-columns:1fr}.planneradd{grid-template-columns:1fr}.live.expanded{inset:12px!important;overflow:auto}.cal-day{min-height:64px!important;padding:4px!important}.cal-preview span{font-size:10px!important}.calendar-grid{gap:3px!important;padding:0 6px 8px!important}}
+
+/* QA: preserve proportions, readable controls, and narrow work surfaces. */
+.runner-heading>div:first-child{min-width:0}
+.runner-heading p,.cloud-card>p,.cloud-help{word-break:keep-all;overflow-wrap:anywhere}
+.runner-controls{flex-shrink:0}
+.runner button:disabled{opacity:.46;cursor:not-allowed}
+.runner-records li{gap:12px;align-items:baseline}
+.runner-records li>span{min-width:0;overflow-wrap:anywhere}
+.runner-records li>strong{white-space:nowrap;flex-shrink:0}
+.runner-hud>span{white-space:nowrap}
+.runner-message{min-width:0;width:max-content;max-width:calc(100% - 24px);box-sizing:border-box}
+.runner-message[hidden]{display:none!important}
+.runner-message span{display:block;line-height:1.5;word-break:keep-all}
+.runner canvas:focus-visible{outline:3px solid #b38b42}
+.wrap{container-type:inline-size}
+@container(max-width:960px){
+ .board{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+ .lane.focus{grid-column:1/-1;grid-row:1}
+ .lane.focus .tasks{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important}
+}
+@container(max-width:580px){
+ .board{grid-template-columns:minmax(0,1fr)!important}
+ .lane.focus .tasks{display:block!important}
+ .metrics{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+ .metric:last-child{grid-column:1/-1}
+}
+.runner{container-type:inline-size}
+@container(max-width:850px){
+ .runner-heading{align-items:flex-start;flex-direction:column}
+ .runner-layout{grid-template-columns:minmax(0,1fr)}
+ .runner-records{border-left:0;border-top:1px solid var(--line)}
+}
+.side .account-nav{position:static!important;margin-top:auto;padding-top:24px}
+.cloud-auth{overflow-y:auto!important}
+.cloud-card,.account-modal{max-height:calc(100dvh - 40px);overflow-y:auto}
+@media(max-width:980px){.side .account-nav button{padding:10px 2px;font-size:11px;text-align:center;word-break:keep-all}}
+@media(max-width:620px){
+ .runner-controls{gap:6px;max-width:100%}
+ .runner-controls .btn{padding:10px!important;font-size:12px!important}
+ .runner-hud{padding:10px 12px;gap:8px 12px}
+ .runner-message{padding:12px}.runner-message b{font-size:18px}
+ .runner-message span{font-size:12px}
+}
+@media(prefers-reduced-motion:reduce){.arcade-game-card{transition:none!important;transform:none!important}}

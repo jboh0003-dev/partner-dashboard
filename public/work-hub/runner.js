@@ -3,7 +3,7 @@
   if (document.getElementById('workhub-runner')) return;
 
   const script = document.createElement('script');
-  script.src = '/work-hub/runner-engine.js?v=2';
+  script.src = '/work-hub/runner-engine.js?v=3';
   script.onload = mount;
   script.onerror = () => console.error('미니게임을 불러오지 못했습니다. 새로고침해주세요.');
   document.body.appendChild(script);
@@ -14,7 +14,7 @@
     const section = document.createElement('section');
     section.id = 'workhub-runner';
     section.className = 'runner';
-    section.dataset.version = '2';
+    section.dataset.version = '3';
     section.setAttribute('aria-label', '슈퍼마리오 미니게임');
     section.innerHTML = `
       <div class="runner-heading">
@@ -80,11 +80,12 @@
         const raw = localStorage.getItem(KEY) || localStorage.getItem(LEGACY_KEY) || '[]';
         const a = JSON.parse(raw);
         return Array.isArray(a)
-          ? a.filter(r => r && Number.isFinite(r.score) && Number.isFinite(r.distance) && Number.isFinite(r.coins) && typeof r.date === 'string')
+          ? a.filter(r => r && Number.isSafeInteger(r.score) && r.score >= 0 && Number.isFinite(r.distance) && r.distance >= 0 && Number.isSafeInteger(r.coins) && r.coins >= 0 && typeof r.date === 'string')
             .sort((a, b) => b.score - a.score)
             .slice(0, 5)
           : [];
       } catch {
+        storageOK = false;
         return [];
       }
     }
@@ -143,9 +144,11 @@
       $('runner-start').textContent = '↻ 다시 시작';
       $('runner-pause').disabled = true;
       $('runner-jump').disabled = true;
+      // Once storage fails, keep one in-memory history; do not merge it with
+      // the same persisted entries again on every game over.
+      const persisted = storageOK ? readRecords() : null;
       records = [
-        ...readRecords(),
-        ...(!storageOK ? records : []),
+        ...(storageOK ? persisted : records),
         {
           score: engine.score,
           distance: Math.floor(engine.distance),
@@ -220,7 +223,8 @@
     }
 
     document.addEventListener('keydown', e => {
-      if (isInteractiveTarget(e.target)) return;
+      if (e.isComposing || e.ctrlKey || e.metaKey || e.altKey || isInteractiveTarget(e.target)) return;
+      if (!section.contains(document.activeElement) || !section.getClientRects().length) return;
       if (['Space', 'ArrowUp'].includes(e.code) && running && !paused) {
         e.preventDefault();
         if (!e.repeat) jump();
@@ -241,7 +245,12 @@
     }, { threshold: 0 }).observe(canvas);
 
     function resize() {
-      width = Math.max(640, Math.min(1100, canvas.clientWidth));
+      if (!canvas.clientWidth) return;
+      const nextWidth = Math.max(640, Math.min(1100, canvas.clientWidth));
+      if (nextWidth !== width && running) pause();
+      width = nextWidth;
+      // Match the CSS box to the simulation ratio at every width.
+      canvas.style.aspectRatio = `${width} / 360`;
       const dpr = Math.min(devicePixelRatio || 1, 2);
       canvas.width = Math.round(width * dpr);
       canvas.height = 360 * dpr;
@@ -455,15 +464,17 @@
       '..KKKK....KKKK..',
     ];
 
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+
     function drawMario(x, y, t, air, spin, starPower) {
       const colors = { R: '#e43a34', B: '#225baa', S: '#ffd2a0', K: '#593d33', Y: '#f8d65b' };
       ctx.save();
-      if (air) {
+      if (air && !reducedMotion.matches) {
         ctx.translate(x + 16, y + 22);
         ctx.rotate(spin);
         ctx.translate(-(x + 16), -(y + 22));
       }
-      const starFlash = starPower && Math.floor(t * 14) % 2 === 0;
+      const starFlash = starPower; // Steady gold avoids rapid flashing during invincibility.
       sprite.forEach((row, j) => [...row].forEach((ch, i) => {
         if (ch === '.') return;
         let dx = 0;

@@ -123,6 +123,10 @@
     arcadeButton.innerHTML = '🎮 <span>딴짓</span>';
     arcadeButton.setAttribute('aria-controls', 'workhub-arcade-root');
     nav.append(infoDivider, liveButton, breakDivider, arcadeButton);
+    nav.querySelectorAll('button[data-view]').forEach(button => {
+      button.setAttribute('aria-label', button.textContent.trim());
+      button.title = button.textContent.trim();
+    });
 
     const liveRoot = document.createElement('div');
     liveRoot.id = 'workhub-live-root';

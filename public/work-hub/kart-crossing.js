@@ -792,7 +792,14 @@
     }
 
     document.addEventListener('keydown', (event) => {
-      if (!running || paused || isInteractiveTarget(event.target)) return;
+      if (!running || event.isComposing || event.ctrlKey || event.metaKey || event.altKey || isInteractiveTarget(event.target)) return;
+      if (!section.contains(document.activeElement) || !section.getClientRects().length) return;
+      if (event.code === 'KeyP' && !event.repeat) {
+        event.preventDefault();
+        paused ? resumeGame() : pauseGame();
+        return;
+      }
+      if (paused) return;
       const moves = {
         ArrowUp: [0, 1], KeyW: [0, 1],
         ArrowDown: [0, -1], KeyS: [0, -1],
@@ -803,10 +810,6 @@
       if (move) {
         event.preventDefault();
         if (!event.repeat) movePlayer(move[0], move[1]);
-      }
-      if (event.code === 'KeyP' && !event.repeat) {
-        event.preventDefault();
-        paused ? resumeGame() : pauseGame();
       }
     }, { capture: true });
 
