@@ -36,6 +36,22 @@
       .cloud-msg{min-height:19px;margin-top:10px;font-size:12px;color:#b14c52;line-height:1.45}.cloud-help{margin-top:14px;padding-top:13px;border-top:1px solid var(--line);font-size:11px;color:var(--muted);line-height:1.55}
       .cloud-user-menu{position:fixed;right:18px;top:92px;background:var(--card);border:1px solid var(--line);border-radius:13px;padding:12px;z-index:200;box-shadow:0 18px 40px rgba(0,0,0,.14);min-width:220px}
       .cloud-user-menu b{display:block;font-size:12px;word-break:break-all;margin-bottom:8px}.cloud-user-menu button{width:100%}
+      .account-nav{position:absolute;left:14px;right:14px;bottom:22px}
+      .account-nav button{width:100%;border:1px solid rgba(255,255,255,.10);background:rgba(255,255,255,.04);color:#c6d1df;border-radius:12px;padding:13px 12px;font-size:13px;font-weight:900;cursor:pointer;text-align:left}
+      .account-nav button:hover{background:#192a43;border-color:#2a405f;color:#fff}
+      .account-modal{width:min(620px,100%);background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:20px;padding:22px;box-shadow:0 28px 70px rgba(0,0,0,.28)}
+      .account-head{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;margin-bottom:16px}
+      .account-head h2{margin:0;font-size:26px;letter-spacing:-.6px}.account-head p{margin:5px 0 0;font-size:12px;color:var(--muted)}
+      .account-email{padding:13px 14px;border:1px solid var(--line);border-radius:12px;background:color-mix(in srgb,var(--card) 88%,#edf2f8);font-size:14px;font-weight:850;word-break:break-all}
+      .account-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+      .account-box{border:1px solid var(--line);border-radius:14px;padding:14px;background:color-mix(in srgb,var(--card) 94%,#eef3f8)}
+      .account-box span{display:block;font-size:11px;color:var(--muted);font-weight:800}.account-box strong{display:block;font-size:15px;margin-top:5px;word-break:break-word}
+      .account-section{margin-top:16px;padding-top:16px;border-top:1px solid var(--line)}
+      .account-section h3{margin:0 0 10px;font-size:16px}.account-section p{font-size:11px;color:var(--muted);line-height:1.5;margin:0 0 10px}
+      .account-password-grid{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end}
+      .account-danger{display:flex;justify-content:space-between;gap:10px;align-items:center}
+      .account-close{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:9px;width:36px;height:36px;font-size:18px;cursor:pointer}
+      @media(max-width:700px){.account-grid{grid-template-columns:1fr}.account-password-grid{grid-template-columns:1fr}.account-nav{left:8px;right:8px;bottom:14px}}
     `;
     document.head.appendChild(style);
 
@@ -75,6 +91,95 @@
       b.className = 'cloud-pill' + (cls ? ' '+cls : '');
       b.textContent = text;
     }
+    function ensureAccountNav(){
+      const side=document.querySelector('.side');
+      if(!side || document.getElementById('accountNav')) return;
+      const wrap=document.createElement('div');
+      wrap.id='accountNav';
+      wrap.className='account-nav';
+      wrap.innerHTML='<button type="button" id="accountManageBtn">⚙ 계정관리</button>';
+      side.appendChild(wrap);
+      document.getElementById('accountManageBtn').onclick=openAccountManager;
+    }
+
+    function formatSyncTime(){
+      if(!lastRemoteAt) return '동기화 기록 없음';
+      try{
+        return new Date(lastRemoteAt).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
+      }catch{return '동기화됨';}
+    }
+
+    function openAccountManager(){
+      if(!session?.user){showAuth();return;}
+      document.getElementById('cloudUserMenu')?.remove();
+      const root=document.createElement('div');
+      root.id='accountManager';
+      root.className='cloud-auth';
+      root.innerHTML=`
+        <div class="account-modal">
+          <div class="account-head">
+            <div><h2>계정관리</h2><p>워크허브 계정과 클라우드 동기화를 관리합니다.</p></div>
+            <button type="button" class="account-close" id="accountClose">×</button>
+          </div>
+          <div class="cloud-field"><label>로그인 이메일</label><div class="account-email">${esc(session.user.email||'-')}</div></div>
+          <div class="account-grid">
+            <div class="account-box"><span>클라우드 상태</span><strong>${saving?'저장 중':'연결됨'}</strong></div>
+            <div class="account-box"><span>최근 동기화</span><strong>${esc(formatSyncTime())}</strong></div>
+          </div>
+          <div class="account-section">
+            <h3>클라우드 동기화</h3>
+            <p>현재 기기의 업무 상태를 클라우드에 즉시 저장합니다.</p>
+            <button type="button" class="btn primary" id="accountSyncNow">지금 동기화</button>
+          </div>
+          <div class="account-section">
+            <h3>비밀번호 변경</h3>
+            <div class="account-password-grid">
+              <div class="cloud-field" style="margin:0"><label>새 비밀번호</label><input id="accountPw1" type="password" autocomplete="new-password" placeholder="6자 이상"></div>
+              <div class="cloud-field" style="margin:0"><label>비밀번호 확인</label><input id="accountPw2" type="password" autocomplete="new-password" placeholder="한 번 더 입력"></div>
+              <button type="button" class="btn" id="accountPwSave">변경</button>
+            </div>
+            <div id="accountMsg" class="cloud-msg"></div>
+          </div>
+          <div class="account-section">
+            <div class="account-danger">
+              <div><h3 style="margin-bottom:4px">로그아웃</h3><p style="margin:0">이 기기에서 워크허브 계정 연결을 해제합니다.</p></div>
+              <button type="button" class="btn" id="accountLogout">로그아웃</button>
+            </div>
+          </div>
+        </div>`;
+      document.body.appendChild(root);
+
+      const close=()=>root.remove();
+      document.getElementById('accountClose').onclick=close;
+      root.onclick=e=>{if(e.target===root)close();};
+      document.getElementById('accountSyncNow').onclick=async()=>{
+        const btn=document.getElementById('accountSyncNow');
+        btn.disabled=true; btn.textContent='동기화 중…';
+        await pushCloud(true);
+        btn.disabled=false; btn.textContent='지금 동기화';
+      };
+      document.getElementById('accountPwSave').onclick=async()=>{
+        const p1=document.getElementById('accountPw1').value;
+        const p2=document.getElementById('accountPw2').value;
+        const msg=document.getElementById('accountMsg');
+        msg.style.color='#b14c52';
+        if(p1.length<6){msg.textContent='새 비밀번호는 6자 이상 입력해주세요.';return;}
+        if(p1!==p2){msg.textContent='비밀번호가 서로 다릅니다.';return;}
+        const btn=document.getElementById('accountPwSave');
+        btn.disabled=true; btn.textContent='변경 중…';
+        const {error}=await sb.auth.updateUser({password:p1});
+        btn.disabled=false; btn.textContent='변경';
+        if(error){msg.textContent=error.message;return;}
+        msg.style.color='#147a56'; msg.textContent='비밀번호를 변경했습니다.';
+        document.getElementById('accountPw1').value='';
+        document.getElementById('accountPw2').value='';
+      };
+      document.getElementById('accountLogout').onclick=async()=>{
+        close();
+        await sb.auth.signOut();
+      };
+    }
+
     function toggleUserMenu(){
       const old = document.getElementById('cloudUserMenu');
       if (old) { old.remove(); return; }
@@ -82,8 +187,9 @@
       const menu = document.createElement('div');
       menu.id = 'cloudUserMenu';
       menu.className = 'cloud-user-menu';
-      menu.innerHTML = '<b>'+esc(session.user.email||'워크허브 계정')+'</b><button class="btn" id="cloudSyncNow">지금 동기화</button><button class="btn" id="cloudLogout" style="margin-top:7px">로그아웃</button>';
+      menu.innerHTML = '<b>'+esc(session.user.email||'워크허브 계정')+'</b><button class="btn" id="cloudAccountManage">계정관리</button><button class="btn" id="cloudSyncNow" style="margin-top:7px">지금 동기화</button><button class="btn" id="cloudLogout" style="margin-top:7px">로그아웃</button>';
       document.body.appendChild(menu);
+      document.getElementById('cloudAccountManage').onclick = ()=>{ menu.remove(); openAccountManager(); };
       document.getElementById('cloudSyncNow').onclick = async()=>{ await pushCloud(true); menu.remove(); };
       document.getElementById('cloudLogout').onclick = async()=>{ await sb.auth.signOut(); menu.remove(); };
     }
@@ -198,6 +304,7 @@
       session = s;
       removeAuth();
       setBadge('☁ 연결 중…','saving');
+      ensureAccountNav();
       try{
         const remote = await readRemote();
         const localScore = stateScore(S);
@@ -231,11 +338,12 @@
     }
 
     const {data:{session:existing}} = await sb.auth.getSession();
+    ensureAccountNav();
     if (existing) await afterAuth(existing);
     else showAuth();
 
     sb.auth.onAuthStateChange((event,s)=>{
-      if(event==='SIGNED_OUT'){session=null;window.clearInterval(pullTimer);showAuth('로그아웃되었습니다.');}
+      if(event==='SIGNED_OUT'){session=null;window.clearInterval(pullTimer);document.getElementById('accountManager')?.remove();showAuth('로그아웃되었습니다.');}
       if(event==='SIGNED_IN' && s && session?.user?.id!==s.user.id) afterAuth(s);
     });
   };
