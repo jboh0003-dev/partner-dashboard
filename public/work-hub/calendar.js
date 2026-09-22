@@ -103,7 +103,7 @@
     const previousDashboard = dashboard;
     dashboard = function(){
       const html = previousDashboard();
-      return html + monthCalendar();
+      return html + monthCalendar() + `<section class="live-center-below">${liveCenter()}</section>`;
     };
 
     const previousTask = task;
