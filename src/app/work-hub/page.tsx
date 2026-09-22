@@ -32,6 +32,7 @@ export default function WorkHubPage() {
     addScript("workhub-create-script", "/work-hub/create.js?v=2");
     addScript("supabase-js", "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js");
     addScript("workhub-cloud-script", "/work-hub/cloud.js?v=2");
+    addScript("workhub-kart-crossing-script", "/work-hub/kart-crossing.js?v=1");
 
     return true;
   };
