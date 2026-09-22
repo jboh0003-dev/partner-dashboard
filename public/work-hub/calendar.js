@@ -13,6 +13,12 @@
     S.settings = S.settings || {};
     if (!Array.isArray(S.settings.vacations)) S.settings.vacations = [];
 
+    function vacationStore() {
+      S.settings = S.settings || {};
+      if (!Array.isArray(S.settings.vacations)) S.settings.vacations = [];
+      return S.settings.vacations;
+    }
+
     const style = document.createElement('style');
     style.id = 'workhub-calendar-style';
     style.textContent = `
@@ -106,7 +112,7 @@
     }
 
     function vacationsOn(date) {
-      return (S.settings.vacations||[]).filter(v=>vacationDates(v).includes(date));
+      return vacationStore().filter(v=>vacationDates(v).includes(date));
     }
 
     async function ensureHolidays(year) {
@@ -137,28 +143,45 @@
     }
 
     function openVacationEditor(defaultDate=today()) {
-      $('#modalRoot').innerHTML=`<div class="modalbg"><div class="modal"><h2>내 휴가 추가</h2><div class="vacation-form-grid"><div class="field"><label>종류</label><select id="vType"><option value="연차">연차</option><option value="오전 반차">오전 반차</option><option value="오후 반차">오후 반차</option><option value="휴가">휴가</option><option value="기타">기타</option></select></div><div class="field"><label>표시명</label><input id="vTitle" class="input" placeholder="예: 부산 휴가"></div><div class="field"><label>시작일</label><input id="vStart" class="input" type="date" value="${defaultDate}"></div><div class="field"><label>종료일</label><input id="vEnd" class="input" type="date" value="${defaultDate}"></div></div><div class="field"><label>메모</label><textarea id="vNote" rows="3" placeholder="선택사항"></textarea></div><div class="modalactions"><button class="btn" id="vCancel">취소</button><button class="btn primary" id="vSave">휴가 추가</button></div></div></div>`;
-      $('#vCancel').onclick=()=>$('#modalRoot').innerHTML='';
-      $('#vStart').onchange=()=>{ if(!$('#vEnd').value || $('#vEnd').value<$('#vStart').value) $('#vEnd').value=$('#vStart').value; };
-      $('#vSave').onclick=()=>{
-        const start=$('#vStart').value, end=$('#vEnd').value||start, type=$('#vType').value;
-        if(!start){toast('시작일을 선택해주세요.');return;}
-        if(end<start){toast('종료일은 시작일보다 빠를 수 없습니다.');return;}
-        S.settings.vacations.push({
-          id: uid(), type, title: $('#vTitle').value.trim() || type,
-          startDate:start, endDate:end, note:$('#vNote').value.trim(), createdAt:today()
+      vacationStore();
+      $('#modalRoot').innerHTML=`<div class="modalbg"><div class="modal"><h2>내 휴가 추가</h2><div class="vacation-form-grid"><div class="field"><label>종류</label><select id="vType"><option value="연차">연차</option><option value="오전 반차">오전 반차</option><option value="오후 반차">오후 반차</option><option value="병가">병가</option><option value="휴가">휴가</option><option value="기타">기타</option></select></div><div></div><div class="field"><label>시작일</label><input id="vStart" class="input" type="date" value="${defaultDate}"></div><div class="field"><label>종료일</label><input id="vEnd" class="input" type="date" value="${defaultDate}"></div></div><div class="modalactions"><button type="button" class="btn" id="vCancel">취소</button><button type="button" class="btn primary vacation-add" id="vSave">휴가 추가</button></div></div></div>`;
+
+      const cancelBtn=$('#vCancel');
+      const saveBtn=$('#vSave');
+      const startInput=$('#vStart');
+      const endInput=$('#vEnd');
+
+      cancelBtn.addEventListener('click',()=>{$('#modalRoot').innerHTML='';});
+      startInput.addEventListener('change',()=>{
+        if(!endInput.value || endInput.value<startInput.value) endInput.value=startInput.value;
+      });
+      saveBtn.addEventListener('click',()=>{
+        const startDate=startInput.value;
+        const endDate=endInput.value||startDate;
+        const type=$('#vType').value;
+        if(!startDate){toast('시작일을 선택해주세요.');return;}
+        if(endDate<startDate){toast('종료일은 시작일보다 빠를 수 없습니다.');return;}
+        const vacations=vacationStore();
+        vacations.push({
+          id:uid(),
+          type,
+          title:type,
+          startDate,
+          endDate,
+          note:'',
+          createdAt:today()
         });
         save('휴가를 캘린더에 추가했습니다.');
         $('#modalRoot').innerHTML='';
         render();
-      };
+      });
     }
 
     function deleteVacation(id) {
-      const v=(S.settings.vacations||[]).find(x=>x.id===id);
+      const v=vacationStore().find(x=>x.id===id);
       if(!v)return;
       if(!confirm(`"${v.title||v.type}" 휴가를 삭제할까요?`))return;
-      S.settings.vacations=S.settings.vacations.filter(x=>x.id!==id);
+      S.settings.vacations=vacationStore().filter(x=>x.id!==id);
       save('휴가를 삭제했습니다.');
       render();
     }
@@ -173,7 +196,7 @@
         inferredDates(t).forEach(d => (byDate[d] ||= []).push(t));
       });
       const vacByDate={};
-      (S.settings.vacations||[]).forEach(v=>vacationDates(v).forEach(d=>(vacByDate[d] ||= []).push(v)));
+      vacationStore().forEach(v=>vacationDates(v).forEach(d=>(vacByDate[d] ||= []).push(v)));
 
       const cells=[];
       for(let i=0;i<42;i++){
