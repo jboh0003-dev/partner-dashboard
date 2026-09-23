@@ -1,18 +1,14 @@
 (() => {
-  const SUPABASE_URL = 'https://mtpnkedvqenddwciazce.supabase.co';
-  const SUPABASE_KEY = 'sb_publishable_ShOK8LBfwuVBMMHx5LWyFw_HFuQbavp';
 
   const boot = async () => {
-    if (!window.supabase || typeof S === 'undefined' || typeof render !== 'function' || typeof save !== 'function') {
+    if (!window.__workhubConnectClient || typeof S === 'undefined' || typeof render !== 'function' || typeof save !== 'function') {
       window.setTimeout(boot, 150);
       return;
     }
     if (window.__workhubCloudLoaded) return;
     window.__workhubCloudLoaded = true;
 
-    const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
-      auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
-    });
+    const sb = window.__workhubConnectClient;
     window.__workhubSupabase = sb;
 
     let session = null;
@@ -118,7 +114,7 @@
       root.innerHTML=`
         <div class="account-modal">
           <div class="account-head">
-            <div><h2>계정관리</h2><p>워크허브 계정과 클라우드 동기화를 관리합니다.</p></div>
+            <div><h2>계정관리</h2><p>파트너 커넥트 계정으로 연결된 개인 업무관리입니다.</p></div>
             <button type="button" class="account-close" id="accountClose">×</button>
           </div>
           <div class="cloud-field"><label>로그인 이메일</label><div class="account-email">${esc(session.user.email||'-')}</div></div>
@@ -132,17 +128,13 @@
             <button type="button" class="btn primary" id="accountSyncNow">지금 동기화</button>
           </div>
           <div class="account-section">
-            <h3>비밀번호 변경</h3>
-            <div class="account-password-grid">
-              <div class="cloud-field" style="margin:0"><label>새 비밀번호</label><input id="accountPw1" type="password" autocomplete="new-password" placeholder="6자 이상"></div>
-              <div class="cloud-field" style="margin:0"><label>비밀번호 확인</label><input id="accountPw2" type="password" autocomplete="new-password" placeholder="한 번 더 입력"></div>
-              <button type="button" class="btn" id="accountPwSave">변경</button>
-            </div>
-            <div id="accountMsg" class="cloud-msg"></div>
+            <h3>파트너 커넥트 계정</h3>
+            <p>비밀번호와 계정 정보는 파트너 커넥트에서 함께 관리합니다.</p>
+            <a class="btn" href="/dashboard/settings/account" target="_top">내 계정 관리</a>
           </div>
           <div class="account-section">
             <div class="account-danger">
-              <div><h3 style="margin-bottom:4px">로그아웃</h3><p style="margin:0">이 기기에서 워크허브 계정 연결을 해제합니다.</p></div>
+              <div><h3 style="margin-bottom:4px">로그아웃</h3><p style="margin:0">이 기기에서 파트너 커넥트와 워크허브를 함께 로그아웃합니다.</p></div>
               <button type="button" class="btn" id="accountLogout">로그아웃</button>
             </div>
           </div>
@@ -158,25 +150,9 @@
         await pushCloud(true);
         btn.disabled=false; btn.textContent='지금 동기화';
       };
-      document.getElementById('accountPwSave').onclick=async()=>{
-        const p1=document.getElementById('accountPw1').value;
-        const p2=document.getElementById('accountPw2').value;
-        const msg=document.getElementById('accountMsg');
-        msg.style.color='#b14c52';
-        if(p1.length<6){msg.textContent='새 비밀번호는 6자 이상 입력해주세요.';return;}
-        if(p1!==p2){msg.textContent='비밀번호가 서로 다릅니다.';return;}
-        const btn=document.getElementById('accountPwSave');
-        btn.disabled=true; btn.textContent='변경 중…';
-        const {error}=await sb.auth.updateUser({password:p1});
-        btn.disabled=false; btn.textContent='변경';
-        if(error){msg.textContent=error.message;return;}
-        msg.style.color='#147a56'; msg.textContent='비밀번호를 변경했습니다.';
-        document.getElementById('accountPw1').value='';
-        document.getElementById('accountPw2').value='';
-      };
       document.getElementById('accountLogout').onclick=async()=>{
         close();
-        await sb.auth.signOut();
+        await sb.auth.signOut({ scope: 'local' });
       };
     }
 
@@ -191,7 +167,7 @@
       document.body.appendChild(menu);
       document.getElementById('cloudAccountManage').onclick = ()=>{ menu.remove(); openAccountManager(); };
       document.getElementById('cloudSyncNow').onclick = async()=>{ await pushCloud(true); menu.remove(); };
-      document.getElementById('cloudLogout').onclick = async()=>{ await sb.auth.signOut(); menu.remove(); };
+      document.getElementById('cloudLogout').onclick = async()=>{ await sb.auth.signOut({ scope: 'local' }); menu.remove(); };
     }
 
     async function readRemote(){
@@ -263,44 +239,19 @@
     }
 
     function removeAuth(){ document.getElementById('cloudAuth')?.remove(); }
-    function showAuth(message=''){
-      removeAuth();
-      setBadge('☁ 로그인 필요','error');
-      const root = document.createElement('div');
-      root.id = 'cloudAuth';
-      root.className = 'cloud-auth';
-      root.innerHTML = `
-        <div class="cloud-card">
-          <h2>워크허브 클라우드</h2>
-          <p>회사 노트북과 집 PC에서 같은 업무를 보려면 같은 계정으로 로그인하세요.</p>
-          <div class="cloud-field"><label>이메일</label><input id="cloudEmail" type="email" autocomplete="username" placeholder="email@example.com"></div>
-          <div class="cloud-field"><label>비밀번호</label><input id="cloudPassword" type="password" autocomplete="current-password" placeholder="6자 이상"></div>
-          <div class="cloud-actions"><button class="btn primary" id="cloudLogin">로그인</button><button class="btn" id="cloudSignup">처음 등록</button></div>
-          <div id="cloudMsg" class="cloud-msg">${esc(message)}</div>
-          <div class="cloud-help">처음 한 번만 계정을 만들면 됩니다. 회사 노트북에 기존 업무가 남아 있다면 <b>회사 노트북에서 먼저 로그인</b>하세요. 클라우드가 비어 있을 때 현재 기기 데이터를 자동 업로드합니다.</div>
-        </div>`;
-      document.body.appendChild(root);
-      const msg = (t,ok=false)=>{ const el=document.getElementById('cloudMsg'); if(el){el.style.color=ok?'#147a56':'#b14c52';el.textContent=t;} };
-      document.getElementById('cloudLogin').onclick = async()=>{
-        const email=document.getElementById('cloudEmail').value.trim(), password=document.getElementById('cloudPassword').value;
-        if(!email||!password){msg('이메일과 비밀번호를 입력해주세요.');return;}
-        msg('로그인 중…',true);
-        const {data,error}=await sb.auth.signInWithPassword({email,password});
-        if(error){msg(error.message);return;}
-        if(data.session){removeAuth();await afterAuth(data.session);}
-      };
-      document.getElementById('cloudSignup').onclick = async()=>{
-        const email=document.getElementById('cloudEmail').value.trim(), password=document.getElementById('cloudPassword').value;
-        if(!email||password.length<6){msg('이메일과 6자 이상 비밀번호를 입력해주세요.');return;}
-        msg('계정 생성 중…',true);
-        const {data,error}=await sb.auth.signUp({email,password,options:{emailRedirectTo:location.origin+'/work-hub'}});
-        if(error){msg(error.message);return;}
-        if(data.session){removeAuth();await afterAuth(data.session);}
-        else msg('계정을 만들었습니다. 인증 메일이 왔다면 인증 후 로그인해주세요.',true);
-      };
+    function showAuth(){
+      session = null;
+      window.clearTimeout(saveTimer);
+      window.clearInterval(pullTimer);
+      // The parent and iframe share the existing Connect login.
+      window.top.location.replace('/login?redirect=%2Fwork-hub');
     }
 
     async function afterAuth(s){
+      if (!s?.user || s.user.id !== window.__workhubAuthorizedUserId) {
+        showAuth();
+        return;
+      }
       session = s;
       removeAuth();
       setBadge('☁ 연결 중…','saving');
@@ -337,15 +288,25 @@
       }
     }
 
+    const {data:{user:verifiedUser},error:verifyError} = await sb.auth.getUser();
+    if (verifyError || !verifiedUser || verifiedUser.id !== window.__workhubAuthorizedUserId) {
+      showAuth();
+      return;
+    }
     const {data:{session:existing}} = await sb.auth.getSession();
     ensureAccountNav();
     if (existing) await afterAuth(existing);
     else showAuth();
 
-    sb.auth.onAuthStateChange((event,s)=>{
-      if(event==='SIGNED_OUT'){session=null;window.clearInterval(pullTimer);document.getElementById('accountManager')?.remove();showAuth('로그아웃되었습니다.');}
-      if(event==='SIGNED_IN' && s && session?.user?.id!==s.user.id) afterAuth(s);
+    const {data:{subscription}} = sb.auth.onAuthStateChange((event,s)=>{
+      if(event==='SIGNED_OUT'){session=null;window.clearInterval(pullTimer);document.getElementById('accountManager')?.remove();showAuth();}
+      if(event==='SIGNED_IN' && s && session?.user?.id!==s.user.id) window.setTimeout(()=>afterAuth(s),0);
     });
+    window.addEventListener('pagehide',()=>{
+      subscription.unsubscribe();
+      window.clearTimeout(saveTimer);
+      window.clearInterval(pullTimer);
+    },{once:true});
   };
   boot();
 })();

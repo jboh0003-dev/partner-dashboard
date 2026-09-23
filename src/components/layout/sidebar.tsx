@@ -24,6 +24,7 @@ import {
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import { isWorkHubOwner } from "@/lib/auth/work-hub-access";
 import { isAdminOnlySidebarHref } from "@/lib/auth/roles";
 
 type NavLeaf = {
@@ -218,11 +219,13 @@ function PartnerAccordion({ item, pathname }: { item: NavAccordion; pathname: st
 }
 
 export function Sidebar({
+  userId = null,
   userEmail = null,
   userName = null,
   roleLabel = null,
   isAdmin = false
 }: {
+  userId?: string | null;
   userEmail?: string | null;
   userName?: string | null;
   roleLabel?: string | null;
@@ -248,6 +251,12 @@ export function Sidebar({
       </div>
 
       <nav className="flex-1 overflow-y-auto px-3 py-4">
+        {isWorkHubOwner(userId) ? (
+          <Link href="/work-hub" prefetch={false} className={navItemClass(false)}>
+            <ClipboardCheck size={17} className="text-slate-400" />
+            <span>내 업무관리</span>
+          </Link>
+        ) : null}
         {NAV_GROUPS.map((group) => {
           if (group.title === "Admin" && !isAdmin) return null;
           return (

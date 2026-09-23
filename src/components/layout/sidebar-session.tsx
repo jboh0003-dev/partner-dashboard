@@ -46,6 +46,7 @@ export function SidebarSession() {
 
   return (
     <Sidebar
+      userId={user?.id ?? null}
       userEmail={user?.email ?? null}
       userName={user?.name ?? null}
       roleLabel={user?.roleLabel ?? null}

@@ -1,3 +1,4 @@
+import { isWorkHubOwner, isWorkHubPath } from "@/lib/auth/work-hub-access";
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { buildLoginRedirectUrl, getSafeRedirectPath } from "@/lib/auth/redirect";
@@ -13,6 +14,7 @@ function isPublicApiPath(pathname: string): boolean {
 }
 
 function isProtectedPath(pathname: string): boolean {
+  if (isWorkHubPath(pathname)) return true;
   if (isPublicApplicantPath(pathname) || isPublicApiPath(pathname)) return false;
   if (pathname === "/dashboard" || pathname.startsWith("/dashboard/")) return true;
   if (pathname.startsWith("/api/") && !isPublicApiPath(pathname)) return true;
@@ -116,6 +118,23 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
+  // The private workspace uses Connect's account, never an IP allowlist.
+  // Check the live Auth user here so expired/revoked sessions cannot read its
+  // static HTML (which contains the recovery snapshot) or any supporting files.
+  if (isWorkHubPath(pathname)) {
+    const { data: { user }, error } = await supabase.auth.getUser();
+    if (error || !user || !isWorkHubOwner(user.id)) {
+      return NextResponse.json(
+        { ok: false, message: "내 업무관리는 소유자 계정만 이용할 수 있습니다." },
+        { status: user && !error ? 403 : 401, headers: { "Cache-Control": "private, no-store", Vary: "Cookie" } }
+      );
+    }
+    supabaseResponse.headers.set("Cache-Control", "private, no-store, max-age=0");
+    supabaseResponse.headers.set("Vary", "Cookie");
+    supabaseResponse.headers.set("X-Robots-Tag", "noindex, nofollow");
+    return supabaseResponse;
+  }
+
   const denied = await enforceAdminAccess(request, supabase, userId, supabaseResponse);
   if (denied) return denied;
 
@@ -154,6 +173,7 @@ async function enforceAdminAccess(
 
 export const config = {
   matcher: [
+    "/work-hub/:path*",
     /*
      * 정적 자산·이미지·파비콘 제외
      */
