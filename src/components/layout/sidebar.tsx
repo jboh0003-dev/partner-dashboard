@@ -21,7 +21,7 @@ import {
   UserPlus,
   Users
 } from "lucide-react";
-import Link from "next/link";
+import { NavigationLink as Link } from "@/components/layout/navigation-link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { isAdminOnlySidebarHref } from "@/lib/auth/roles";

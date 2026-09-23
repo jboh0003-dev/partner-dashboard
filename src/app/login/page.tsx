@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { BrandLoading } from "@/components/common/brand-loading";
 import { useSearchParams } from "next/navigation";
 import { FormEvent, Suspense, useMemo, useState } from "react";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
@@ -68,6 +69,10 @@ function LoginForm() {
       setError("로그인 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
       setLoading(false);
     }
+  }
+
+  if (loading) {
+    return <section className="w-full max-w-md rounded-2xl bg-white/95 p-4 shadow-2xl"><BrandLoading message="로그인 확인 후 화면을 준비하고 있습니다." /></section>;
   }
 
   return (
@@ -170,14 +175,7 @@ function LoginForm() {
 }
 
 function LoginFallback() {
-  return (
-    <section className="w-full max-w-md rounded-2xl border border-white/10 bg-white/95 p-8 shadow-2xl backdrop-blur-sm">
-      <div className="flex items-center justify-center gap-2 text-sm text-slate-500">
-        <Loader2 size={16} className="animate-spin" />
-        로그인 화면을 불러오는 중…
-      </div>
-    </section>
-  );
+  return <section className="w-full max-w-md rounded-2xl bg-white/95 p-4 shadow-2xl"><BrandLoading message="로그인 화면을 불러오고 있습니다." /></section>;
 }
 
 export default function LoginPage() {

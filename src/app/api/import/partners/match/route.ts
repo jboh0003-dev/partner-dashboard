@@ -3,7 +3,6 @@ import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   countMatchPreview,
-  getPartnerMatchKey,
   normalizeMatchKey,
   type PartnerMatchStrategy
 } from "@/lib/partner-match";
@@ -95,5 +94,3 @@ async function loadExistingKeys(
 
   return keys;
 }
-
-export { getPartnerMatchKey };
