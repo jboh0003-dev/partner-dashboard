@@ -1,0 +1,19 @@
+/* Shared visual language with Work Hub; semantic status colors stay distinct. */
+.connect-atelier { --shadow-card:0 4px 18px #49382009; }
+.connect-atelier h1,.connect-atelier .ui-page-title { font-family:Georgia,'Noto Serif KR',Batang,serif; font-weight:600; letter-spacing:-.6px; }
+.connect-atelier .ui-card,.connect-atelier .ui-card-elevated,.connect-atelier .ui-table-shell,.connect-atelier .ui-toolbar { background:#fffcf5; border-color:#d7cbb7; }
+.connect-atelier .ui-card-header { border-bottom-color:#ded3c2; }
+.connect-atelier .ui-card,.connect-atelier .ui-card-elevated { border-top:3px double #b79868; }
+.connect-atelier>aside { background:#39242a; border-right:3px double #af8b53; color:#f7edda; }
+.connect-atelier>aside>div { border-color:#785864; }
+.connect-atelier>aside nav a,.connect-atelier>aside nav button { color:#e0d1be; border-radius:4px; }
+.connect-atelier>aside nav a:hover,.connect-atelier>aside nav button:hover { background:#553740; color:#fff7e5; }
+.connect-atelier>aside nav .bg-okestro-50 { background:#63404a; color:#fff7e5; }
+.connect-atelier>aside nav svg { color:#c5a978; }
+.connect-atelier>aside nav p { color:#bfa687; }
+.connect-atelier>aside>div:first-child>a { background:#fffaf0; padding:10px 12px; border-radius:3px; }
+.connect-atelier>aside>div:last-child p,.connect-atelier>aside>div:last-child a { color:#dbcbb9; }
+.connect-atelier>aside>div:last-child a:hover { background:#553740; }
+.connect-atelier .ui-btn,.connect-atelier .ui-input,.connect-atelier .ui-select { border-radius:4px; }
+.connect-atelier table th { white-space:nowrap; }
+.connect-atelier :focus-visible { outline:2px solid #b38b42; outline-offset:3px; }

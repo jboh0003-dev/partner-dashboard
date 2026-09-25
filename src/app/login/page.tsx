@@ -78,7 +78,7 @@ function LoginForm() {
 
       <h1 className="text-center text-xl font-bold text-slate-950">
         Partner{" "}
-        <span className="bg-gradient-to-r from-okestro-600 via-blue-500 to-cyan-500 bg-clip-text font-black italic tracking-[-0.045em] text-transparent">
+        <span className="font-semibold tracking-tight text-okestro-700">
           Connect
         </span>
       </h1>

@@ -11,16 +11,16 @@
    */
   --font-sans: "Toss Moneygraphy", "Pretendard", system-ui, -apple-system, sans-serif;
 
-  --background: 248 250 252;
-  --foreground: 15 23 42;
-  --card: 255 255 255;
-  --card-border: 226 232 240;
-  --muted: 100 116 139;
-  --muted-foreground: 148 163 184;
-  --primary: 29 78 216;
+  --background: 242 238 229;
+  --foreground: 48 42 39;
+  --card: 255 252 245;
+  --card-border: 215 203 183;
+  --muted: 121 111 101;
+  --muted-foreground: 139 125 108;
+  --primary: 114 56 65;
   --primary-foreground: 255 255 255;
-  --primary-soft: 239 246 255;
-  --radius: 1rem;
+  --primary-soft: 249 241 237;
+  --radius: 0.35rem;
   --shadow-card: 0 1px 2px 0 rgb(15 23 42 / 0.04), 0 8px 24px -12px rgb(15 23 42 / 0.12);
   --shadow-elevated: 0 10px 40px -16px rgb(15 23 42 / 0.18);
 }
@@ -28,8 +28,8 @@
 body {
   margin: 0;
   background:
-    radial-gradient(1200px 480px at 12% -10%, rgb(219 234 254 / 0.55), transparent 55%),
-    radial-gradient(900px 420px at 88% 0%, rgb(226 232 240 / 0.7), transparent 50%),
+    radial-gradient(1200px 480px at 12% -10%, rgb(207 182 139 / 0.16), transparent 55%),
+    radial-gradient(900px 420px at 88% 0%, rgb(221 209 184 / 0.2), transparent 50%),
     rgb(var(--background));
   color: rgb(var(--foreground));
   font-family: var(--font-sans);

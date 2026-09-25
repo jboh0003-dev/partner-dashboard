@@ -243,7 +243,7 @@ export function Sidebar({
         </Link>
         <p className="mt-2.5 text-[12px] font-semibold tracking-[0.035em] text-slate-400">
           Partner{" "}
-          <span className="bg-gradient-to-r from-okestro-600 via-blue-500 to-cyan-500 bg-clip-text font-black italic tracking-[-0.045em] text-transparent">
+          <span className="font-semibold tracking-[0.02em] text-[#dbc099]">
             Connect
           </span>
         </p>
