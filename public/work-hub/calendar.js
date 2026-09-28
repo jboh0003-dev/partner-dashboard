@@ -75,11 +75,28 @@
       return [];
     }
 
+    function validDate(value) {
+      return /^\d{4}-\d{2}-\d{2}$/.test(value || '');
+    }
+
+    function normalizedDueDate(t) {
+      if (!validDate(t?.dueDate)) return '';
+      if (t.scope === 'weekly' && validDate(t.target)) {
+        const targetWeek = mon(t.target);
+        if (mon(t.dueDate) !== targetWeek) {
+          const weekdayOffset = (dt(t.dueDate).getDay() + 6) % 7;
+          return add(targetWeek, weekdayOffset);
+        }
+      }
+      return t.dueDate;
+    }
+
     function inferredDates(t) {
-      if (t.dueDate && /^\d{4}-\d{2}-\d{2}$/.test(t.dueDate)) return [t.dueDate];
-      if (t.scope === 'daily' && /^\d{4}-\d{2}-\d{2}$/.test(t.target||'')) return [t.target];
+      const dueDate = normalizedDueDate(t);
+      if (dueDate) return [dueDate];
+      if (t.scope === 'daily' && validDate(t.target)) return [t.target];
       const days = weekdayTokens(t.title);
-      if (days.length && t.scope === 'weekly' && /^\d{4}-\d{2}-\d{2}$/.test(t.target||'')) {
+      if (days.length && t.scope === 'weekly' && validDate(t.target)) {
         const weekStart = mon(t.target);
         return days.map(day => add(weekStart, weekMap[day]));
       }
@@ -240,7 +257,7 @@
       if (b.dataset.act === 'carryNext') {
         const t = S.workItems.find(x=>x.id===b.dataset.id);
         if (!t) return;
-        const oldDue=t.dueDate;
+        const oldDue=normalizedDueDate(t);
         const base = t.scope==='daily' ? t.target : (t.scope==='weekly' ? t.target : mon(today()));
         t.carriedFrom=t.target; t.carriedAt=today(); t.scope='weekly'; t.target=add(mon(base||today()),7); t.status='todo'; t.completedAt=null; t.issueNote=''; t.updatedAt=today();
         if(oldDue) t.dueDate=add(oldDue,7);
@@ -257,7 +274,12 @@
       $('#cancelEdit').onclick=()=>$('#modalRoot').innerHTML='';
       $('#saveEdit').onclick=()=>{
         const issueText=$('#eIssue').value.trim(); if(ns==='blocked'&&!issueText){toast('이슈 내용을 입력해주세요.');return;}
-        t.title=$('#eTitle').value.trim()||t.title; t.category=$('#eCat').value.trim()||'기타'; t.dueDate=$('#eDue').value||''; t.note=$('#eNote').value.trim(); t.issueNote=issueText; t.status=ns; t.completedAt=ns==='done'?(t.completedAt||today()):null; t.updatedAt=today(); save('저장했습니다.'); $('#modalRoot').innerHTML=''; render();
+        t.title=$('#eTitle').value.trim()||t.title; t.category=$('#eCat').value.trim()||'기타'; t.dueDate=$('#eDue').value||'';
+        if (t.dueDate) {
+          if (t.scope==='daily') t.target=t.dueDate;
+          else if (t.scope==='weekly') t.target=mon(t.dueDate);
+        }
+        t.note=$('#eNote').value.trim(); t.issueNote=issueText; t.status=ns; t.completedAt=ns==='done'?(t.completedAt||today()):null; t.updatedAt=today(); save('저장했습니다.'); $('#modalRoot').innerHTML=''; render();
       };
     };
 
