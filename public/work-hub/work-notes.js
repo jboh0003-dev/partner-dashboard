@@ -455,8 +455,20 @@
         return [];
       }
 
+      function normalizedTaskDue(task) {
+        if (!validYmd(task?.dueDate)) return '';
+        if (task.scope === 'weekly' && validYmd(task.target)) {
+          const targetWeek = mondayOf(task.target);
+          if (mondayOf(task.dueDate) !== targetWeek) {
+            return addDays(targetWeek, weekdayOffset(task.dueDate));
+          }
+        }
+        return task.dueDate;
+      }
+
       function taskDates(task) {
-        if (validYmd(task.dueDate)) return [task.dueDate];
+        const dueDate = normalizedTaskDue(task);
+        if (dueDate) return [dueDate];
         if (task.scope === 'daily' && validYmd(task.target)) return [task.target];
         const days = weekdayTokens(task.title);
         if (days.length && task.scope === 'weekly' && validYmd(task.target)) {
