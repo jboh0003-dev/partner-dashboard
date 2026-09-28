@@ -207,6 +207,10 @@
       if (dueDate && !M.validDate(dueDate)) return error('올바른 마감일을 입력해 주세요.');
       const target = item || { id, scope:'weekly', target:mon(dueDate || today()), createdAt:today() };
       Object.assign(target, { title, category:String(values.get('category') || '').trim() || '기타', dueDate, dependsOn:nextDeps, intent:state === 'expected' ? 'expected' : 'committed', status:state === 'expected' ? 'todo' : state, updatedAt:today(), completedAt:state === 'done' ? item?.completedAt || today() : null });
+      if (dueDate) {
+        if (target.scope === 'daily') target.target = dueDate;
+        else if (target.scope === 'weekly') target.target = mon(dueDate);
+      }
       if (state === 'blocked') target.issueNote = note; else target.note = note;
       if (!item) all().push(target);
       selectedId = id;
