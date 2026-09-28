@@ -41,3 +41,54 @@
 @media(prefers-reduced-motion:reduce){.atlas-scene,.atlas-world,.atlas-node{transition:none!important}.is-3d .atlas-world{transform:none}.atlas-node:hover{transform:translateZ(15px)}}
 
 .atlas-pan-hint{display:none}@media(max-width:1100px){.atlas-pan-hint{display:block;flex-basis:100%;color:var(--muted)}}
+
+
+/* Work Hub information hierarchy cleanup */
+.workhome-switch{
+  display:inline-flex;align-items:center;gap:4px;margin:0 0 18px;padding:4px;
+  border:1px solid var(--line);border-radius:5px;background:color-mix(in srgb,var(--card) 84%,#c9ad7f)
+}
+.workhome-switch button{
+  border:0;background:transparent;color:var(--muted);padding:10px 16px;border-radius:3px;
+  font-size:14px;font-weight:750;cursor:pointer
+}
+.workhome-switch button[aria-selected=true]{
+  background:var(--card);color:var(--brand);box-shadow:0 2px 8px #57313d14
+}
+.workhome-sheet{min-width:0}
+.workhome-sheet>.metrics{margin-top:0!important}
+
+/* Atlas is a secondary analysis surface, so keep it compact but readable. */
+.atlas-hero{padding:4px 0 20px;gap:18px}
+.atlas-hero h1{font-size:clamp(27px,2.15vw,36px);line-height:1.36;margin:10px 0 6px}
+.atlas-hero p{font-size:15px}
+.atlas-eyebrow{font-size:11px}
+.work-atlas .btn{font-size:13px!important}
+.atlas-metrics{padding:18px 0 20px}
+.atlas-metrics>button>span{font-size:13px}
+.atlas-metrics strong{font-size:38px;margin-top:6px}
+.atlas-toolbar{padding:13px 16px}
+.atlas-modes .btn{font-size:13px!important;padding:9px 14px!important}
+.atlas-total{font-size:12px}
+.atlas-filters{padding:12px 16px}
+.atlas-filters input,.atlas-filters select{font-size:13px;padding:10px 11px}
+.atlas-node strong{font-size:17px;line-height:1.45}
+.atlas-node-top{font-size:12px}
+.atlas-node-foot{font-size:11px}
+.atlas-column-head{font-size:17px}
+.atlas-detail{padding:24px}
+.atlas-detail h3{font-size:27px}
+.atlas-detail p,.atlas-detail dl,.atlas-dependency>button{font-size:13px}
+.atlas-next>button{font-size:14px}
+.atlas-explainer b{font-size:13px}.atlas-explainer p{font-size:12px}
+
+/* remove cool purple/blue paper accents from the antique workspace */
+.atlas-node[data-state=expected]{background:linear-gradient(140deg,#f4ecec,#e8dddc);border-left-color:#9a6f78}
+.atlas-node[data-state=doing]{background:linear-gradient(140deg,#f2f0e5,#dfe1d2);border-left-color:#7e8d71}
+.atlas-node[data-state=blocked]{background:linear-gradient(140deg,#f8ece2,#ead7cd);border-left-color:#a76b5f}
+.atlas-node[data-state=done]{background:linear-gradient(140deg,#eef3e8,#dbe4d5);border-left-color:#718b6b}
+
+@media(max-width:700px){
+  .workhome-switch{display:flex;width:100%}
+  .workhome-switch button{flex:1;padding:10px 8px;font-size:13px}
+}
