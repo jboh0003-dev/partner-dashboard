@@ -95,3 +95,108 @@ header{height:92px!important;padding:0 28px!important}.title{font-size:34px!impo
     max-height:none!important;
   }
 }
+
+
+/* 2026-09 readability + antique palette pass */
+:root{
+  --brand:#723841!important;
+  --brand-deep:#5b2d35!important;
+  --accent:#a67b45!important;
+  --accent-soft:#efe3ce!important;
+  --focus:#b38b42!important;
+}
+html{font-size:18px!important}
+body{font-size:16px!important;line-height:1.55!important;color:var(--ink)!important}
+.brand{font-size:31px!important}
+.nav button{font-size:17px!important;line-height:1.25!important}
+.title{font-size:36px!important}
+.subclock{font-size:14px!important}
+.btn,.tabs button{font-size:15px!important}
+.metric span{font-size:14px!important}.metric strong{font-size:36px!important}
+.lanehead h3,.lane.focus .lanehead h3{font-size:23px!important}
+.lanehead p{font-size:14px!important}
+.tasktitle,.lane:not(.focus) .tasktitle{font-size:18px!important}
+.lane.focus .tasktitle{font-size:20px!important}
+.chip{font-size:13px!important}
+.status{font-size:13px!important}
+.quick input,.planneradd input,.planneradd select{font-size:16px!important}
+.calendar-head h3{font-size:24px!important}
+.calendar-head p{font-size:14px!important}
+.calendar-label{font-size:16px!important}
+.calendar-weekdays div{font-size:13px!important}
+.cal-num{font-size:14px!important}
+.cal-preview span{font-size:12px!important}
+.reportcard h3{font-size:21px!important}.reportline{font-size:16px!important}
+.field label{font-size:13px!important}
+.modal input,.modal select,.modal textarea{font-size:16px!important}
+.empty{font-size:15px!important}
+
+/* remove SaaS-blue accents from work UI */
+.btn.primary,.tabs button.active,
+.vacation-add{
+  background:var(--brand)!important;
+  border-color:var(--brand)!important;
+  color:#fff8ec!important;
+}
+.progress i,.cal-count{background:var(--brand)!important}
+.cal-day.today{
+  outline-color:var(--brand)!important;
+  box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--brand) 35%,transparent)!important;
+}
+.cal-day:hover{
+  border-color:#a88358!important;
+  box-shadow:0 8px 22px rgba(114,56,65,.12)!important;
+}
+.cal-day.cal-drag-over{
+  border-color:#9b6b43!important;
+  background:color-mix(in srgb,var(--card) 82%,#ead9c1)!important;
+  box-shadow:0 10px 28px rgba(114,56,65,.18)!important;
+}
+.carry-btn{
+  border-color:#c6a77d!important;
+  background:#f4ead9!important;
+  color:#6d4630!important;
+}
+.carry-btn:hover{background:#ead9c1!important;border-color:#ad8254!important}
+.carry-btn:focus-visible{outline-color:var(--focus)!important}
+.carry-history-chip{
+  background:#efe2d1!important;
+  color:#724d35!important;
+}
+.due-chip{
+  background:#f1e6d6!important;
+  color:#6f4a32!important;
+}
+.workflow-undo{
+  border-color:#9d7954!important;
+  background:#3b2a2c!important;
+  color:#fff6e8!important;
+}
+.workflow-undo button{
+  border-color:#caaa79!important;
+  color:#683842!important;
+}
+.scratch-note a,.memo-calendar-item,.memo-date-chip{color:var(--brand)!important}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{
+  outline-color:var(--focus)!important;
+}
+
+/* dark mode stays warm rather than navy */
+body.dark{
+  --bg:#201b19!important;
+  --card:#2b2522!important;
+  --ink:#f2e8d8!important;
+  --muted:#bbaa98!important;
+  --line:#59493c!important;
+  --brand:#a65d68!important;
+}
+body.dark .carry-btn{background:#3a2c28!important;border-color:#795b43!important;color:#ebcfaa!important}
+body.dark .carry-history-chip,
+body.dark .due-chip{background:#3c3029!important;color:#e3c6a2!important}
+
+@media(max-width:980px){
+  html{font-size:17px!important}
+  .title{font-size:30px!important}
+  .nav button{font-size:18px!important}
+  .tasktitle,.lane:not(.focus) .tasktitle,.lane.focus .tasktitle{font-size:18px!important}
+}
