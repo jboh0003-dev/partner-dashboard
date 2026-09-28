@@ -13,7 +13,7 @@ export default function WorkHubPage() {
       const link = doc.createElement("link");
       link.id = "workhub-large-css";
       link.rel = "stylesheet";
-      link.href = "/work-hub/large.css?v=4";
+      link.href = "/work-hub/large.css?v=5";
       doc.head.appendChild(link);
     }
 
