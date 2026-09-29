@@ -218,13 +218,11 @@ function PartnerAccordion({ item, pathname }: { item: NavAccordion; pathname: st
 }
 
 export function Sidebar({
-  userId = null,
   userEmail = null,
   userName = null,
   roleLabel = null,
   isAdmin = false
 }: {
-  userId?: string | null;
   userEmail?: string | null;
   userName?: string | null;
   roleLabel?: string | null;
