@@ -351,7 +351,7 @@ export async function fetchContractStatusExportRows(
     const inferred = inferRegion(address);
     const companyName = clean(p.company_name);
     const originalGrade = normalizeGrade(first(p.grade_original, p.grade), companyName);
-    const effectiveGrade = getDisplayPartnerGradeLabel(p);
+    const effectiveGrade = getDisplayPartnerGradeLabel(partner);
     const gradeChange = first(p.grade_change_raw, effectiveGrade, originalGrade);
     const docs = docsByPartner.get(partnerId) ?? {
       contract: false,
