@@ -62,7 +62,7 @@
           ${list.slice(0, 3).map(roomCard).join('')}
           ${!list.length ? '<div class="atlas-room-vacant">등록된 업무 없음</div>' : ''}
         </div>
-        ${list.length > 3 ? button('more', `+ ${list.length - 3}개 더 보기`, 'class="atlas-room-more"') : ''}
+        ${list.length > 3 ? button('room-stage', `+ ${list.length - 3}개 · 펼쳐보기`, `data-stage="${stage.id}" aria-label="${stage.label} 업무 전체 보기"`) : ''}
       </section>`;
     }).join('');
 
@@ -332,6 +332,7 @@
     if (action === 'metric') { Object.assign(options, { query:'', category:'', period:'all', stage:el.dataset.stage }); refresh(); return; }
     if (action === 'overdue') { Object.assign(options, { query:'', category:'', period:'overdue', stage:'' }); refresh(); return; }
     if (action === 'more') { pageSize += 6; refresh(); return; }
+    if (action === 'room-stage') { Object.assign(options, { stage:el.dataset.stage || '', period:'all' }); mode = 'flow'; refresh(); return; }
     if (action === 'room-left') { roomYaw = Math.max(-24, roomYaw - 5); applyRoomCamera(); return; }
     if (action === 'room-right') { roomYaw = Math.min(24, roomYaw + 5); applyRoomCamera(); return; }
     if (action === 'room-up') { roomPitch = Math.min(16, roomPitch + 3); applyRoomCamera(); return; }
