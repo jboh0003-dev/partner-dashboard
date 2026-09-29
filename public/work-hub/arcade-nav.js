@@ -24,7 +24,7 @@
     const style = document.createElement('style');
     style.id = 'workhub-arcade-nav-style';
     style.textContent = `
-      :root{--workhub-side-width:216px}
+      :root{--workhub-side-width:224px}
       .shell{display:flex!important;min-height:100vh!important}
       .side{
         position:fixed!important;inset:0 auto 0 0!important;width:var(--workhub-side-width)!important;height:100vh!important;
@@ -32,14 +32,14 @@
         justify-content:flex-start!important;background:#39242a!important;border-right:3px double #af8b53!important;
         border-bottom:0!important;color:#f7edda!important;overflow-y:auto!important;z-index:60!important
       }
-      .brand{display:block!important;padding:0 10px 28px!important;margin:0!important;font-size:25px!important;line-height:1.08!important}
-      .brand small{display:block!important;margin:7px 0 0!important;font-size:10px!important;line-height:1.3!important}
+      .brand{display:block!important;padding:0 10px 28px!important;margin:0!important;font-size:27px!important;line-height:1.08!important}
+      .brand small{display:block!important;margin:7px 0 0!important;font-size:11px!important;line-height:1.3!important}
       .nav{display:flex!important;flex-direction:column!important;gap:6px!important;width:100%!important}
       .nav button{
         width:100%!important;margin:0!important;padding:14px 13px!important;text-align:left!important;border-radius:5px!important;
-        font-size:15px!important;line-height:1.2!important
+        font-size:16px!important;line-height:1.25!important
       }
-      .nav-divider{display:flex;align-items:center;gap:8px;margin:15px 8px 3px;color:#bda98b;font-size:10px;font-weight:900;letter-spacing:2px}
+      .nav-divider{display:flex;align-items:center;gap:8px;margin:15px 8px 3px;color:#bda98b;font-size:11px;font-weight:900;letter-spacing:1.7px}
       .nav-divider:before,.nav-divider:after{content:'';height:1px;background:#765963;flex:1}.nav-divider span{white-space:nowrap}
       #workhub-live-nav.active,#workhub-arcade-nav.active{
         background:#81525a!important;border-color:#c09a68!important;color:#fff7e5!important;box-shadow:inset 3px 0 #e4c693
