@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getDisplayPartnerGradeLabel } from "@/lib/partners/grade";
+import { filterSamplePartners } from "@/lib/partners/sample-filter";
 import type { Partner, PartnerContact } from "@/types/partner";
 
 export const CONTRACT_STATUS_HEADERS = [
@@ -243,7 +244,7 @@ export async function fetchContractStatusExportRows(
 
   if (partnerError) throw new Error(partnerError.message);
 
-  const partners = (partnerData ?? []) as unknown as Partner[];
+  const partners = filterSamplePartners((partnerData ?? []) as unknown as Partner[]);
   const partnerIds = partners.map((partner) => partner.id);
   if (partnerIds.length === 0) return [];
 
@@ -301,7 +302,7 @@ export async function fetchContractStatusExportRows(
 
   const docsByPartner = new Map<
     string,
-    { contract: boolean; registration: boolean; securityDate: string }
+    { contract: boolean; registration: boolean; businessRegistration: boolean; securityDate: string }
   >();
   for (const raw of documentsRes.data ?? []) {
     const row = raw as AnyRow;
@@ -311,11 +312,15 @@ export async function fetchContractStatusExportRows(
     const current = docsByPartner.get(partnerId) ?? {
       contract: false,
       registration: false,
+      businessRegistration: false,
       securityDate: ""
     };
     const type = clean(row.document_type);
     if (type === "partner_contract" || type === "platinum_agreement") {
       current.contract = true;
+    }
+    if (type === "business_registration") {
+      current.businessRegistration = true;
     }
     if (
       type === "partner_application" ||
@@ -366,6 +371,7 @@ export async function fetchContractStatusExportRows(
     const docs = docsByPartner.get(partnerId) ?? {
       contract: false,
       registration: false,
+      businessRegistration: false,
       securityDate: ""
     };
 
@@ -398,7 +404,7 @@ export async function fetchContractStatusExportRows(
       docs.registration ? "O" : "",
       "",
       [
-        docs.registration ? "사업자등록증" : "",
+        docs.businessRegistration ? "사업자등록증" : "",
         docs.contract ? "파트너계약서" : ""
       ]
         .filter(Boolean)
