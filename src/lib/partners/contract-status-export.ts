@@ -272,9 +272,10 @@ export async function fetchContractStatusExportRows(
       .is("deleted_at", null)
       .limit(10000),
     supabase
-      .from("partner_training_monthly")
-      .select("partner_id, training_year, training_month, attended, raw_value")
+      .from("training_attendance")
+      .select("partner_id, attended, raw_value, training:trainings(training_year, training_month, start_date)")
       .in("partner_id", partnerIds)
+      .is("deleted_at", null)
       .limit(10000)
   ]);
 
@@ -343,12 +344,33 @@ export async function fetchContractStatusExportRows(
   for (const raw of monthlyRes.data ?? []) {
     const row = raw as AnyRow;
     const partnerId = clean(row.partner_id);
-    const year = Number(row.training_year);
-    const month = Number(row.training_month);
+    const trainingRaw = row.training;
+    const training = Array.isArray(trainingRaw)
+      ? asRecord(trainingRaw[0])
+      : asRecord(trainingRaw);
+    const startDate = clean(training.start_date);
+    const year =
+      Number(training.training_year) ||
+      Number(startDate.match(/^(\\d{4})/)?.[1] ?? NaN);
+    const month =
+      Number(training.training_month) ||
+      Number(startDate.match(/^\\d{4}-(\\d{2})/)?.[1] ?? NaN);
+
     if (!partnerId || !Number.isFinite(year) || !Number.isFinite(month)) continue;
-    monthlyMap.set(`${partnerId}:${year}-${month}`, {
-      attended: row.attended === true,
-      rawValue: clean(row.raw_value)
+
+    const key = `${partnerId}:${year}-${month}`;
+    const existing = monthlyMap.get(key);
+    const rawValue = clean(row.raw_value);
+    const attended = row.attended === true;
+
+    if (!existing) {
+      monthlyMap.set(key, { attended, rawValue });
+      continue;
+    }
+
+    monthlyMap.set(key, {
+      attended: existing.attended || attended,
+      rawValue: existing.rawValue || rawValue
     });
   }
 
