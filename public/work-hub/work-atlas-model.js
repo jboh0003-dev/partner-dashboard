@@ -6,11 +6,11 @@
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
   'use strict';
   const stages = [
-    { id: 'expected', label: '예상 할 일', icon: '◇', color: '#a78bce' },
-    { id: 'todo', label: '해야 할 일', icon: '○', color: '#d1b177' },
-    { id: 'doing', label: '진행 중', icon: '◐', color: '#7daeb8' },
-    { id: 'blocked', label: '이슈 · 대기', icon: '!', color: '#da8e85' },
-    { id: 'done', label: '완료', icon: '✓', color: '#8cb99b' },
+    { id: 'expected', label: '예상 할 일', icon: '◇', color: '#9a6f78' },
+    { id: 'todo', label: '해야 할 일', icon: '○', color: '#b58a4b' },
+    { id: 'doing', label: '진행 중', icon: '◐', color: '#7e8d71' },
+    { id: 'blocked', label: '이슈 · 대기', icon: '!', color: '#a76b5f' },
+    { id: 'done', label: '완료', icon: '✓', color: '#718b6b' },
   ];
   const dependencies = item => Array.isArray(item.dependsOn) ? [...new Set(item.dependsOn.filter(id => typeof id === 'string'))] : [];
   function stage(item) {
@@ -29,8 +29,25 @@
     date.setUTCDate(date.getUTCDate() + days);
     return date.toISOString().slice(0, 10);
   }
+  function monday(value) {
+    if (!validDate(value)) return '';
+    const date = new Date(value + 'T12:00:00Z');
+    const offset = (date.getUTCDay() + 6) % 7;
+    date.setUTCDate(date.getUTCDate() - offset);
+    return date.toISOString().slice(0, 10);
+  }
+  function weekdayOffset(value) {
+    if (!validDate(value)) return 0;
+    return (new Date(value + 'T12:00:00Z').getUTCDay() + 6) % 7;
+  }
   function due(item) {
-    if (validDate(item.dueDate)) return item.dueDate;
+    if (validDate(item.dueDate)) {
+      if (item.scope === 'weekly' && validDate(item.target)) {
+        const targetWeek = monday(item.target);
+        if (monday(item.dueDate) !== targetWeek) return shift(targetWeek, weekdayOffset(item.dueDate));
+      }
+      return item.dueDate;
+    }
     if (validDate(item.target)) return item.scope === 'weekly' ? shift(item.target, 6) : item.target;
     if (item.scope === 'monthly' && /^\d{4}-(0[1-9]|1[0-2])$/.test(item.target || '')) {
       const [year, month] = item.target.split('-').map(Number);

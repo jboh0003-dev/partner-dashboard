@@ -35,12 +35,12 @@ export default function WorkHubClient({ ownerId }: { ownerId: string }) {
     };
 
     addScript("workhub-favorites-script", "/work-hub/favorites.js?v=4");
-    addScript("workhub-workflow-script", "/work-hub/workflow.js?v=2");
-    addScript("workhub-calendar-script", "/work-hub/calendar.js?v=6");
+    addScript("workhub-workflow-script", "/work-hub/workflow.js?v=3");
+    addScript("workhub-calendar-script", "/work-hub/calendar.js?v=7");
     addScript("workhub-create-script", "/work-hub/create.js?v=2");
     addScript("workhub-cloud-script", "/work-hub/cloud.js?v=4");
-    addScript("workhub-arcade-nav-script", "/work-hub/arcade-nav.js?v=3");
-    addScript("workhub-notes-script", "/work-hub/work-notes.js?v=1");
+    addScript("workhub-arcade-nav-script", "/work-hub/arcade-nav.js?v=4");
+    addScript("workhub-notes-script", "/work-hub/work-notes.js?v=2");
     addScript("workhub-kart-crossing-init", "/work-hub/kart-crossing-init.js?v=1");
     addScript("workhub-kart-crossing-layout", "/work-hub/kart-crossing-layout.js?v=1");
     addScript("workhub-kart-crossing-script", "/work-hub/kart-crossing.js?v=2");
@@ -49,11 +49,11 @@ export default function WorkHubClient({ ownerId }: { ownerId: string }) {
       const link = doc.createElement("link");
       link.id = "workhub-atlas-css";
       link.rel = "stylesheet";
-      link.href = "/work-hub/work-atlas.css?v=1";
+      link.href = "/work-hub/work-atlas.css?v=2";
       doc.head.appendChild(link);
     }
-    addScript("workhub-atlas-model", "/work-hub/work-atlas-model.js?v=1");
-    addScript("workhub-atlas-script", "/work-hub/work-atlas.js?v=1");
+    addScript("workhub-atlas-model", "/work-hub/work-atlas-model.js?v=2");
+    addScript("workhub-atlas-script", "/work-hub/work-atlas.js?v=2");
 
     return true;
   }, [ownerId]);
@@ -75,7 +75,7 @@ export default function WorkHubClient({ ownerId }: { ownerId: string }) {
     <iframe
       ref={frameRef}
       onLoad={patchAssets}
-      src="/work-hub/index.html?v=14"
+      src="/work-hub/index.html?v=15"
       title="워크허브"
       style={{
         position: "fixed",

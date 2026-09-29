@@ -27,17 +27,17 @@
   style.textContent = `
     .issue-note{margin:10px 0 0 43px;padding:10px 12px;border-radius:10px;background:#fff3e8;border:1px solid #e8b27e;color:#9a4c17;font-size:13px;font-weight:750;line-height:1.45}
     .dark .issue-note{background:#3a2516;border-color:#80502c;color:#ffc18f}
-    .carry-btn{border:1px solid #b9c8ff;background:#edf1ff;color:#314ec4;border-radius:8px;padding:6px 9px;font-size:12px;font-weight:900;cursor:pointer;white-space:nowrap}
-    .carry-btn:hover{background:#dde5ff;border-color:#8fa4f4}
-    .carry-btn:focus-visible{outline:3px solid #8da3f3;outline-offset:2px}
-    .dark .carry-btn{background:#19295a;border-color:#4058a8;color:#b9c8ff}
-    .carry-history-chip{background:#f0ebff!important;color:#6842a6!important}
-    .dark .carry-history-chip{background:#30234f!important;color:#d6c0ff!important}
+    .carry-btn{border:1px solid #c6a77d;background:#f4ead9;color:#6d4630;border-radius:8px;padding:7px 10px;font-size:13px;font-weight:900;cursor:pointer;white-space:nowrap}
+    .carry-btn:hover{background:#ead9c1;border-color:#ad8254}
+    .carry-btn:focus-visible{outline:3px solid #b38b42;outline-offset:2px}
+    .dark .carry-btn{background:#3a2c28;border-color:#795b43;color:#ebcfaa}
+    .carry-history-chip{background:#efe2d1!important;color:#724d35!important}
+    .dark .carry-history-chip{background:#3c3029!important;color:#e3c6a2!important}
     .task.blocked{background:color-mix(in srgb,#fff0df 62%,var(--card));border-color:#e2aa72}
     .dark .task.blocked{background:#342417;border-color:#76502e}
     .issue-modal textarea{min-height:130px;resize:vertical}
-    .workflow-undo{position:fixed;right:18px;bottom:18px;z-index:10001;display:flex;align-items:center;gap:12px;max-width:min(460px,calc(100vw - 36px));padding:12px 14px;border:1px solid #667dd5;border-radius:10px;background:#17213d;color:#fff;box-shadow:0 18px 50px rgba(0,0,0,.28);font-size:13px;font-weight:800}
-    .workflow-undo span{min-width:0;line-height:1.4}.workflow-undo button{flex:0 0 auto;border:1px solid #aebcff;background:#fff;color:#314ec4;border-radius:7px;padding:7px 10px;font-weight:900;cursor:pointer}
+    .workflow-undo{position:fixed;right:18px;bottom:18px;z-index:10001;display:flex;align-items:center;gap:12px;max-width:min(460px,calc(100vw - 36px));padding:12px 14px;border:1px solid #9d7954;border-radius:10px;background:#3b2a2c;color:#fff6e8;box-shadow:0 18px 50px rgba(0,0,0,.28);font-size:13px;font-weight:800}
+    .workflow-undo span{min-width:0;line-height:1.4}.workflow-undo button{flex:0 0 auto;border:1px solid #caaa79;background:#fff8ec;color:#683842;border-radius:7px;padding:7px 10px;font-weight:900;cursor:pointer}
   `;
   if (!document.getElementById(style.id)) document.head.appendChild(style);
 
@@ -86,15 +86,26 @@
     return value || '미정';
   }
 
+  function alignedDueDate(t) {
+    const hasDueDate = /^\d{4}-\d{2}-\d{2}$/.test(t.dueDate || '');
+    if (!hasDueDate) return '';
+    if (t.scope === 'weekly' && /^\d{4}-\d{2}-\d{2}$/.test(t.target || '') && mon(t.dueDate) !== mon(t.target)) {
+      const weekdayOffset = (dt(t.dueDate).getDay() + 6) % 7;
+      return add(mon(t.target), weekdayOffset);
+    }
+    return t.dueDate;
+  }
+
   function nextWeekDestination(t) {
     const hasDateTarget = /^\d{4}-\d{2}-\d{2}$/.test(t.target || '');
-    const hasDueDate = /^\d{4}-\d{2}-\d{2}$/.test(t.dueDate || '');
+    const alignedDue = alignedDueDate(t);
+    const hasDueDate = Boolean(alignedDue);
 
     if (t.scope === 'daily' && hasDateTarget) {
       return {
         scope: 'daily',
         target: add(t.target, 7),
-        dueDate: hasDueDate ? add(t.dueDate, 7) : (t.dueDate || ''),
+        dueDate: hasDueDate ? add(alignedDue, 7) : (t.dueDate || ''),
       };
     }
 
@@ -102,14 +113,14 @@
       return {
         scope: 'weekly',
         target: add(mon(t.target), 7),
-        dueDate: hasDueDate ? add(t.dueDate, 7) : (t.dueDate || ''),
+        dueDate: hasDueDate ? add(alignedDue, 7) : (t.dueDate || ''),
       };
     }
 
     return {
       scope: 'weekly',
       target: add(mon(today()), 7),
-      dueDate: hasDueDate ? add(t.dueDate, 7) : (t.dueDate || ''),
+      dueDate: hasDueDate ? add(alignedDue, 7) : (t.dueDate || ''),
     };
   }
 

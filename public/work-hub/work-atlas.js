@@ -5,19 +5,21 @@
   window.__workAtlasLoaded = true;
   const M = window.WorkAtlasModel;
   const options = { query: '', category: '', period: 'all', stage: '' };
-  let mode = matchMedia('(prefers-reduced-motion: reduce), (max-width: 700px)').matches ? 'flow' : 'space';
+  let mode = 'flow';
+  let homeMode = 'sheet';
   let selectedId = '', angle = -5, zoom = 1, pageSize = 4, resizeObserver;
   let boardOpen = false;
   const oldDashboard = dashboard;
   const dashboardNav = document.querySelector('.nav [data-view="dashboard"]');
   if (dashboardNav) {
-    dashboardNav.innerHTML = '◈ <span>업무 아틀라스</span>';
-    dashboardNav.setAttribute('aria-label', '업무 아틀라스');
-    dashboardNav.title = '업무 아틀라스';
+    dashboardNav.innerHTML = '▦ <span>일계표</span>';
+    dashboardNav.setAttribute('aria-label', '일계표');
+    dashboardNav.title = '일계표';
   }
   const escape = value => esc(value);
   const label = item => M.stages.find(s => s.id === M.stage(item)).label;
   const button = (action, text, extra = '') => `<button type="button" class="btn" data-atlas="${action}" ${extra}>${text}</button>`;
+  const homeSwitcher = () => `<div class="workhome-switch" role="tablist" aria-label="업무 화면 선택"><button type="button" role="tab" data-atlas-home="sheet" aria-selected="${homeMode === 'sheet'}">▦ 일계표</button><button type="button" role="tab" data-atlas-home="atlas" aria-selected="${homeMode === 'atlas'}">◈ 업무 아틀라스</button></div>`;
   const all = () => S.workItems || [];
   const dateLabel = item => M.due(item) ? `${M.due(item).slice(5).replace('-', '.')} ${item.dueDate ? '마감' : '계획 종료'}` : '일정 미정';
 
@@ -86,7 +88,7 @@
     return `<section class="work-atlas" id="workAtlas" aria-label="3D 업무 아틀라스">
       <div class="atlas-hero"><div><div class="atlas-eyebrow">THE WORK ATELIER <span>✦</span> 나만의 업무 작업실</div><h1>생각에서 실행으로,<br class="atlas-mobile-break"> 업무의 흐름을 그리다.</h1><p>흩어진 계획을 연결하고, 지금 해야 할 일을 선명하게.</p></div><div class="atlas-hero-actions">${button('create-expected', '◇ 예상 업무 추가')}${button('create', '+ 해야 할 일', 'data-primary="true"')}</div></div>
       <div class="atlas-metrics"><button type="button" data-atlas="metric" data-stage="expected"><span>검토할 예상 업무</span><strong>${stats.expected}<small>건</small></strong></button><button type="button" data-atlas="metric" data-stage="todo"><span>해야 할 일</span><strong>${all().filter(t => M.stage(t) === 'todo').length}<small>건</small></strong></button><button type="button" data-atlas="overdue"><span>일정 점검 필요</span><strong>${stats.overdue}<small>건</small></strong></button><button type="button" data-atlas="metric" data-stage="done"><span>쌓아온 완료 기록</span><strong>${stats.done}<small>건</small></strong></button></div>
-      <div class="atlas-workspace"><div class="atlas-main"><div class="atlas-toolbar"><div class="atlas-modes" role="group" aria-label="시각화 방식">${[['space','◈ 3D 공간'],['flow','▦ 흐름도'],['timeline','☷ 타임라인']].map(([id,text]) => button('mode', text, `data-mode="${id}" aria-pressed="${mode === id}"`)).join('')}</div><span class="atlas-total" role="status">${items.length} / ${all().length}건 표시</span></div>
+      <div class="atlas-workspace"><div class="atlas-main"><div class="atlas-toolbar"><div class="atlas-modes" role="group" aria-label="시각화 방식">${[['flow','▦ 흐름도'],['timeline','☷ 타임라인'],['space','◈ 3D 공간']].map(([id,text]) => button('mode', text, `data-mode="${id}" aria-pressed="${mode === id}"`)).join('')}</div><span class="atlas-total" role="status">${items.length} / ${all().length}건 표시</span></div>
       <form class="atlas-filters" id="atlasFilters"><label class="atlas-search"><span class="sr-only">업무 검색</span><input name="query" type="search" value="${escape(options.query)}" placeholder="업무명, 구분, 메모 검색"><button type="submit" aria-label="검색">⌕</button></label><label><span class="sr-only">업무 구분</span><select name="category"><option value="">모든 구분</option>${categories.map(c => `<option ${options.category === c ? 'selected' : ''} value="${escape(c)}">${escape(c)}</option>`).join('')}</select></label><label><span class="sr-only">기간</span><select name="period">${[['all','전체 기간'],['week','오늘부터 7일'],['overdue','일정 초과']].map(([id,text])=>`<option value="${id}" ${options.period === id ? 'selected' : ''}>${text}</option>`).join('')}</select></label><label><span class="sr-only">업무 상태</span><select name="stage"><option value="">모든 상태</option>${M.stages.map(s=>`<option value="${s.id}" ${options.stage === s.id ? 'selected' : ''}>${s.label}</option>`).join('')}</select></label>${button('reset', '초기화')}</form>
       ${mode === 'timeline' ? timeline(items) : scene(items)}
       <div class="atlas-scene-footer">${mode !== 'timeline' ? '<span class="atlas-pan-hint">↔ 좌우로 밀어 모든 단계를 확인하세요.</span>' : ''}<span><i></i> 실선 화살표: 직접 연결한 선행 → 후속 업무</span><div class="atlas-camera">${mode === 'space' ? `${button('rotate-left','↶','aria-label="왼쪽으로 회전"')}${button('rotate-right','↷','aria-label="오른쪽으로 회전"')}${button('zoom-out','−','aria-label="축소"')}${button('zoom-in','+','aria-label="확대"')}${button('camera-reset','시점 초기화')}` : '<span>카드를 눌러 상세 보기</span>'}</div></div></div>
@@ -95,7 +97,9 @@
     </section>`;
   }
   dashboard = function () {
-    return markup() + `<details class="atlas-existing" ${boardOpen ? 'open' : ''}><summary>기존 업무보드 · 캘린더 펼치기</summary>${oldDashboard()}</details>`;
+    return homeSwitcher() + (homeMode === 'atlas'
+      ? markup()
+      : `<section class="workhome-sheet">${oldDashboard()}</section>`);
   };
   function focusSelected() {
     const active = document.activeElement;
@@ -127,9 +131,15 @@
   render = function () { previousRender(); bindAtlas(); };
   function bindAtlas() {
     resizeObserver?.disconnect();
+    document.querySelectorAll('[data-atlas-home]').forEach(el => el.onclick = () => {
+      homeMode = el.dataset.atlasHome === 'atlas' ? 'atlas' : 'sheet';
+      selectedId = '';
+      refresh();
+    });
+    const pageTitle = document.getElementById('pageTitle');
+    if (!document.getElementById('root').hidden && view === 'dashboard' && pageTitle) pageTitle.textContent = homeMode === 'atlas' ? '업무 아틀라스' : '일계표';
     const root = document.getElementById('workAtlas');
     if (!root) return;
-    if (!document.getElementById('root').hidden && view === 'dashboard') document.getElementById('pageTitle').textContent = '업무 아틀라스';
     const existing = document.querySelector('.atlas-existing');
     if (existing) existing.ontoggle = () => { boardOpen = existing.open; };
     root.querySelectorAll('[data-atlas]').forEach(el => el.onclick = () => handle(el));
@@ -197,6 +207,10 @@
       if (dueDate && !M.validDate(dueDate)) return error('올바른 마감일을 입력해 주세요.');
       const target = item || { id, scope:'weekly', target:mon(dueDate || today()), createdAt:today() };
       Object.assign(target, { title, category:String(values.get('category') || '').trim() || '기타', dueDate, dependsOn:nextDeps, intent:state === 'expected' ? 'expected' : 'committed', status:state === 'expected' ? 'todo' : state, updatedAt:today(), completedAt:state === 'done' ? item?.completedAt || today() : null });
+      if (dueDate) {
+        if (target.scope === 'daily') target.target = dueDate;
+        else if (target.scope === 'weekly') target.target = mon(dueDate);
+      }
       if (state === 'blocked') target.issueNote = note; else target.note = note;
       if (!item) all().push(target);
       selectedId = id;

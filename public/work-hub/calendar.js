@@ -30,29 +30,29 @@
       .calendar-head{display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:1px solid var(--line);gap:14px}
       .calendar-head h3{margin:0;font-size:21px;font-weight:950}.calendar-head p{margin:4px 0 0;color:var(--muted);font-size:12px}
       .calendar-nav{display:flex;gap:7px;align-items:center;flex-wrap:wrap;justify-content:flex-end}.calendar-label{font-size:15px;font-weight:900;min-width:105px;text-align:center}
-      .vacation-add{background:#5b4df0!important;border-color:#5b4df0!important;color:#fff!important}
+      .vacation-add{background:#723841!important;border-color:#723841!important;color:#fff8ec!important}
       .calendar-weekdays,.calendar-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr))}
       .calendar-weekdays{padding:10px 12px 0}.calendar-weekdays div{text-align:center;color:var(--muted);font-size:12px;font-weight:850;padding:7px}
-      .calendar-weekdays div:first-child{color:#d0525b}.calendar-weekdays div:last-child{color:#3f6fc9}
+      .calendar-weekdays div:first-child{color:#a8494f}.calendar-weekdays div:last-child{color:#746959}
       .calendar-grid{padding:0 12px 13px;gap:6px}
       .cal-day{position:relative;min-height:84px;border:1px solid var(--line);border-radius:11px;background:color-mix(in srgb,var(--card) 94%,#eef3f8);padding:8px;cursor:pointer;transition:.12s ease;overflow:visible}
-      .cal-day:hover{border-color:#8ea2ff;box-shadow:0 8px 22px rgba(49,84,244,.12);z-index:30}.cal-day.out{opacity:.38}.cal-day.today{outline:2px solid #3154f4;outline-offset:-1px}
+      .cal-day:hover{border-color:#ad8b62;box-shadow:0 8px 22px rgba(114,56,65,.12);z-index:30}.cal-day.out{opacity:.38}.cal-day.today{outline:2px solid #723841;outline-offset:-1px}
       .cal-day.holiday{background:color-mix(in srgb,#fff0f0 35%,var(--card));border-color:color-mix(in srgb,#d0525b 35%,var(--line))}
-      .cal-num{font-size:13px;font-weight:900}.cal-day.sun .cal-num,.cal-day.holiday .cal-num{color:#d0525b}.cal-day.sat .cal-num{color:#3f6fc9}
+      .cal-num{font-size:14px;font-weight:900}.cal-day.sun .cal-num,.cal-day.holiday .cal-num{color:#a8494f}.cal-day.sat .cal-num{color:#746959}
       .holiday-name{display:block;margin-top:2px;font-size:10px;font-weight:900;color:#d0525b;word-break:keep-all;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-      .cal-count{position:absolute;right:7px;top:7px;min-width:22px;height:22px;padding:0 6px;border-radius:999px;background:#3154f4;color:white;display:grid;place-items:center;font-size:10px;font-weight:950}
+      .cal-count{position:absolute;right:7px;top:7px;min-width:22px;height:22px;padding:0 6px;border-radius:999px;background:#723841;color:#fff8ec;display:grid;place-items:center;font-size:11px;font-weight:950}
       .cal-preview{margin-top:7px;display:flex;flex-direction:column;gap:4px}.cal-preview span{font-size:10px;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--muted)}
       .cal-preview span.done{color:#13865f;text-decoration:line-through}.cal-preview span.blocked{color:#c7652d}
-      .cal-preview .vacation-preview{color:#6554e8;font-weight:900;text-decoration:none}
-      .dark .cal-preview .vacation-preview{color:#bcb4ff}
-      .cal-tooltip{display:none;position:absolute;left:8px;top:calc(100% - 2px);width:min(390px,80vw);background:#091322;color:#eef4ff;border:1px solid #2b4260;border-radius:12px;padding:10px;box-shadow:0 18px 45px rgba(3,8,15,.34);z-index:100}
+      .cal-preview .vacation-preview{color:#8a5963;font-weight:900;text-decoration:none}
+      .dark .cal-preview .vacation-preview{color:#e2b6bd}
+      .cal-tooltip{display:none;position:absolute;left:8px;top:calc(100% - 2px);width:min(390px,80vw);background:#35282b;color:#f5ead8;border:1px solid #6b5547;border-radius:8px;padding:11px;box-shadow:0 18px 45px rgba(31,20,22,.28);z-index:100}
       .cal-day:nth-child(7n+6) .cal-tooltip,.cal-day:nth-child(7n+7) .cal-tooltip{left:auto;right:8px}.cal-day:hover .cal-tooltip{display:block}
-      .cal-tooltip b{display:block;font-size:12px;margin-bottom:6px}.cal-tip-item{font-size:11px;line-height:1.4;padding:6px 0;border-top:1px solid #1f3149;word-break:keep-all;overflow-wrap:break-word}.cal-tip-item:first-of-type{border-top:0}.cal-tip-status{font-size:9px;color:#91a3bc;margin-right:6px}
-      .holiday-tip{color:#ff9ba0;font-weight:900}.vacation-tip{color:#c5bcff;font-weight:900}
-      .due-chip{background:#eef7ff!important;color:#326a9c!important}.dark .due-chip{background:#18314a!important;color:#9dcdf2!important}
+      .cal-tooltip b{display:block;font-size:13px;margin-bottom:6px}.cal-tip-item{font-size:12px;line-height:1.45;padding:6px 0;border-top:1px solid #57443d;word-break:keep-all;overflow-wrap:break-word}.cal-tip-item:first-of-type{border-top:0}.cal-tip-status{font-size:10px;color:#bbaa98;margin-right:6px}
+      .holiday-tip{color:#f0a0a4;font-weight:900}.vacation-tip{color:#e0b7bd;font-weight:900}
+      .due-chip{background:#f1e6d6!important;color:#6f4a32!important}.dark .due-chip{background:#3c3029!important;color:#e3c6a2!important}
       .day-list{display:flex;flex-direction:column;gap:8px;margin-top:10px}.day-list-item{border:1px solid var(--line);border-radius:11px;padding:11px}.day-list-item h4{margin:0 0 5px;font-size:15px;word-break:keep-all;text-wrap:pretty}.day-list-item p{margin:0;color:var(--muted);font-size:11px}
-      .day-special{border-radius:11px;padding:11px;margin:7px 0}.day-special.holiday-box{background:#fff0f0;border:1px solid #efb7bb;color:#9e3f46}.day-special.vacation-box{background:#f1efff;border:1px solid #c5bfff;color:#5044bd}
-      .dark .day-special.holiday-box{background:#3a1d21;border-color:#75424a;color:#ffabb0}.dark .day-special.vacation-box{background:#252148;border-color:#544a99;color:#cbc5ff}
+      .day-special{border-radius:11px;padding:11px;margin:7px 0}.day-special.holiday-box{background:#fff0f0;border:1px solid #efb7bb;color:#9e3f46}.day-special.vacation-box{background:#f3e8e7;border:1px solid #d7b8b9;color:#7f4e58}
+      .dark .day-special.holiday-box{background:#3a1d21;border-color:#75424a;color:#ffabb0}.dark .day-special.vacation-box{background:#3a292d;border-color:#78515a;color:#e7bcc3}
       .vacation-row{display:flex;justify-content:space-between;gap:10px;align-items:center}.vacation-row b{font-size:14px}.vacation-row small{display:block;margin-top:3px;font-size:10px;opacity:.8}
       .vac-delete{border:1px solid currentColor;background:transparent;color:inherit;border-radius:8px;padding:6px 8px;font-size:10px;font-weight:900;cursor:pointer}
       .vacation-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
@@ -75,11 +75,28 @@
       return [];
     }
 
+    function validDate(value) {
+      return /^\d{4}-\d{2}-\d{2}$/.test(value || '');
+    }
+
+    function normalizedDueDate(t) {
+      if (!validDate(t?.dueDate)) return '';
+      if (t.scope === 'weekly' && validDate(t.target)) {
+        const targetWeek = mon(t.target);
+        if (mon(t.dueDate) !== targetWeek) {
+          const weekdayOffset = (dt(t.dueDate).getDay() + 6) % 7;
+          return add(targetWeek, weekdayOffset);
+        }
+      }
+      return t.dueDate;
+    }
+
     function inferredDates(t) {
-      if (t.dueDate && /^\d{4}-\d{2}-\d{2}$/.test(t.dueDate)) return [t.dueDate];
-      if (t.scope === 'daily' && /^\d{4}-\d{2}-\d{2}$/.test(t.target||'')) return [t.target];
+      const dueDate = normalizedDueDate(t);
+      if (dueDate) return [dueDate];
+      if (t.scope === 'daily' && validDate(t.target)) return [t.target];
       const days = weekdayTokens(t.title);
-      if (days.length && t.scope === 'weekly' && /^\d{4}-\d{2}-\d{2}$/.test(t.target||'')) {
+      if (days.length && t.scope === 'weekly' && validDate(t.target)) {
         const weekStart = mon(t.target);
         return days.map(day => add(weekStart, weekMap[day]));
       }
@@ -240,7 +257,7 @@
       if (b.dataset.act === 'carryNext') {
         const t = S.workItems.find(x=>x.id===b.dataset.id);
         if (!t) return;
-        const oldDue=t.dueDate;
+        const oldDue=normalizedDueDate(t);
         const base = t.scope==='daily' ? t.target : (t.scope==='weekly' ? t.target : mon(today()));
         t.carriedFrom=t.target; t.carriedAt=today(); t.scope='weekly'; t.target=add(mon(base||today()),7); t.status='todo'; t.completedAt=null; t.issueNote=''; t.updatedAt=today();
         if(oldDue) t.dueDate=add(oldDue,7);
@@ -257,7 +274,12 @@
       $('#cancelEdit').onclick=()=>$('#modalRoot').innerHTML='';
       $('#saveEdit').onclick=()=>{
         const issueText=$('#eIssue').value.trim(); if(ns==='blocked'&&!issueText){toast('이슈 내용을 입력해주세요.');return;}
-        t.title=$('#eTitle').value.trim()||t.title; t.category=$('#eCat').value.trim()||'기타'; t.dueDate=$('#eDue').value||''; t.note=$('#eNote').value.trim(); t.issueNote=issueText; t.status=ns; t.completedAt=ns==='done'?(t.completedAt||today()):null; t.updatedAt=today(); save('저장했습니다.'); $('#modalRoot').innerHTML=''; render();
+        t.title=$('#eTitle').value.trim()||t.title; t.category=$('#eCat').value.trim()||'기타'; t.dueDate=$('#eDue').value||'';
+        if (t.dueDate) {
+          if (t.scope==='daily') t.target=t.dueDate;
+          else if (t.scope==='weekly') t.target=mon(t.dueDate);
+        }
+        t.note=$('#eNote').value.trim(); t.issueNote=issueText; t.status=ns; t.completedAt=ns==='done'?(t.completedAt||today()):null; t.updatedAt=today(); save('저장했습니다.'); $('#modalRoot').innerHTML=''; render();
       };
     };
 
