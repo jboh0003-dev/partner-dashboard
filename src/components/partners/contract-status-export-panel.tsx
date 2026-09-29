@@ -40,8 +40,11 @@ async function copyText(text: string) {
 export function ContractStatusExportPanel({ headers, rows }: Props) {
   const [query, setQuery] = useState("");
   const [activeId, setActiveId] = useState<string | null>(rows[0]?.partnerId ?? null);
-  const [draft, setDraft] = useState<string[]>(rows[0]?.values ?? []);
+  const [activeDetail, setActiveDetail] = useState<ContractStatusExportRow | null>(null);
+  const [draft, setDraft] = useState<string[]>([]);
   const [copied, setCopied] = useState<string | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -60,10 +63,43 @@ export function ContractStatusExportPanel({ headers, rows }: Props) {
   );
 
   useEffect(() => {
-    if (!active) return;
-    setDraft([...active.values]);
-    setCopied(null);
-  }, [active]);
+    if (!activeId) {
+      setActiveDetail(null);
+      setDraft([]);
+      return;
+    }
+
+    const controller = new AbortController();
+    setDetailLoading(true);
+    setDetailError(null);
+    setActiveDetail(null);
+    setDraft([]);
+
+    fetch(`/api/admin/contract-export/${activeId}`, {
+      credentials: "include",
+      cache: "no-store",
+      signal: controller.signal
+    })
+      .then(async (response) => {
+        const json = await response.json().catch(() => null);
+        if (!response.ok || !json?.ok || !json?.row) {
+          throw new Error(json?.message ?? "계약현황 데이터를 불러오지 못했습니다.");
+        }
+        return json.row as ContractStatusExportRow;
+      })
+      .then((row) => {
+        setActiveDetail(row);
+        setDraft([...row.values]);
+        setCopied(null);
+      })
+      .catch((error) => {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        setDetailError(error instanceof Error ? error.message : "계약현황 데이터를 불러오지 못했습니다.");
+      })
+      .finally(() => setDetailLoading(false));
+
+    return () => controller.abort();
+  }, [activeId]);
 
   useEffect(() => {
     if (filtered.length === 0) return;
@@ -73,21 +109,13 @@ export function ContractStatusExportPanel({ headers, rows }: Props) {
   }, [activeId, filtered]);
 
   async function handleCopy(includeHeader = false) {
-    if (!active) return;
+    if (!activeDetail) return;
     const body = clipboardText(draft);
     const text = includeHeader
       ? `${clipboardText([...headers])}\n${body}`
       : body;
     await copyText(text);
     setCopied(includeHeader ? "헤더 + 1행 복사 완료" : "엑셀 1행 복사 완료");
-    window.setTimeout(() => setCopied(null), 2200);
-  }
-
-  async function handleCopyFiltered() {
-    const text = filtered.map((row) => clipboardText(row.values)).join("\n");
-    if (!text) return;
-    await copyText(text);
-    setCopied(`검색결과 ${filtered.length}행 복사 완료`);
     window.setTimeout(() => setCopied(null), 2200);
   }
 
@@ -100,8 +128,8 @@ export function ContractStatusExportPanel({ headers, rows }: Props) {
   }
 
   function resetDraft() {
-    if (!active) return;
-    setDraft([...active.values]);
+    if (!activeDetail) return;
+    setDraft([...activeDetail.values]);
   }
 
   const missingCore = draft
@@ -124,16 +152,8 @@ export function ContractStatusExportPanel({ headers, rows }: Props) {
               className="ui-input w-full pl-9"
             />
           </div>
-          <div className="mt-3 flex items-center justify-between text-xs text-slate-500">
-            <span>{filtered.length.toLocaleString("ko-KR")}개 파트너</span>
-            <button
-              type="button"
-              onClick={handleCopyFiltered}
-              disabled={filtered.length === 0}
-              className="font-semibold text-blue-700 hover:text-blue-900 disabled:opacity-40"
-            >
-              검색결과 전체 복사
-            </button>
+          <div className="mt-3 text-xs text-slate-500">
+            {filtered.length.toLocaleString("ko-KR")}개 파트너
           </div>
         </div>
 
@@ -174,12 +194,21 @@ export function ContractStatusExportPanel({ headers, rows }: Props) {
 
       <section className="ui-card min-w-0 p-5">
         {active ? (
+          detailLoading ? (
+            <div className="flex min-h-[420px] items-center justify-center text-sm text-slate-500">
+              계약현황 데이터를 불러오는 중…
+            </div>
+          ) : detailError ? (
+            <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
+              {detailError}
+            </div>
+          ) : activeDetail ? (
           <>
             <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 pb-4">
               <div>
                 <div className="flex items-center gap-2">
                   <FileSpreadsheet size={20} className="text-blue-600" />
-                  <h2 className="text-lg font-semibold text-slate-950">{active.companyName}</h2>
+                  <h2 className="text-lg font-semibold text-slate-950">{activeDetail.companyName}</h2>
                 </div>
                 <p className="mt-1 text-sm text-slate-500">
                   1.파트너계약현황 A:AQ 순서 그대로 생성됩니다. 아래 값은 복사 전에 임시 수정할 수 있습니다.
@@ -244,6 +273,7 @@ export function ContractStatusExportPanel({ headers, rows }: Props) {
               빈 값도 탭 칸으로 유지되어 열이 밀리지 않습니다.
             </div>
           </>
+          ) : null
         ) : (
           <div className="py-20 text-center text-sm text-slate-500">파트너를 선택해주세요.</div>
         )}
