@@ -10,6 +10,7 @@ import {
   Building2,
   ChevronDown,
   ClipboardCheck,
+  FileSpreadsheet,
   FileText,
   GraduationCap,
   LayoutDashboard,
@@ -99,6 +100,7 @@ const NAV_GROUPS: NavGroup[] = [
     title: "Admin",
     items: [
       { href: "/dashboard/upload-hub", label: "데이터 업로드", icon: Upload },
+      { href: "/dashboard/contract-export", label: "계약현황 추출", icon: FileSpreadsheet },
       { href: "/dashboard/settings/users", label: "계정 관리", icon: Settings }
     ]
   }
@@ -221,12 +223,14 @@ export function Sidebar({
   userEmail = null,
   userName = null,
   roleLabel = null,
-  isAdmin = false
+  isAdmin = false,
+  canContractExport = false
 }: {
   userEmail?: string | null;
   userName?: string | null;
   roleLabel?: string | null;
   isAdmin?: boolean;
+  canContractExport?: boolean;
 }) {
   const pathname = usePathname();
   const { openPanel, open } = useOkePanel();
@@ -255,6 +259,8 @@ export function Sidebar({
             <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-widest text-slate-400">{group.title}</p>
             <div className="space-y-0.5">
               {group.items.map((item) => {
+                if (item.href === "/dashboard/contract-export" && !canContractExport) return null;
+
                 if (isAccordion(item)) {
                   const children = isAdmin
                     ? item.children

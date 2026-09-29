@@ -24,7 +24,7 @@ export async function GET() {
 
   const { data: profile } = await createAdminClient()
     .from("profiles")
-    .select("name, email, role")
+    .select("name, email, role, contract_export_enabled")
     .eq("id", auth.userId)
     .maybeSingle();
 
@@ -39,7 +39,8 @@ export async function GET() {
         email: profile?.email ? String(profile.email) : auth.email,
         name: profile?.name ? String(profile.name) : null,
         roleLabel: displayRoleLabel(isAdmin ? "admin" : role),
-        isAdmin
+        isAdmin,
+        canContractExport: isAdmin && profile?.contract_export_enabled === true
       }
     },
     { headers: AUTH_RESPONSE_HEADERS }
