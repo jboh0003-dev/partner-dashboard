@@ -45,21 +45,12 @@ export default function WorkHubClient({ ownerId }: { ownerId: string }) {
     addScript("workhub-kart-crossing-layout", "/work-hub/kart-crossing-layout.js?v=1");
     addScript("workhub-kart-crossing-script", "/work-hub/kart-crossing.js?v=2");
 
-    if (!doc.getElementById("workhub-atlas-css")) {
-      const link = doc.createElement("link");
-      link.id = "workhub-atlas-css";
-      link.rel = "stylesheet";
-      link.href = "/work-hub/work-atlas.css?v=3";
-      doc.head.appendChild(link);
-    }
-    addScript("workhub-atlas-model", "/work-hub/work-atlas-model.js?v=2");
-    addScript("workhub-atlas-script", "/work-hub/work-atlas.js?v=3");
 
     return true;
   }, [ownerId]);
 
   useEffect(() => {
-    document.title = "워크허브";
+    document.title = "Work Hub";
     patchAssets();
     const timer = window.setInterval(() => {
       if (patchAssets()) window.clearInterval(timer);
@@ -75,8 +66,8 @@ export default function WorkHubClient({ ownerId }: { ownerId: string }) {
     <iframe
       ref={frameRef}
       onLoad={patchAssets}
-      src="/work-hub/index.html?v=16"
-      title="워크허브"
+      src="/work-hub/index.html?v=17"
+      title="Work Hub"
       style={{
         position: "fixed",
         inset: 0,
