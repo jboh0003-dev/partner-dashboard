@@ -7,6 +7,7 @@
   const options = { query: '', category: '', period: 'all', stage: '' };
   let mode = matchMedia('(prefers-reduced-motion: reduce), (max-width: 760px)').matches ? 'flow' : 'space';
   let quickScope = 'week';
+  let quickCategory = '';
   let selectedId = '', angle = 0, zoom = 1, pageSize = 4, resizeObserver;
   let roomYaw = -5, roomPitch = 7, roomZoom = 1;
   let boardOpen = false;
@@ -145,7 +146,7 @@
         <div class="atlas-quick-scope" role="group" aria-label="업무 시점">
           ${[['today','오늘'],['week','이번 주'],['next','차주']].map(([id,text]) => `<button type="button" data-atlas-scope="${id}" aria-pressed="${quickScope === id}">${text}</button>`).join('')}
         </div>
-        <label class="atlas-quick-field"><span>구분</span><input name="category" list="atlasQuickCategories" placeholder="기타"></label>
+        <label class="atlas-quick-field"><span>구분</span><input name="category" list="atlasQuickCategories" value="${escape(quickCategory)}" placeholder="기타"></label>
         <label class="atlas-quick-field atlas-quick-date"><span>정확한 날짜</span><input name="dueDate" type="date"></label>
         <span class="atlas-quick-hint">${quickScopeLabel[quickScope]}로 등록 · 요일은 제목에 (목)처럼 적어도 됩니다.</span>
         <datalist id="atlasQuickCategories">${categories.map(cat => `<option value="${escape(cat)}"></option>`).join('')}</datalist>
@@ -157,7 +158,9 @@
     const values = new FormData(form);
     const title = String(values.get('title') || '').trim();
     if (!title) { toast('업무 내용을 입력해주세요.'); return; }
-    const category = String(values.get('category') || '').trim() || '기타';
+    const categoryValue = String(values.get('category') || '').trim();
+    const category = categoryValue || '기타';
+    quickCategory = categoryValue;
     const dueDate = String(values.get('dueDate') || '');
     let scope = quickScope === 'today' ? 'daily' : 'weekly';
     let target = quickScope === 'next' ? add(mon(today()), 7) : quickScope === 'today' ? today() : mon(today());
@@ -187,6 +190,7 @@
     selectedId = item.id;
     save(`“${title}” 업무를 추가했습니다.`);
     render();
+    requestAnimationFrame(() => document.querySelector('#atlasQuickEntry input[name="title"]')?.focus());
   }
 
   function markup() {
