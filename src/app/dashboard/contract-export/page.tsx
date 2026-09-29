@@ -3,7 +3,7 @@ import { ContractStatusExportPanel } from "@/components/partners/contract-status
 import { requireContractExportPage } from "@/lib/auth/contract-export";
 import {
   CONTRACT_STATUS_HEADERS,
-  fetchContractStatusExportRows
+  fetchContractStatusExportIndexRows
 } from "@/lib/partners/contract-status-export";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 
 export default async function ContractExportPage() {
   await requireContractExportPage();
-  const rows = await fetchContractStatusExportRows(createAdminClient());
+  const rows = await fetchContractStatusExportIndexRows(createAdminClient());
 
   return (
     <div className="p-6">
