@@ -113,10 +113,17 @@ function asRecord(value: unknown): AnyRow {
     : {};
 }
 
-function normalizeGrade(value: unknown, companyName: string): string {
+function toExcelGradeLabel(value: unknown, companyName: string): string {
   const raw = clean(value);
   if (!raw) return "";
-  return getDisplayPartnerGradeLabel({ company_name: companyName, grade: raw });
+  const label = getDisplayPartnerGradeLabel({ company_name: companyName, grade: raw });
+  const map: Record<string, string> = {
+    Silver: "실버",
+    Gold: "골드",
+    Platinum: "플래티넘",
+    "Service Partner": "서비스 파트너"
+  };
+  return map[label] ?? label;
 }
 
 function inferRegion(address: string): {
@@ -350,8 +357,11 @@ export async function fetchContractStatusExportRows(
     const address = first(p.address, application?.address, appCompany.address);
     const inferred = inferRegion(address);
     const companyName = clean(p.company_name);
-    const originalGrade = normalizeGrade(first(p.grade_original, p.grade), companyName);
-    const effectiveGrade = getDisplayPartnerGradeLabel(partner);
+    const originalGrade = toExcelGradeLabel(first(p.grade_original, p.grade), companyName);
+    const effectiveGrade = toExcelGradeLabel(
+      first(p.grade_override, p.grade_change_raw, p.grade, p.grade_original),
+      companyName
+    );
     const gradeChange = first(p.grade_change_raw, effectiveGrade, originalGrade);
     const docs = docsByPartner.get(partnerId) ?? {
       contract: false,
@@ -387,7 +397,12 @@ export async function fetchContractStatusExportRows(
       docs.contract ? "완료" : "",
       docs.registration ? "O" : "",
       "",
-      docs.contract ? "파트너계약서" : "",
+      [
+        docs.registration ? "사업자등록증" : "",
+        docs.contract ? "파트너계약서" : ""
+      ]
+        .filter(Boolean)
+        .join("/"),
       first(p.memo, applicationMajorDetails(application)),
       formatYyMmDd(docs.securityDate),
       "",
