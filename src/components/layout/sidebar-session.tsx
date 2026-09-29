@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { Sidebar } from "@/components/layout/sidebar";
 
 type SessionUser = {
-  id?: string | null;
   email: string | null;
   name: string | null;
   roleLabel: string | null;
@@ -46,7 +45,6 @@ export function SidebarSession() {
 
   return (
     <Sidebar
-      userId={user?.id ?? null}
       userEmail={user?.email ?? null}
       userName={user?.name ?? null}
       roleLabel={user?.roleLabel ?? null}
