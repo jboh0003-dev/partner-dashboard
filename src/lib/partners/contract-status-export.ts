@@ -230,17 +230,55 @@ function trainingValue(
   return item.rawValue || (item.attended ? "O" : "");
 }
 
-export async function fetchContractStatusExportRows(
+export async function fetchContractStatusExportIndexRows(
   supabase: SupabaseClient
 ): Promise<ContractStatusExportRow[]> {
-  const { data: partnerData, error: partnerError } = await supabase
+  const { data, error } = await supabase
+    .from("partners")
+    .select("id, external_no, company_name, contract_start_date, grade, grade_override, grade_original, grade_change_raw, deleted_at, is_active")
+    .is("deleted_at", null)
+    .or("is_active.is.null,is_active.eq.true")
+    .limit(5000);
+
+  if (error) throw new Error(error.message);
+
+  const partners = filterSamplePartners((data ?? []) as unknown as Partner[]);
+  return partners
+    .map((partner) => ({
+      partnerId: partner.id,
+      companyName: clean(partner.company_name),
+      externalNo: clean(partner.external_no),
+      contractDate: formatDate(partner.contract_start_date),
+      grade: toExcelGradeLabel(
+        first(partner.grade_override, partner.grade_change_raw, partner.grade, partner.grade_original),
+        clean(partner.company_name)
+      ),
+      values: []
+    }))
+    .sort((a, b) => {
+      const aNo = Number(a.externalNo.replace(/\D/g, "")) || 0;
+      const bNo = Number(b.externalNo.replace(/\D/g, "")) || 0;
+      return bNo - aNo || a.companyName.localeCompare(b.companyName, "ko");
+    });
+}
+
+export async function fetchContractStatusExportRows(
+  supabase: SupabaseClient,
+  partnerId?: string
+): Promise<ContractStatusExportRow[]> {
+  let partnerQuery = supabase
     .from("partners")
     .select(
       "id, external_no, company_name, business_number, grade, grade_override, grade_original, grade_change_raw, ceo_name, address, website, contract_start_date, sales_owner, okestro_owner, contract_contact_name, contract_contact_phone, contract_contact_email, revenue_2023, employee_count, credit_rating, region_group, region, city, memo, dedicated_sales_count, dedicated_engineer_count, deleted_at, is_active"
     )
     .is("deleted_at", null)
-    .or("is_active.is.null,is_active.eq.true")
-    .limit(5000);
+    .or("is_active.is.null,is_active.eq.true");
+
+  if (partnerId) {
+    partnerQuery = partnerQuery.eq("id", partnerId);
+  }
+
+  const { data: partnerData, error: partnerError } = await partnerQuery.limit(partnerId ? 1 : 5000);
 
   if (partnerError) throw new Error(partnerError.message);
 
@@ -351,10 +389,10 @@ export async function fetchContractStatusExportRows(
     const startDate = clean(training.start_date);
     const year =
       Number(training.training_year) ||
-      Number(startDate.match(/^(\\d{4})/)?.[1] ?? NaN);
+      Number(startDate.match(/^(\d{4})/)?.[1] ?? NaN);
     const month =
       Number(training.training_month) ||
-      Number(startDate.match(/^\\d{4}-(\\d{2})/)?.[1] ?? NaN);
+      Number(startDate.match(/^\d{4}-(\d{2})/)?.[1] ?? NaN);
 
     if (!partnerId || !Number.isFinite(year) || !Number.isFinite(month)) continue;
 
