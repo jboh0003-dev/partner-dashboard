@@ -8,6 +8,7 @@ type SessionUser = {
   name: string | null;
   roleLabel: string | null;
   isAdmin: boolean;
+  canContractExport: boolean;
 };
 
 export function SidebarSession() {
@@ -49,6 +50,7 @@ export function SidebarSession() {
       userName={user?.name ?? null}
       roleLabel={user?.roleLabel ?? null}
       isAdmin={user?.isAdmin ?? false}
+      canContractExport={user?.canContractExport ?? false}
     />
   );
 }
