@@ -39,6 +39,7 @@ export function displayRoleLabel(role: string | null | undefined): string {
 export function isAdminOnlyDashboardPath(pathname: string): boolean {
   const prefixes = [
     "/dashboard/partner-applications",
+    "/dashboard/contract-export",
     "/dashboard/upload-hub",
     "/dashboard/upload",
     "/dashboard/performance/upload",
