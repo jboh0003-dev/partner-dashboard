@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { inferPartnerAddressLocation } from "@/lib/partners/address-location";
 import { getDisplayPartnerGradeLabel } from "@/lib/partners/grade";
 import { filterSamplePartners } from "@/lib/partners/sample-filter";
 import type { Partner, PartnerContact } from "@/types/partner";
@@ -125,50 +126,6 @@ function toExcelGradeLabel(value: unknown, companyName: string): string {
     "Service Partner": "서비스 파트너"
   };
   return map[label] ?? label;
-}
-
-function inferRegion(address: string): {
-  regionGroup: string;
-  region: string;
-  city: string;
-} {
-  const text = clean(address);
-  if (!text) return { regionGroup: "", region: "", city: "" };
-
-  const rules: Array<[RegExp, string, string]> = [
-    [/서울/, "수도권", "서울"],
-    [/경기/, "수도권", "경기"],
-    [/인천/, "수도권", "인천"],
-    [/부산/, "영남권", "부산"],
-    [/대구/, "영남권", "대구"],
-    [/울산/, "영남권", "울산"],
-    [/경상남도|경남/, "영남권", "경남"],
-    [/경상북도|경북/, "영남권", "경북"],
-    [/대전/, "중부권", "대전"],
-    [/세종/, "중부권", "세종"],
-    [/충청북도|충북/, "중부권", "충북"],
-    [/충청남도|충남/, "중부권", "충남"],
-    [/강원/, "중부권", "강원"],
-    [/광주/, "중부권", "광주"],
-    [/전라북도|전북/, "중부권", "전북"],
-    [/전라남도|전남/, "중부권", "전남"],
-    [/제주/, "중부권", "제주"]
-  ];
-
-  let regionGroup = "";
-  let region = "";
-  for (const [pattern, group, label] of rules) {
-    if (pattern.test(text)) {
-      regionGroup = group;
-      region = label;
-      break;
-    }
-  }
-
-  const city =
-    text.match(/(?:^|\s)([가-힣]+(?:시|군|구))(?:\s|$)/)?.[1] ?? "";
-
-  return { regionGroup, region, city };
 }
 
 function chooseContact(
@@ -420,7 +377,7 @@ export async function fetchContractStatusExportRows(
     const contacts = contactsByPartner.get(partnerId) ?? [];
     const contact = chooseContact(p, contacts, application);
     const address = first(p.address, application?.address, appCompany.address);
-    const inferred = inferRegion(address);
+    const inferred = inferPartnerAddressLocation(address);
     const companyName = clean(p.company_name);
     const originalGrade = toExcelGradeLabel(first(p.grade_original, p.grade), companyName);
     const effectiveGrade = toExcelGradeLabel(
