@@ -90,8 +90,13 @@ export async function POST(request: Request) {
       return row?.external_no ? String(row.external_no) : null;
     };
 
-    let similar: Array<{ id: string; company_name: string; confidence: number; strategy: string }> =
-      [];
+    let similar: Array<{
+      id: string;
+      company_name: string;
+      confidence: number;
+      strategy: string;
+      external_no: string | null;
+    }> = [];
     if (!exactMatch && company.company_name_db.trim()) {
       const fuzzy = resolveCompanyName(company.company_name_db, partnerRows);
       if (
@@ -117,7 +122,7 @@ export async function POST(request: Request) {
           company_name: candidate.company_name,
           confidence: candidate.confidence,
           strategy: fuzzy.strategy,
-          external_no: externalNoFor(fuzzy.partner.id)
+          external_no: externalNoFor(candidate.id)
         });
       }
       similar = similar.slice(0, 5);
