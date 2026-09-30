@@ -46,6 +46,7 @@ const PayloadSchema = z.object({
   }),
   grade: z.string(),
   contract_start_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  external_no: z.string().regex(/^\d+$/).nullable().optional(),
   people: z.array(PersonSchema),
   existing_partner_id: z.string().uuid().nullable().optional(),
   update_fields: z.array(z.string()).optional()
@@ -94,6 +95,7 @@ export async function POST(request: Request) {
       fileName: file.name,
       fileBuffer,
       contentType: file.type,
+      requestedExternalNo: parsedPayload.external_no ?? null,
       existingPartnerId: parsedPayload.existing_partner_id ?? null,
       updateFields: parsedPayload.update_fields
     });

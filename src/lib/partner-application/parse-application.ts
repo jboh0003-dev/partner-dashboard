@@ -1,6 +1,9 @@
 import * as XLSX from "xlsx";
 import { parsePhoneFromCell } from "@/lib/contacts/phone-normalize";
-import { normalizeContractCompanyName } from "@/lib/partner-application/contract-dates";
+import {
+  normalizeContractCompanyName,
+  normalizePartnerDisplayCompanyName
+} from "@/lib/partner-application/contract-dates";
 import { normalizeApplicationDate } from "@/lib/partner-application/normalize-application-date";
 
 export type ApplicationPerson = {
@@ -174,6 +177,15 @@ function normalizePersonPhone(value: unknown): string | null {
   return parsePhoneFromCell(value);
 }
 
+function normalizePersonDisplayName(value: string | null): string | null {
+  const trimmed = value?.trim();
+  if (!trimmed) return null;
+  if (/^[가-힣\s]{2,12}$/u.test(trimmed)) {
+    return trimmed.replace(/\s+/g, "");
+  }
+  return trimmed.replace(/\s{2,}/g, " ");
+}
+
 function parseStaffSection(
   sheet: XLSX.WorkSheet,
   sectionLabel: string,
@@ -181,25 +193,30 @@ function parseStaffSection(
 ): ApplicationPerson[] {
   const range = XLSX.utils.decode_range(sheet["!ref"] ?? "A1:Z80");
   let headerRow = -1;
-  let sectionStarted = false;
+  let sectionRow = -1;
+  const wantedSection = sectionLabel.replace(/\s+/g, "");
 
+  // 실제 전담인원 구역은 A열에 "영업 전담인원" / "기술 전담인원"으로 표시된다.
+  // 우측 안내문("기술전담인원 자격 요건")은 섹션으로 취급하지 않는다.
   for (let r = range.s.r; r <= range.e.r; r += 1) {
-    for (let c = range.s.c; c <= Math.min(range.e.c, 12); c += 1) {
-      const text = cellText(sheet, XLSX.utils.encode_cell({ r, c }));
-      if (!text) continue;
-      if (text.replace(/\s+/g, "").includes(sectionLabel.replace(/\s+/g, ""))) {
-        sectionStarted = true;
-      }
-      if (sectionStarted && /이름|성명/.test(text) && /부서|직급|휴대폰|이메일/.test(
-        Array.from({ length: 8 }, (_, i) =>
-          cellText(sheet, XLSX.utils.encode_cell({ r, c: i })) ?? ""
-        ).join(" ")
-      )) {
-        headerRow = r;
-        break;
-      }
+    const firstColumn = cellText(sheet, XLSX.utils.encode_cell({ r, c: 0 }));
+    if (!firstColumn) continue;
+    if (firstColumn.replace(/\s+/g, "").includes(wantedSection)) {
+      sectionRow = r;
+      break;
     }
-    if (headerRow >= 0) break;
+  }
+
+  if (sectionRow < 0) return [];
+
+  for (let r = sectionRow + 1; r <= Math.min(sectionRow + 4, range.e.r); r += 1) {
+    const rowText = Array.from({ length: 10 }, (_, i) =>
+      cellText(sheet, XLSX.utils.encode_cell({ r, c: i })) ?? ""
+    ).join(" ");
+    if (/이름|성명/.test(rowText) && /부서|직급|휴대폰|메일|이메일/.test(rowText)) {
+      headerRow = r;
+      break;
+    }
   }
 
   if (headerRow < 0) return [];
@@ -244,7 +261,9 @@ function parseStaffSection(
       break;
     }
 
-    const name = cellText(sheet, XLSX.utils.encode_cell({ r, c: nameCol }));
+    const name = normalizePersonDisplayName(
+      cellText(sheet, XLSX.utils.encode_cell({ r, c: nameCol }))
+    );
     if (!name || /이름|성명|해당없음|없음/.test(name)) continue;
 
     people.push({
@@ -294,43 +313,50 @@ export function parsePartnerApplicationWorkbook(workbook: XLSX.WorkBook): Partne
     };
   }
 
+  // 2026 파트너 신청서 표준 양식의 실제 입력 셀을 우선 읽는다.
+  // 라벨 탐색은 양식 변형에 대한 보조 수단이며, 라벨 셀 자체는 값으로 쓰지 않는다.
   const company_name_raw =
-    readByLabel(appSheet, ["기업명", "회사명", "상호"], "D6") ?? cellText(appSheet, "D6");
+    cellText(appSheet, "D6") ?? readByLabel(appSheet, ["기업명", "회사명", "상호"]);
   const business_number =
-    readByLabel(appSheet, ["사업자등록번호", "사업자번호"], "H6") ?? cellText(appSheet, "H6");
-  const ceo_name =
-    readByLabel(appSheet, ["대표자명", "대표자", "대표이사"], "D7") ?? cellText(appSheet, "D7");
+    cellText(appSheet, "I6") ?? readByLabel(appSheet, ["사업자등록번호", "사업자번호"]);
+  const ceo_name = normalizePersonDisplayName(
+    cellText(appSheet, "D7") ??
+      readByLabel(appSheet, ["대표자명", "대표자", "대표이사"])
+  );
   const website =
-    readByLabel(appSheet, ["홈페이지", "웹사이트"], "H7") ?? cellText(appSheet, "H7");
+    cellText(appSheet, "I7") ?? readByLabel(appSheet, ["홈페이지", "웹사이트"]);
   const founded = readApplicationDateByLabel(appSheet, ["설립일자", "설립일"], "D8");
   if (founded.warning) warnings.push(founded.warning);
   const credit_rating =
-    readByLabel(appSheet, ["신용등급"], "H8") ?? cellText(appSheet, "H8");
-  const address = readByLabel(appSheet, ["주소"], "D9") ?? cellText(appSheet, "D9");
-  const revenue = readByLabel(appSheet, ["매출액"], "H9") ?? cellText(appSheet, "H9");
+    cellText(appSheet, "I8") ?? readByLabel(appSheet, ["신용등급"]) ?? "-";
+  const address =
+    cellText(appSheet, "D9") ?? readByLabel(appSheet, ["주소"]);
+  const revenue =
+    cellText(appSheet, "I9") ?? readByLabel(appSheet, ["매출액"]);
   const employee_count =
-    readByLabel(appSheet, ["전체임직원", "임직원"], "D10") ?? cellText(appSheet, "D10");
+    cellText(appSheet, "D10") ?? readByLabel(appSheet, ["전체임직원", "임직원"]);
   const dedicated_sales_count =
-    readByLabel(appSheet, ["전담영업", "영업인원"], "H10") ?? cellText(appSheet, "H10");
+    cellText(appSheet, "I10") ?? readByLabel(appSheet, ["전담영업", "영업인원"]);
   const engineer_count =
-    readByLabel(appSheet, ["전체엔지니어", "엔지니어"], "D11") ?? cellText(appSheet, "D11");
+    cellText(appSheet, "D11") ?? readByLabel(appSheet, ["전체엔지니어", "엔지니어"]);
   const dedicated_engineer_count =
-    readByLabel(appSheet, ["전담기술", "기술인원"], "H11") ?? cellText(appSheet, "H11");
+    cellText(appSheet, "I11") ?? readByLabel(appSheet, ["전담기술", "기술인원"]);
   const applicationDate = readApplicationDateByLabel(appSheet, ["신청일"], "D20");
-  const applicant_name = readByLabel(appSheet, ["신청자"]);
+  const applicant_name = normalizePersonDisplayName(readByLabel(appSheet, ["신청자"]));
 
-  const contactName =
-    readByLabel(appSheet, ["성명"], "D14") ?? cellText(appSheet, "D14");
+  const contactName = normalizePersonDisplayName(
+    cellText(appSheet, "D14") ?? readByLabel(appSheet, ["성명"])
+  );
   const contactPosition =
-    readByLabel(appSheet, ["직급", "직책"], "H14") ?? cellText(appSheet, "H14");
+    cellText(appSheet, "I14") ?? readByLabel(appSheet, ["직급", "직책"]);
   const contactDepartment =
-    readByLabel(appSheet, ["부서"], "D15") ?? cellText(appSheet, "D15");
+    cellText(appSheet, "D15") ?? readByLabel(appSheet, ["부서"]);
   const contactDirect =
-    normalizePersonPhone(readRawByLabel(appSheet, ["직통"], "H15") ?? cellRaw(appSheet, "H15"));
+    normalizePersonPhone(cellRaw(appSheet, "I15") ?? readRawByLabel(appSheet, ["직통"]));
   const contactMobile =
-    normalizePersonPhone(readRawByLabel(appSheet, ["휴대폰"], "D16") ?? cellRaw(appSheet, "D16"));
+    normalizePersonPhone(cellRaw(appSheet, "D16") ?? readRawByLabel(appSheet, ["휴대폰"]));
   const contactEmail =
-    readByLabel(appSheet, ["이메일"], "H16") ?? cellText(appSheet, "H16");
+    cellText(appSheet, "I16") ?? readByLabel(appSheet, ["이메일"]);
 
   if (!company_name_raw) {
     errors.push("기업명이 비어 있습니다.");
@@ -369,7 +395,9 @@ export function parsePartnerApplicationWorkbook(workbook: XLSX.WorkBook): Partne
     errors,
     company: {
       company_name_raw,
-      company_name_db: company_name_raw,
+      company_name_db: company_name_raw
+        ? normalizePartnerDisplayCompanyName(company_name_raw)
+        : null,
       company_name_contract: company_name_raw
         ? normalizeContractCompanyName(company_name_raw)
         : null,
