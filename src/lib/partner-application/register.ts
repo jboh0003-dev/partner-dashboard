@@ -13,6 +13,7 @@ import type { ApplicationPerson } from "@/lib/partner-application/parse-applicat
 import {
   computeContractEndDate,
   formatBusinessNumberDisplay,
+  normalizePartnerDisplayCompanyName,
   type PartnerContractGrade
 } from "@/lib/partner-application/contract-dates";
 import {
@@ -49,6 +50,7 @@ export type ApplicationRegisterInput = {
   fileName: string;
   fileBuffer: Buffer;
   contentType?: string;
+  requestedExternalNo?: string | null;
   existingPartnerId?: string | null;
   updateFields?: string[];
 };
@@ -66,6 +68,34 @@ export type ApplicationRegisterResult =
       warnings: string[];
     }
   | { ok: false; message: string };
+
+async function ensureExternalNoAvailable(
+  supabase: SupabaseClient,
+  externalNo: string,
+  excludePartnerId?: string | null
+): Promise<void> {
+  let query = supabase
+    .from("partners")
+    .select("id, company_name")
+    .eq("external_no", externalNo)
+    .is("deleted_at", null)
+    .limit(1);
+
+  if (excludePartnerId) query = query.neq("id", excludePartnerId);
+
+  const { data, error } = await query.maybeSingle();
+  if (error) throw new Error(error.message);
+  if (data) {
+    throw new Error(`${externalNo}번은 이미 ${String(data.company_name)}에서 사용 중입니다.`);
+  }
+}
+
+function normalizeKoreanPersonName(value: string | null | undefined): string | null {
+  const trimmed = value?.trim();
+  if (!trimmed) return null;
+  if (/^[가-힣\s]{2,12}$/u.test(trimmed)) return trimmed.replace(/\s+/g, "");
+  return trimmed.replace(/\s{2,}/g, " ");
+}
 
 async function allocateNextExternalNo(supabase: SupabaseClient): Promise<string> {
   const { data, error } = await supabase
@@ -145,7 +175,7 @@ function mergePeople(people: ApplicationPerson[]): MergedPerson[] {
 
   for (const person of people) {
     if (person.excluded) continue;
-    const name = person.name.trim();
+    const name = normalizeKoreanPersonName(person.name) ?? "";
     if (!name) continue;
     const key = normalizePersonName(name);
     const existing = map.get(key);
@@ -321,6 +351,26 @@ async function saveApplicationDocument(
     return { document_id: String(existing.id), reused: true };
   }
 
+  // 같은 파일명으로 수정본을 다시 올리는 경우 기존 활성 문서를 비활성화해
+  // active unique index 충돌 없이 최신 신청서를 저장한다.
+  const { data: sameName } = await supabase
+    .from("partner_documents")
+    .select("id")
+    .eq("partner_id", partnerId)
+    .eq("document_type", "partner_application")
+    .eq("original_filename", fileName)
+    .eq("is_active", true)
+    .is("deleted_at", null)
+    .maybeSingle();
+
+  if (sameName?.id) {
+    const { error: deactivateError } = await supabase
+      .from("partner_documents")
+      .update({ is_active: false, updated_at: new Date().toISOString() })
+      .eq("id", sameName.id);
+    if (deactivateError) throw new Error(deactivateError.message);
+  }
+
   const ext = fileName.split(".").pop()?.toLowerCase() || "xlsx";
   const storagePath = buildDocumentStoragePath(partnerId, "partner_application", ext);
 
@@ -382,6 +432,10 @@ export async function registerPartnerApplication(
 
     const contractEnd = computeContractEndDate(input.contractStartDate);
     const addressLocation = inferPartnerAddressLocation(input.company.address);
+    const requestedExternalNo = input.requestedExternalNo?.trim() || null;
+    if (requestedExternalNo && !/^\d+$/.test(requestedExternalNo)) {
+      return { ok: false, message: "파트너 번호(일련번호)는 숫자로 입력해 주세요." };
+    }
     const matched =
       input.existingPartnerId
         ? {
@@ -396,13 +450,13 @@ export async function registerPartnerApplication(
     let externalNo: string | null = null;
 
     const companyPayload: Record<string, unknown> = {
-      company_name: input.company.company_name_db.trim(),
+      company_name: normalizePartnerDisplayCompanyName(input.company.company_name_db),
       contract_display_name: input.company.company_name_contract.trim() || null,
       business_number: formatBusinessNumberDisplay(input.company.business_number) || null,
-      ceo_name: input.company.ceo_name?.trim() || null,
+      ceo_name: normalizeKoreanPersonName(input.company.ceo_name),
       website: input.company.website?.trim() || null,
       founded_date: foundedNormalized.iso,
-      credit_rating: input.company.credit_rating?.trim() || null,
+      credit_rating: input.company.credit_rating?.trim() || "-",
       address: input.company.address?.trim() || null,
       region_group: addressLocation.regionGroup || null,
       region: addressLocation.region || null,
@@ -461,7 +515,13 @@ export async function registerPartnerApplication(
         .select("external_no")
         .eq("id", partnerId)
         .maybeSingle();
-      externalNo = existingPartner?.external_no ? String(existingPartner.external_no) : null;
+      externalNo = requestedExternalNo
+        ?? (existingPartner?.external_no ? String(existingPartner.external_no) : null);
+
+      if (externalNo) {
+        await ensureExternalNoAvailable(supabase, externalNo, partnerId);
+        updatePayload.external_no = externalNo;
+      }
 
       const { error } = await supabase.from("partners").update(updatePayload).eq("id", partnerId);
       if (error) {
@@ -472,7 +532,8 @@ export async function registerPartnerApplication(
       }
       warnings.push(`기존 파트너와 매칭되었습니다 (${matched.match}).`);
     } else {
-      externalNo = await allocateNextExternalNo(supabase);
+      externalNo = requestedExternalNo ?? await allocateNextExternalNo(supabase);
+      await ensureExternalNoAvailable(supabase, externalNo);
       const { data, error } = await supabase
         .from("partners")
         .insert({ ...companyPayload, external_no: externalNo })
@@ -490,22 +551,24 @@ export async function registerPartnerApplication(
     }
 
     const merged = mergePeople(input.people);
-    let created = 0;
-    let updated = 0;
-    for (const person of merged) {
-      const action = await upsertContact(supabase, partnerId, person, input.fileName);
-      if (action === "created") created += 1;
-      else updated += 1;
-    }
+    const [contactActions, doc] = await Promise.all([
+      Promise.all(
+        merged.map((person) =>
+          upsertContact(supabase, partnerId, person, input.fileName)
+        )
+      ),
+      saveApplicationDocument(
+        supabase,
+        partnerId,
+        input.fileName,
+        input.fileBuffer,
+        input.contentType ??
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      )
+    ]);
 
-    const doc = await saveApplicationDocument(
-      supabase,
-      partnerId,
-      input.fileName,
-      input.fileBuffer,
-      input.contentType ??
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    );
+    const created = contactActions.filter((action) => action === "created").length;
+    const updated = contactActions.filter((action) => action === "updated").length;
 
     return {
       ok: true,

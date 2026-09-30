@@ -11,7 +11,8 @@ import {
   computeContractEndDate,
   formatBusinessNumberDisplay,
   formatContractKoreanDate,
-  normalizeContractCompanyName
+  normalizeContractCompanyName,
+  normalizePartnerDisplayCompanyName
 } from "../src/lib/partner-application/contract-dates";
 import {
   extractPlainText,
@@ -128,6 +129,9 @@ async function main() {
   assert(normalizeContractCompanyName("(주)마이데이터") === "(주)마이데이터", "norm (주) keep");
   assert(normalizeContractCompanyName("㈜ 마이데이터") === "㈜마이데이터", "norm ㈜");
   assert(normalizeContractCompanyName("에스피 정보시스템") === "에스피 정보시스템", "norm keep inner");
+  assert(normalizePartnerDisplayCompanyName("㈜케이엠디엠") === "케이엠디엠", "db name corp symbol");
+  assert(normalizePartnerDisplayCompanyName("(주) 케이엠디엠") === "케이엠디엠", "db name corp short");
+  assert(normalizePartnerDisplayCompanyName("주식회사 액슬레이터") === "액슬레이터", "db name corp full");
 
   // dates
   assert(computeContractEndDate("2026-07-31") === "2027-07-30", "end date Jul");

@@ -52,8 +52,19 @@ type AnalyzeResponse = {
   };
   match?: {
     exact: { id: string; company_name: string; match: string } | null;
-    similar: Array<{ id: string; company_name: string; confidence: number; strategy: string }>;
+    similar: Array<{
+      id: string;
+      company_name: string;
+      confidence: number;
+      strategy: string;
+      external_no?: string | null;
+    }>;
     existing_partner: Record<string, unknown> | null;
+  };
+  numbering?: {
+    max_used: number;
+    suggested: string;
+    existing: string | null;
   };
   duplicate_hints?: Array<{ name: string; reason: string; sections: string[] }>;
 };
@@ -162,9 +173,18 @@ export function PartnerApplicationUploadSection({
   const [people, setPeople] = useState<ApplicationPerson[]>([]);
   const [grade, setGrade] = useState<PartnerContractGrade>("silver");
   const [contractStartDate, setContractStartDate] = useState("");
+  const [externalNo, setExternalNo] = useState("");
+  const [maxExternalNo, setMaxExternalNo] = useState<number | null>(null);
+  const [suggestedExternalNo, setSuggestedExternalNo] = useState("");
   const [existingPartnerId, setExistingPartnerId] = useState<string | null>(null);
   const [similar, setSimilar] = useState<
-    Array<{ id: string; company_name: string; confidence: number; strategy: string }>
+    Array<{
+      id: string;
+      company_name: string;
+      confidence: number;
+      strategy: string;
+      external_no?: string | null;
+    }>
   >([]);
   const [existingPartner, setExistingPartner] = useState<Record<string, unknown> | null>(null);
   const [updateFields, setUpdateFields] = useState<string[]>([]);
@@ -264,6 +284,9 @@ export function PartnerApplicationUploadSection({
       setExistingPartnerId(json.match?.exact?.id ?? null);
       setSimilar(json.match?.similar ?? []);
       setExistingPartner(json.match?.existing_partner ?? null);
+      setMaxExternalNo(json.numbering?.max_used ?? null);
+      setSuggestedExternalNo(json.numbering?.suggested ?? "");
+      setExternalNo(json.numbering?.existing ?? json.numbering?.suggested ?? "");
       setUpdateFields(
         json.match?.exact
           ? UPDATE_FIELD_OPTIONS.map((f) => f.key).filter((key) => {
@@ -316,6 +339,10 @@ export function PartnerApplicationUploadSection({
       setError("계약일을 입력해 주세요.");
       return;
     }
+    if (!/^\d+$/.test(externalNo.trim())) {
+      setError("파트너 번호(일련번호)는 숫자로 입력해 주세요.");
+      return;
+    }
     const founded = normalizeApplicationDate(company.founded_date);
     if (company.founded_date.trim() && !founded.ok) {
       setError(
@@ -352,6 +379,7 @@ export function PartnerApplicationUploadSection({
           },
           grade,
           contract_start_date: contractStartDate,
+          external_no: externalNo.trim(),
           people: normalizedPeople,
           existing_partner_id: existingPartnerId,
           update_fields: existingPartnerId ? updateFields : undefined
@@ -565,6 +593,7 @@ export function PartnerApplicationUploadSection({
                             className="rounded-md border border-slate-300 bg-white px-2 py-1 text-xs"
                             onClick={() => {
                               setExistingPartnerId(item.id);
+                              setExternalNo(item.external_no ?? "");
                               setOpenUpdateFields(true);
                             }}
                           >
@@ -593,6 +622,19 @@ export function PartnerApplicationUploadSection({
             onToggle={() => setOpenCompany((v) => !v)}
           >
             <div className="grid gap-3 md:grid-cols-2">
+              <label className="block text-xs text-slate-600">
+                파트너 번호 (일련번호)
+                <input
+                  inputMode="numeric"
+                  className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900"
+                  value={externalNo}
+                  onChange={(e) => setExternalNo(e.target.value.replace(/\D/g, ""))}
+                />
+                <span className="mt-1 block text-[11px] text-slate-400">
+                  현재 최고 {maxExternalNo ?? "-"} · 다음 추천 {suggestedExternalNo || "-"} · 원하는 번호로 직접 지정 가능
+                </span>
+              </label>
+              <div className="hidden md:block" />
               {(
                 [
                   ["company_name_db", "DB 표시 회사명"],

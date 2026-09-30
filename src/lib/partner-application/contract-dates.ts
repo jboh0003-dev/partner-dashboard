@@ -5,6 +5,22 @@ export function formatBusinessNumberDisplay(value: string | null | undefined): s
   return `${digits.slice(0, 3)}-${digits.slice(3, 5)}-${digits.slice(5)}`;
 }
 
+/** DB 목록/검색용 회사명: 법인 표기만 제거하고 실제 상호는 유지 */
+export function normalizePartnerDisplayCompanyName(
+  value: string | null | undefined
+): string {
+  let normalized = String(value ?? "").trim();
+  if (!normalized) return "";
+
+  normalized = normalized
+    .replace(/^\s*(?:\(주\)|㈜|주식회사)\s*/u, "")
+    .replace(/\s*(?:\(주\)|㈜|주식회사)\s*$/u, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  return normalized;
+}
+
 /**
  * 계약서용 회사명 표기 정규화.
  * - "주식회사" 접두: 뒤에 공백 1칸

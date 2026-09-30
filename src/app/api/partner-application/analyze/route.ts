@@ -80,6 +80,15 @@ export async function POST(request: Request) {
       id: String(p.id),
       company_name: String(p.company_name)
     }));
+    const numericExternalNos = (partners ?? [])
+      .map((p) => Number(String(p.external_no ?? "")))
+      .filter((n) => Number.isInteger(n) && n > 0);
+    const maxExternalNo = numericExternalNos.length > 0 ? Math.max(...numericExternalNos) : 0;
+
+    const externalNoFor = (partnerId: string): string | null => {
+      const row = (partners ?? []).find((p) => String(p.id) === partnerId);
+      return row?.external_no ? String(row.external_no) : null;
+    };
 
     let similar: Array<{ id: string; company_name: string; confidence: number; strategy: string }> =
       [];
@@ -97,7 +106,8 @@ export async function POST(request: Request) {
           id: fuzzy.partner.id,
           company_name: fuzzy.partner.company_name,
           confidence: fuzzy.confidence,
-          strategy: fuzzy.strategy
+          strategy: fuzzy.strategy,
+          external_no: externalNoFor(fuzzy.partner.id)
         });
       }
       for (const candidate of fuzzy.candidates ?? []) {
@@ -106,7 +116,8 @@ export async function POST(request: Request) {
           id: candidate.id,
           company_name: candidate.company_name,
           confidence: candidate.confidence,
-          strategy: fuzzy.strategy
+          strategy: fuzzy.strategy,
+          external_no: externalNoFor(fuzzy.partner.id)
         });
       }
       similar = similar.slice(0, 5);
@@ -214,6 +225,11 @@ export async function POST(request: Request) {
         exact: exactMatch,
         similar,
         existing_partner: matchedPartnerRow
+      },
+      numbering: {
+        max_used: maxExternalNo,
+        suggested: String(maxExternalNo + 1),
+        existing: matchedPartnerRow?.external_no ? String(matchedPartnerRow.external_no) : null
       },
       duplicate_hints: duplicateHints
     });
