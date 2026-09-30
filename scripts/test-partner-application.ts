@@ -143,6 +143,20 @@ async function main() {
   assert(normalizeApplicationDate("2021-01").iso === "2021-01-01", "founded dashed");
   assert(normalizeApplicationDate("2021년").iso === "2021-01-01", "founded year");
   assert(normalizeApplicationDate("2021-01-15").iso === "2021-01-15", "founded full");
+  const foundedDateObject = normalizeApplicationDate(new Date(2008, 7, 1));
+  assert(
+    foundedDateObject.ok && foundedDateObject.iso === "2008-08-01",
+    `founded Date object: ${foundedDateObject.iso}`
+  );
+  assert(
+    foundedDateObject.display === "2008년 8월 1일",
+    `founded Date display: ${foundedDateObject.display}`
+  );
+  assert(normalizeApplicationDate(39661).iso === "2008-08-01", "founded Excel serial");
+  assert(
+    normalizeApplicationDate(new Date(2025, 3, 16)).iso === "2025-04-16",
+    "founded accelerator Date object"
+  );
 
   // phones
   assert(parsePhoneFromCell("01088993107") === "010-8899-3107", "phone 11");
