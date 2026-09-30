@@ -52,6 +52,33 @@ export function normalizeApplicationDate(value: unknown): NormalizedApplicationD
     return { iso: null, display: null, precision: null, raw: null, ok: true };
   }
 
+  if (value instanceof Date) {
+    const time = value.getTime();
+    if (!Number.isFinite(time)) {
+      return {
+        iso: null,
+        display: String(value),
+        precision: null,
+        raw: String(value),
+        ok: false
+      };
+    }
+
+    const year = value.getFullYear();
+    const month = value.getMonth() + 1;
+    const day = value.getDate();
+    const iso = toIso(year, month, day);
+    const raw = iso ?? String(value);
+
+    return {
+      iso,
+      display: iso ? `${year}년 ${month}월 ${day}일` : String(value),
+      precision: "day",
+      raw,
+      ok: Boolean(iso)
+    };
+  }
+
   if (typeof value === "number" && Number.isFinite(value)) {
     const parts = excelSerialToParts(value);
     if (!parts) {
