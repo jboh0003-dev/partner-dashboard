@@ -19,6 +19,7 @@ import {
   FOUNDED_DATE_FORMAT_HINT,
   normalizeApplicationDate
 } from "@/lib/partner-application/normalize-application-date";
+import { inferPartnerAddressLocation } from "@/lib/partners/address-location";
 
 export type { ApplicationPerson };
 
@@ -380,6 +381,7 @@ export async function registerPartnerApplication(
     }
 
     const contractEnd = computeContractEndDate(input.contractStartDate);
+    const addressLocation = inferPartnerAddressLocation(input.company.address);
     const matched =
       input.existingPartnerId
         ? {
@@ -402,6 +404,9 @@ export async function registerPartnerApplication(
       founded_date: foundedNormalized.iso,
       credit_rating: input.company.credit_rating?.trim() || null,
       address: input.company.address?.trim() || null,
+      region_group: addressLocation.regionGroup || null,
+      region: addressLocation.region || null,
+      city: addressLocation.city || null,
       revenue_2023: input.company.revenue?.trim() || null,
       employee_count: input.company.employee_count?.trim() || null,
       engineer_count: input.company.engineer_count?.trim() || null,
@@ -445,6 +450,11 @@ export async function registerPartnerApplication(
         if (allowed.has(key) && value != null && String(value).trim() !== "") {
           updatePayload[key] = value;
         }
+      }
+      if (allowed.has("address") && companyPayload.address) {
+        if (addressLocation.regionGroup) updatePayload.region_group = addressLocation.regionGroup;
+        if (addressLocation.region) updatePayload.region = addressLocation.region;
+        if (addressLocation.city) updatePayload.city = addressLocation.city;
       }
       const { data: existingPartner } = await supabase
         .from("partners")
