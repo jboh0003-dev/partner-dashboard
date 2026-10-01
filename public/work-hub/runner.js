@@ -3,7 +3,7 @@
   if (document.getElementById('workhub-runner')) return;
 
   const script=document.createElement('script');
-  script.src='/work-hub/runner-engine.js?v=7';
+  script.src='/work-hub/runner-engine.js?v=8';
   script.onload=mount;
   script.onerror=()=>console.error('BokRun 엔진을 불러오지 못했습니다.');
   document.body.appendChild(script);
@@ -15,7 +15,7 @@
     const section=document.createElement('section');
     section.id='workhub-runner';
     section.className='runner bokrun';
-    section.dataset.version='7';
+    section.dataset.version='8';
     section.setAttribute('aria-label','BokRun Relic Rush');
     document.querySelector('.main').appendChild(section);
 
@@ -160,7 +160,7 @@
       .bokrun-detail-grid{display:grid;grid-template-columns:120px 1fr;gap:16px;margin-top:14px}.bokrun-detail-hero{display:grid;place-items:center;border-radius:20px;min-height:120px;font-size:58px;background:#f5f5f5}.bokrun-detail-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:12px}.bokrun-detail-stats div{background:#f7f7f7;border-radius:11px;padding:9px}.bokrun-detail-stats small{display:block;color:#999;font-size:8px}.bokrun-detail-stats b{font-size:11px}
       .bokrun-preitems{margin-top:12px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.bokrun-preitem{border:1px solid #eee;border-radius:13px;padding:9px;background:#fafafa}.bokrun-preitem-top{display:flex;align-items:center;gap:7px}.bokrun-preitem-top input{accent-color:#fee500}.bokrun-preitem-top span{font-size:18px}.bokrun-preitem-top b{font-size:9px}.bokrun-preitem-top small{margin-left:auto;font-size:8px;color:#777}.bokrun-preitem button{width:100%;border:0;border-radius:8px;background:#eee;padding:6px;margin-top:6px;font-size:8px;font-weight:850}.bokrun-preitem button.buy{background:#fff2a0}.bokrun-buyall{display:flex;align-items:flex-start;gap:8px;padding:10px;margin-top:9px;background:#fffbe3;border:1px solid #f2e37a;border-radius:12px;font-size:9px;font-weight:800}.bokrun-buyall input{accent-color:#fee500;margin-top:1px}
       .bokrun-guidebar{display:grid;grid-template-columns:1fr 1.25fr;gap:8px;background:#252525;color:#fff;padding:8px 10px;border-top:1px solid #393939}.bokrun-controls-guide,.bokrun-item-guide{display:flex;gap:5px;flex-wrap:wrap;align-items:center}.bokrun-guide-chip{background:#333;border:1px solid #444;border-radius:8px;padding:5px 7px;font-size:8px;color:#ddd}.bokrun-guide-chip strong{color:#fff}.bokrun-skill-guide{grid-column:1/-1;display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center;background:#151515;border-radius:10px;padding:7px 9px}.bokrun-skill-guide b{font-size:9px}.bokrun-skill-guide span{font-size:8px;color:#aaa;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.bokrun-cooltrack{height:5px;background:#3d3d3d;border-radius:999px;overflow:hidden;min-width:110px}.bokrun-cooltrack i{display:block;height:100%;background:#fee500;width:100%}.bokrun-activebuffs{padding:7px 10px;background:#1e1e1e;color:#ddd;font-size:8px;min-height:26px}
-      .bokrun-hpbar{width:105px;height:6px;background:#4b2b2b;border-radius:999px;overflow:hidden;margin-top:3px}.bokrun-hpbar i{display:block;height:100%;background:#ff6b6b;width:100%}
+      .bokrun-hpbar{width:105px;height:6px;background:#4b2b2b;border-radius:999px;overflow:hidden;margin-top:3px}.bokrun-hpbar i{display:block;height:100%;background:#ff6b6b;width:100%;transition:width .18s ease}.bokrun-cooltrack i{transition:width .08s linear}
       .bokrun-map-badge{position:absolute;right:10px;top:66px;z-index:3;padding:5px 7px;border-radius:8px;background:rgba(0,0,0,.45);color:#fff;font-size:8px;pointer-events:none}
       @media(max-width:800px){.bokrun-collection-list{grid-template-columns:1fr}.bokrun-guidebar{grid-template-columns:1fr}.bokrun-skill-guide{grid-column:auto}.bokrun-detail-grid{grid-template-columns:1fr}.bokrun-detail-hero{min-height:90px}.bokrun-preitems{grid-template-columns:1fr}}
     `;
@@ -407,7 +407,7 @@
       const prog=section.querySelector('#br-progress');if(prog)prog.style.width=(engine.progress*100).toFixed(1)+'%';
       const c=charBy(profile.selectedCharacter),ready=engine.skillReady,label=ready?c.skill:c.skill+' '+engine.skillCooldown.toFixed(1)+'s';
       [section.querySelector('#br-skill'),section.querySelector('#br-skill2')].forEach(b=>{if(b){b.textContent=label;b.disabled=!ready;}});
-      const cooldownTotal=Math.max(.01,engine.activeCooldownTotal),coolPct=ready?100:Math.max(0,100*(1-engine.skillCooldown/cooldownTotal));
+      const cooldownTotal=Math.max(.01,engine.activeCooldownTotal),coolPct=ready?0:Math.max(0,Math.min(100,100*engine.skillCooldown/cooldownTotal));
       const coolbar=section.querySelector('#br-coolbar');if(coolbar)coolbar.style.width=coolPct.toFixed(1)+'%';
       set('br-cooltext',ready?'READY':engine.skillCooldown.toFixed(1)+'s');
       const buffs=[];
