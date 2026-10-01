@@ -3,7 +3,7 @@
   if (document.getElementById('workhub-runner')) return;
 
   const script=document.createElement('script');
-  script.src='/work-hub/runner-engine.js?v=8';
+  script.src='/work-hub/runner-engine.js?v=9';
   script.onload=mount;
   script.onerror=()=>console.error('BokRun 엔진을 불러오지 못했습니다.');
   document.body.appendChild(script);
@@ -15,7 +15,7 @@
     const section=document.createElement('section');
     section.id='workhub-runner';
     section.className='runner bokrun';
-    section.dataset.version='8';
+    section.dataset.version='9';
     section.setAttribute('aria-label','BokRun Relic Rush');
     document.querySelector('.main').appendChild(section);
 
@@ -167,7 +167,7 @@
     document.head.appendChild(styleExtra);
 
     function header(){
-      return '<div class="bokrun-hero"><div><div class="bokrun-kicker">BOKRUN · RELIC RUSH</div><h2>BokRun</h2><p>캐릭터와 유물의 조합을 만들고, 새로운 월드와 라운드를 하나씩 해금하세요.</p></div><div class="bokrun-wallet"><span>🪙 골드 <strong>'+profile.gold.toLocaleString()+'</strong></span><span>💎 젬 <strong>'+profile.gems.toLocaleString()+'</strong></span><span>🏆 클리어 <strong>'+profile.lifetime.clears+'</strong></span></div></div>';
+      return '<div class="bokrun-hero"><div><div class="bokrun-kicker">BOKRUN · RELIC RUSH</div><h2>BokRun</h2><p>캐릭터와 유물의 조합을 만들고, 새로운 월드와 라운드를 하나씩 해금하세요.</p></div><div class="bokrun-wallet"><span>🪙 골드 <strong>∞</strong></span><span>💎 젬 <strong>∞</strong></span><span>🏆 클리어 <strong>'+profile.lifetime.clears+'</strong></span></div></div>';
     }
     function nav(){
       const tabs=[['play','PLAY'],['collection','COLLECTION'],['gacha','GACHA'],['shop','SHOP']];
@@ -200,11 +200,11 @@
       }).join('');
 
       const preItems=Object.values(CONSUMABLES).map(it=>{
-        const count=profile.inventory[it.id]||0,active=profile.selectedConsumables.includes(it.id),canBuy=profile.gold>=it.price;
+        const count=profile.inventory[it.id]||0,active=profile.selectedConsumables.includes(it.id),canBuy=true;
         return '<div class="bokrun-preitem '+(active?'active':'')+'"><label class="bokrun-preitem-top"><input type="checkbox" data-consume="'+it.id+'" '+(active?'checked':'')+' '+(!count?'disabled':'')+'><span>'+it.emoji+'</span><b>'+esc(it.name)+'</b><small>보유 '+count+'</small></label><button class="buy" data-buy-pre="'+it.id+'" '+(!canBuy?'disabled':'')+'>+1 구매 · 🪙 '+it.price+'</button></div>';
       }).join('');
       const missingCost=Object.values(CONSUMABLES).reduce((sum,it)=>sum+((profile.inventory[it.id]||0)>0?0:it.price),0);
-      const buyAll='<label class="bokrun-buyall"><input id="br-buy-all" type="checkbox" '+(profile.gold<missingCost?'disabled':'')+'><span><b>4종 모두 구매 + 모두 장착</b><br>없는 아이템만 1개씩 구매합니다. 필요 골드 🪙 '+missingCost.toLocaleString()+'</span></label>';
+      const buyAll='<label class="bokrun-buyall"><input id="br-buy-all" type="checkbox"><span><b>4종 모두 구매 + 모두 장착</b><br>골드 ∞ · 없는 아이템만 1개씩 바로 추가합니다.</span></label>';
 
       const loadout='<div class="bokrun-loadout"><div class="bokrun-slot"><span class="bokrun-avatar" style="background:'+character.accent+'">'+character.emoji+'</span><span><b>'+esc(character.name)+' · '+character.rarity+'</b><small>HP '+getCharacterMaxHealth(character,profile.ownedCharacters[character.id]?.level||1)+' · '+esc(character.skill)+' · '+esc(character.desc)+'</small></span><span class="rarity '+rarityClass(character.rarity)+'">Lv.'+(profile.ownedCharacters[character.id]?.level||1)+'</span></div>'+equipped.map(x=>'<div class="bokrun-slot"><span class="bokrun-avatar" style="background:#f4f4f4">'+x.emoji+'</span><span><b>'+esc(x.name)+' · '+x.rarity+'</b><small>'+esc(x.desc)+'</small></span></div>').join('')+'</div>';
       const recordsHtml=records.length?records.slice(0,5).map((x,i)=>'<li><span>'+(i+1)+'. '+esc(x.character)+' · '+esc(x.stage)+'</span><strong>'+Number(x.score||0).toLocaleString()+'</strong></li>').join(''):'<li><span>아직 기록이 없습니다.</span></li>';
@@ -265,17 +265,20 @@
     }
 
     function renderGacha(){
-      const poolSummary=list=>['N','R','SR','SSR'].map(r=>r+' '+list.filter(x=>x.rarity===r).length+'종').join(' · ');
-      const banners=[['character','CHARACTER GACHA','새 러너와 중복 조각을 획득합니다. · '+poolSummary(CHARACTERS),100],['relic','RELIC GACHA','새 유물과 강화 조각을 획득합니다. · '+poolSummary(RELICS),80]].map(b=>{
+      const poolSummary=list=>['N','R','SR','SSR'].map(x=>x+' '+list.filter(y=>y.rarity===x).length+'종').join(' · ');
+      const banners=[
+        ['character','CHARACTER GACHA','새 러너와 중복 조각을 획득합니다. · '+poolSummary(CHARACTERS),100],
+        ['relic','RELIC GACHA','새 유물과 강화 조각을 획득합니다. · '+poolSummary(RELICS),80]
+      ].map(b=>{
         const active=selectedGacha===b[0],cost=b[3],pity=profile.pity[b[0]]||0;
-        return '<div class="bokrun-banner '+(active?'active':'')+'" data-gacha-banner="'+b[0]+'"><h3>'+b[1]+'</h3><p>'+b[2]+'</p><div class="bokrun-rates"><span>N 72%</span><span>R 22%</span><span>SR 5%</span><span>SSR 1%</span><span>SSR PITY '+pity+'/40</span></div><div class="bokrun-gacha-actions"><button data-pull="'+b[0]+'" data-count="1" '+(profile.gems<cost?'disabled':'')+'>1회 💎 '+cost+'</button><button class="ten" data-pull="'+b[0]+'" data-count="10" '+(profile.gems<cost*9?'disabled':'')+'>10회 💎 '+(cost*9)+'</button></div></div>';
+        return '<div class="bokrun-banner '+(active?'active':'')+'" data-gacha-banner="'+b[0]+'"><h3>'+b[1]+'</h3><p>'+b[2]+'</p><div class="bokrun-rates"><span>N 72%</span><span>R 22%</span><span>SR 5%</span><span>SSR 1%</span><span>SSR PITY '+pity+'/40</span></div><div class="bokrun-gacha-actions"><button data-pull="'+b[0]+'" data-count="1">1회 💎 '+cost+' · ∞</button><button class="ten" data-pull="'+b[0]+'" data-count="10">10회 💎 '+(cost*9)+' · ∞</button></div></div>';
       }).join('');
-      return '<div class="bokrun-card"><h3>GACHA</h3><p>실제 결제는 없습니다. 첫 클리어·재클리어·3성 달성으로 젬을 꾸준히 얻습니다. 10회는 R 이상 1개 보장, 40회 내 SSR 보장.</p><div class="bokrun-gacha-grid">'+banners+'</div></div>';
+      return '<div class="bokrun-card"><h3>GACHA</h3><p>다이아는 ∞입니다. 원하는 만큼 뽑으세요. 10회는 R 이상 1개 보장, 40회 내 SSR 보장.</p><div class="bokrun-gacha-grid">'+banners+'</div></div>';
     }
 
     function renderShop(){
-      const items=Object.values(CONSUMABLES).map(it=>'<div class="bokrun-shop-item"><div class="icon">'+it.emoji+'</div><h4>'+esc(it.name)+'</h4><p>'+esc(it.desc)+'</p><div class="bokrun-sub">보유 '+(profile.inventory[it.id]||0)+'개</div><button data-buy="'+it.id+'" '+(profile.gold<it.price?'disabled':'')+'>🪙 '+it.price.toLocaleString()+' 구매</button></div>').join('');
-      return '<div class="bokrun-card"><h3>RUN SHOP</h3><p>골드는 런 결과로 획득합니다. 구매한 아이템은 PLAY 화면에서 선택해서 사용합니다.</p><div class="bokrun-shop">'+items+'</div></div>';
+      const items=Object.values(CONSUMABLES).map(it=>'<div class="bokrun-shop-item"><div class="icon">'+it.emoji+'</div><h4>'+esc(it.name)+'</h4><p>'+esc(it.desc)+'</p><div class="bokrun-sub">보유 '+(profile.inventory[it.id]||0)+'개</div><button data-buy="'+it.id+'">🪙 '+it.price.toLocaleString()+' · ∞ 구매</button></div>').join('');
+      return '<div class="bokrun-card"><h3>RUN SHOP</h3><p>골드는 ∞입니다. 원하는 만큼 구매하고 PLAY 화면에서 선택해서 사용합니다.</p><div class="bokrun-shop">'+items+'</div></div>';
     }
 
     function bind(){
@@ -302,17 +305,15 @@
     }
 
     function buyPre(id){
-      const item=CONSUMABLES[id];if(!item||profile.gold<item.price)return;
-      profile.gold-=item.price;profile.inventory[id]=(profile.inventory[id]||0)+1;
+      const item=CONSUMABLES[id];if(!item)return;
+      profile.inventory[id]=(profile.inventory[id]||0)+1;
       if(!profile.selectedConsumables.includes(id))profile.selectedConsumables.push(id);
       persist();render();
     }
     function buyAllPreItems(){
       const list=Object.values(CONSUMABLES);
-      const cost=list.reduce((sum,it)=>sum+((profile.inventory[it.id]||0)>0?0:it.price),0);
-      if(profile.gold<cost)return;
       list.forEach(it=>{
-        if((profile.inventory[it.id]||0)<=0){profile.gold-=it.price;profile.inventory[it.id]=1;}
+        if((profile.inventory[it.id]||0)<=0)profile.inventory[it.id]=1;
         if(!profile.selectedConsumables.includes(it.id))profile.selectedConsumables.push(it.id);
       });
       persist();render();
@@ -337,8 +338,8 @@
       own.shards-=need;own.level=Math.min(levelCap(),own.level+1);persist();render();
     }
     function buy(id){
-      const item=CONSUMABLES[id];if(!item||profile.gold<item.price)return;
-      profile.gold-=item.price;profile.inventory[id]=(profile.inventory[id]||0)+1;persist();render();
+      const item=CONSUMABLES[id];if(!item)return;
+      profile.inventory[id]=(profile.inventory[id]||0)+1;persist();render();
     }
 
     function rarityRoll(type,forceR){
@@ -349,8 +350,6 @@
     function pull(type,count){
       selectedGacha=type;
       const cost=(type==='character'?100:80)*(count===10?9:1);
-      if(profile.gems<cost)return;
-      profile.gems-=cost;
       const pool=type==='character'?CHARACTERS:RELICS,map=type==='character'?profile.ownedCharacters:profile.ownedRelics;
       const results=[];
       for(let i=0;i<count;i++){
@@ -383,7 +382,7 @@
       const itemLegend=Object.values(POWERUPS).map(x=>'<span class="bokrun-guide-chip" title="'+esc(x.desc)+'">'+x.emoji+' '+esc(x.name)+'</span>').join('');
       const relicLegend=relics.map(x=>x.emoji+' '+x.name+' ['+x.desc+']').join(' · ');
       const setLegend=sets.length?sets.map(x=>x.emoji+' '+x.name).join(' · '):'세트 없음';
-      section.innerHTML='<div class="bokrun-shell"><div class="bokrun-hero"><div><div class="bokrun-kicker">RUNNING · '+esc(world.name)+'</div><h2>'+c.emoji+' '+esc(c.name)+' · '+round.title+'</h2><p>'+objectiveText(round)+' · 체력과 부활을 관리하면서 파워업 콤보를 노리세요.</p></div><div class="bokrun-wallet"><span>'+world.emoji+' '+esc(world.name)+'</span></div></div><div class="bokrun-body"><div class="bokrun-game"><div class="bokrun-game-top"><div class="bokrun-hud"><span>점수<strong id="br-score">0</strong></span><span>거리<strong id="br-distance">0m</strong></span><span>골드<strong id="br-coins">0</strong></span><span>콤보<strong id="br-combo">0</strong></span><span>실드<strong id="br-shield">0</strong></span><span>부활<strong id="br-revive">0</strong></span><span>체력<strong id="br-health">0/0</strong><span class="bokrun-hpbar"><i id="br-hpbar"></i></span></span><span>목표<strong id="br-objective">-</strong></span></div><button class="bokrun-skill" id="br-skill">'+esc(c.skill)+'</button></div><div class="bokrun-progress"><i id="br-progress"></i></div><div class="bokrun-map-badge">먹을거리 ●골드 ◆젤리 · 아이템은 아래 범례 확인</div><canvas id="bokrun-canvas" width="1100" height="390" tabindex="0" aria-label="BokRun 러닝 게임"></canvas><div class="bokrun-runmsg" id="br-message" hidden><b></b><span></span></div><div class="bokrun-activebuffs" id="br-buffs">활성 효과 없음</div><div class="bokrun-guidebar"><div class="bokrun-controls-guide"><span class="bokrun-guide-chip"><strong>SPACE / ↑</strong> 점프</span><span class="bokrun-guide-chip"><strong>↓ / S</strong> 슬라이드</span><span class="bokrun-guide-chip"><strong>Q / SHIFT</strong> 고유스킬</span><span class="bokrun-guide-chip"><strong>P</strong> 일시정지</span></div><div class="bokrun-item-guide">'+itemLegend+'</div><div class="bokrun-skill-guide"><b>'+c.emoji+' '+esc(c.skill)+'</b><span>'+esc(c.desc)+' · 유물: '+esc(relicLegend||'없음')+' · 세트: '+esc(setLegend)+'</span><div><div id="br-cooltext" style="font-size:8px;text-align:right;margin-bottom:3px">READY</div><div class="bokrun-cooltrack"><i id="br-coolbar"></i></div></div></div></div><div class="bokrun-mobile-controls"><button id="br-jump">⬆ 점프</button><button id="br-slide">⬇ 슬라이드</button><button class="skill" id="br-skill2">'+esc(c.skill)+'</button><button id="br-pause">Ⅱ 일시정지</button></div></div></div></div>';
+      section.innerHTML='<div class="bokrun-shell"><div class="bokrun-hero"><div><div class="bokrun-kicker">RUNNING · '+esc(world.name)+'</div><h2>'+c.emoji+' '+esc(c.name)+' · '+round.title+'</h2><p>'+objectiveText(round)+' · 체력과 부활을 관리하면서 파워업 콤보를 노리세요.</p></div><div class="bokrun-wallet"><span>'+world.emoji+' '+esc(world.name)+'</span></div></div><div class="bokrun-body"><div class="bokrun-game"><div class="bokrun-game-top"><div class="bokrun-hud"><span>점수<strong id="br-score">0</strong></span><span>거리<strong id="br-distance">0m</strong></span><span>골드<strong id="br-coins">0</strong></span><span>콤보<strong id="br-combo">0</strong></span><span>실드<strong id="br-shield">0</strong></span><span>부활<strong id="br-revive">0</strong></span><span>체력<strong id="br-health">0/0</strong><span class="bokrun-hpbar"><i id="br-hpbar"></i></span></span><span>목표<strong id="br-objective">-</strong></span></div><button class="bokrun-skill" id="br-skill">'+esc(c.skill)+'</button></div><div class="bokrun-progress"><i id="br-progress"></i></div><div class="bokrun-map-badge">먹을거리 ●골드 ◆젤리 · 아이템은 아래 범례 확인</div><canvas id="bokrun-canvas" width="1100" height="390" tabindex="0" aria-label="BokRun 러닝 게임"></canvas><div class="bokrun-runmsg" id="br-message" hidden><b></b><span></span></div><div class="bokrun-activebuffs" id="br-buffs">활성 효과 없음</div><div class="bokrun-guidebar"><div class="bokrun-controls-guide"><span class="bokrun-guide-chip"><strong>SPACE / ↑</strong> 점프</span><span class="bokrun-guide-chip"><strong>↓ / S</strong> 슬라이드</span><span class="bokrun-guide-chip"><strong>D</strong> 고유스킬</span><span class="bokrun-guide-chip"><strong>P</strong> 일시정지</span></div><div class="bokrun-item-guide">'+itemLegend+'</div><div class="bokrun-skill-guide"><b>'+c.emoji+' '+esc(c.skill)+'</b><span>'+esc(c.desc)+' · 유물: '+esc(relicLegend||'없음')+' · 세트: '+esc(setLegend)+'</span><div><div id="br-cooltext" style="font-size:8px;text-align:right;margin-bottom:3px">READY</div><div class="bokrun-cooltrack"><i id="br-coolbar"></i></div></div></div></div><div class="bokrun-mobile-controls"><button id="br-jump">⬆ 점프</button><button id="br-slide">⬇ 슬라이드</button><button class="skill" id="br-skill2">'+esc(c.skill)+'</button><button id="br-pause">Ⅱ 일시정지</button></div></div></div></div>';
       canvas=section.querySelector('#bokrun-canvas');ctx=canvas.getContext('2d');
       section.querySelector('#br-jump').onpointerdown=jump;
       const slide=section.querySelector('#br-slide');slide.onpointerdown=()=>engine.slide(true);slide.onpointerup=()=>engine.slide(false);slide.onpointerleave=()=>engine.slide(false);
@@ -532,7 +531,7 @@
       if(!section.contains(document.activeElement)&&document.activeElement!==document.body)return;
       if(e.code==='Space'||e.code==='ArrowUp'){e.preventDefault();if(!e.repeat)jump();}
       else if(e.code==='ArrowDown'||e.code==='KeyS'){e.preventDefault();engine.slide(true);}
-      else if(e.code==='KeyQ'||e.code==='ShiftLeft'||e.code==='ShiftRight'){e.preventDefault();if(!e.repeat)useSkill();}
+      else if(e.code==='KeyD'){e.preventDefault();if(!e.repeat)useSkill();}
       else if(e.code==='KeyP'){e.preventDefault();if(!e.repeat)togglePause();}
     },true);
     document.addEventListener('keyup',e=>{if(running&&(e.code==='ArrowDown'||e.code==='KeyS'))engine.slide(false);},true);

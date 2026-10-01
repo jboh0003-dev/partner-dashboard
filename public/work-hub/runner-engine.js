@@ -568,11 +568,11 @@
         this.emit('hit',this.player.x+18,this.player.y+20,18);
         return;
       }
-      const damage=Math.round(28+this.round.world*4+this.round.round*1.5);
+      const damage=Math.round(56+this.round.world*8+this.round.round*2);
       this.health=Math.max(0,this.health-damage);
       this.hitCount++;
       o.taken=true;
-      this.invincibleFor=Math.max(this.invincibleFor,this.effects.hitInvincible||1.35);
+      this.invincibleFor=Math.max(this.invincibleFor,Math.min(.75,this.effects.hitInvincible||.55));
       this.breakCombo();
       this.emit('hit',this.player.x+18,this.player.y+20,18);
       if(this.health<=0){

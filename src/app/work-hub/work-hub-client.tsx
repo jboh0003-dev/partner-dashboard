@@ -69,7 +69,7 @@ export default function WorkHubClient({ ownerId }: { ownerId: string }) {
     <iframe
       ref={frameRef}
       onLoad={patchAssets}
-      src="/work-hub/index.html?v=30"
+      src="/work-hub/index.html?v=31"
       title="BokDesk"
       style={{
         position: "fixed",
