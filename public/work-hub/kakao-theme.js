@@ -434,6 +434,195 @@
     }
     .workflow-undo button{background:var(--kakao-yellow)!important;color:var(--kakao-black)!important;border:0!important}
 
+    /* live center - BokDesk / Kakao light UI */
+    #workhub-live-root .special-hero{
+      min-height:auto!important;padding:24px 26px!important;
+      background:linear-gradient(135deg,#fffbd5 0%,#ffffff 72%)!important;
+      border:1px solid #f0e58d!important;border-top:1px solid #f0e58d!important;
+      border-radius:22px!important;box-shadow:none!important;
+    }
+    #workhub-live-root .special-kicker{
+      display:inline-flex!important;align-items:center!important;
+      padding:6px 9px!important;border-radius:999px!important;
+      background:#191919!important;color:#fff!important;
+      font-size:9px!important;line-height:1!important;letter-spacing:1.05px!important;
+    }
+    #workhub-live-root .special-hero h2{
+      margin:8px 0 5px!important;color:var(--ink)!important;
+      font-family:inherit!important;font-size:28px!important;font-style:normal!important;
+      font-weight:850!important;letter-spacing:-1.1px!important;
+    }
+    #workhub-live-root .special-hero p{
+      color:var(--muted)!important;font-size:13px!important;line-height:1.6!important;
+    }
+    #workhub-live-root .special-count{
+      border:0!important;border-radius:999px!important;background:var(--kakao-yellow)!important;
+      color:var(--kakao-black)!important;padding:9px 13px!important;
+      font-size:11px!important;font-weight:850!important;
+    }
+
+    #workhub-live-root .live-stage{margin-top:14px!important}
+    #workhub-live-root .live{
+      background:var(--card)!important;color:var(--ink)!important;
+      border:1px solid var(--line)!important;border-radius:20px!important;
+      box-shadow:none!important;overflow:hidden!important;
+    }
+    #workhub-live-root .live.expanded{
+      background:var(--card)!important;color:var(--ink)!important;
+      border:1px solid var(--line)!important;border-radius:24px!important;
+      box-shadow:0 24px 70px rgba(0,0,0,.14)!important;
+    }
+    #workhub-live-root .livehead{
+      padding:18px 20px!important;background:#fff!important;
+      border-bottom:1px solid var(--line)!important;
+    }
+    body.dark #workhub-live-root .livehead{background:var(--card)!important}
+    #workhub-live-root .livehead b{
+      color:var(--ink)!important;font-family:inherit!important;font-size:18px!important;
+      font-style:normal!important;letter-spacing:-.5px!important;font-weight:850!important;
+    }
+    #workhub-live-root .livehead b:before{
+      content:'';display:inline-block;width:8px;height:8px;margin-right:8px;
+      border-radius:50%;background:#ff5d5d;box-shadow:0 0 0 4px rgba(255,93,93,.10);
+      vertical-align:2px;
+    }
+    #workhub-live-root .livehead span{
+      margin-top:3px!important;color:#999!important;font-size:10px!important;
+    }
+    #workhub-live-root .livetools{gap:7px!important}
+    #workhub-live-root .livetools button{
+      width:34px!important;height:34px!important;border:0!important;border-radius:10px!important;
+      background:#f3f3f3!important;color:#555!important;font-size:15px!important;
+      box-shadow:none!important;
+    }
+    #workhub-live-root .livetools button:hover{
+      background:var(--kakao-yellow)!important;color:var(--kakao-black)!important;
+    }
+
+    #workhub-live-root .livetabs{
+      display:flex!important;grid-template-columns:none!important;gap:7px!important;
+      padding:12px 18px!important;background:#fafafa!important;
+      border-bottom:1px solid var(--line)!important;max-width:none!important;
+    }
+    body.dark #workhub-live-root .livetabs{background:#202020!important}
+    #workhub-live-root .livetabs button{
+      flex:0 0 auto!important;border:0!important;border-radius:999px!important;
+      background:#eeeeee!important;color:#777!important;
+      padding:8px 13px!important;font-size:10px!important;font-weight:850!important;
+      box-shadow:none!important;
+    }
+    body.dark #workhub-live-root .livetabs button{background:#303030!important;color:#aaa!important}
+    #workhub-live-root .livetabs button.active{
+      background:var(--kakao-yellow)!important;color:var(--kakao-black)!important;
+      border:0!important;
+    }
+
+    #workhub-live-root .livebody{
+      padding:15px 18px 20px!important;background:var(--card)!important;color:var(--ink)!important;
+    }
+    #workhub-live-root .indices{
+      grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:10px!important;margin:0 0 12px!important;
+    }
+    #workhub-live-root .index{
+      background:#fafafa!important;border:1px solid var(--line)!important;
+      border-radius:16px!important;padding:15px!important;
+    }
+    body.dark #workhub-live-root .index{background:#292929!important}
+    #workhub-live-root .index:first-child{background:#fffbe3!important;border-color:#f4e79b!important}
+    body.dark #workhub-live-root .index:first-child{background:#383515!important;border-color:#514b1f!important}
+    #workhub-live-root .index span{color:#999!important;font-size:10px!important;font-weight:750!important}
+    #workhub-live-root .index strong{
+      color:var(--ink)!important;font-family:inherit!important;font-size:22px!important;
+      letter-spacing:-.7px!important;font-weight:850!important;
+    }
+    #workhub-live-root .index em{font-style:normal!important;font-size:11px!important;font-weight:850!important}
+
+    #workhub-live-root .hyundai{
+      margin-bottom:12px!important;padding:14px 16px!important;
+      background:linear-gradient(135deg,#fff4a8,#fffbe2)!important;
+      border:0!important;border-radius:16px!important;color:#191919!important;
+    }
+    body.dark #workhub-live-root .hyundai{background:#3b3718!important;color:#f5f5f5!important}
+    #workhub-live-root .hyundai small{color:#8a7b00!important;font-size:9px!important;letter-spacing:.65px!important}
+    body.dark #workhub-live-root .hyundai small{color:#e7d653!important}
+    #workhub-live-root .hyundai b{font-size:15px!important;font-weight:850!important}
+    #workhub-live-root .hyundai strong{font-size:19px!important;font-weight:900!important}
+
+    #workhub-live-root .market-title,
+    #workhub-live-root .section-title{
+      margin:16px 2px 7px!important;color:var(--ink)!important;
+    }
+    #workhub-live-root .market-title b,
+    #workhub-live-root .section-title b{
+      color:var(--ink)!important;font-size:13px!important;font-weight:850!important;
+    }
+    #workhub-live-root .market-title span,
+    #workhub-live-root .section-title span{
+      color:#aaa!important;font-size:9px!important;
+    }
+    #workhub-live-root .market-list{gap:0 22px!important}
+    #workhub-live-root .stock{
+      grid-template-columns:24px minmax(0,1fr) 92px 60px!important;
+      gap:8px!important;padding:11px 7px!important;
+      border-top:1px solid var(--line)!important;color:var(--ink)!important;font-size:11px!important;
+    }
+    #workhub-live-root .stock:first-child{border-top:0!important}
+    #workhub-live-root .stock .rank{color:#aaa!important;font-weight:750!important}
+    #workhub-live-root .stock b{color:var(--ink)!important;font-size:12px!important;font-weight:800!important}
+    #workhub-live-root .stock .price{color:var(--ink)!important;font-weight:750!important}
+    #workhub-live-root .stock.focus{
+      background:#fffbe3!important;border-radius:10px!important;
+      padding-left:9px!important;padding-right:9px!important;
+    }
+    body.dark #workhub-live-root .stock.focus{background:#383515!important}
+    #workhub-live-root .up{color:#e85a5f!important}
+    #workhub-live-root .down{color:#4c7fd6!important}
+    #workhub-live-root .flat{color:#999!important}
+
+    #workhub-live-root .score-list{gap:10px!important}
+    #workhub-live-root .scoregame{
+      margin:0!important;padding:14px!important;
+      background:#fafafa!important;border:1px solid var(--line)!important;
+      border-radius:16px!important;color:var(--ink)!important;box-shadow:none!important;
+    }
+    body.dark #workhub-live-root .scoregame{background:#292929!important}
+    #workhub-live-root .scoregame.livegame{
+      border-color:#f1d900!important;box-shadow:inset 4px 0 var(--kakao-yellow)!important;
+    }
+    #workhub-live-root .scoretop{
+      margin-bottom:9px!important;color:#999!important;font-size:9px!important;font-weight:700!important;
+    }
+    #workhub-live-root .team{
+      color:var(--ink)!important;font-size:12px!important;font-weight:800!important;
+    }
+    #workhub-live-root .team img{width:22px!important;height:22px!important}
+    #workhub-live-root .score{color:var(--ink)!important;font-size:18px!important;font-weight:900!important}
+    #workhub-live-root .watchtag{
+      margin-top:9px!important;padding:5px 8px!important;border-radius:999px!important;
+      background:#fff3a5!important;color:#665900!important;font-size:9px!important;font-weight:800!important;
+    }
+    body.dark #workhub-live-root .watchtag{background:#4a451b!important;color:#f8e45e!important}
+    #workhub-live-root .note{
+      padding:12px 3px 2px!important;color:#aaa!important;font-size:9px!important;line-height:1.55!important;
+    }
+    #workhub-live-root .empty{
+      color:#999!important;background:#fafafa!important;border:1px dashed #e5e5e5!important;
+      border-radius:14px!important;padding:34px 12px!important;
+    }
+    body.dark #workhub-live-root .empty{background:#292929!important;border-color:#3b3b3b!important}
+    #liveBackdrop.backdrop{
+      background:rgba(25,25,25,.36)!important;backdrop-filter:blur(6px)!important;
+    }
+
+    @media(max-width:700px){
+      #workhub-live-root .special-hero{padding:20px!important;border-radius:18px!important}
+      #workhub-live-root .special-hero h2{font-size:24px!important}
+      #workhub-live-root .livetabs{overflow-x:auto!important;padding:10px 12px!important}
+      #workhub-live-root .livebody{padding:12px!important}
+      #workhub-live-root .indices{grid-template-columns:1fr!important}
+      #workhub-live-root .stock{grid-template-columns:22px minmax(0,1fr) 76px 52px!important}
+    }
+
     /* arcade keeps its own game visuals, but navigation follows the workspace */
     .arcade-hero,.arcade-game-card,.arcade-panel{
       border-radius:18px!important;border-color:var(--line)!important;box-shadow:none!important;

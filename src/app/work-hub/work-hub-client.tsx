@@ -46,7 +46,7 @@ export default function WorkHubClient({ ownerId }: { ownerId: string }) {
     addScript("workhub-kart-crossing-init", "/work-hub/kart-crossing-init.js?v=1");
     addScript("workhub-kart-crossing-layout", "/work-hub/kart-crossing-layout.js?v=1");
     addScript("workhub-kart-crossing-script", "/work-hub/kart-crossing.js?v=2");
-    addScript("workhub-kakao-theme", "/work-hub/kakao-theme.js?v=2");
+    addScript("workhub-kakao-theme", "/work-hub/kakao-theme.js?v=3");
 
 
     return true;
@@ -69,7 +69,7 @@ export default function WorkHubClient({ ownerId }: { ownerId: string }) {
     <iframe
       ref={frameRef}
       onLoad={patchAssets}
-      src="/work-hub/index.html?v=31"
+      src="/work-hub/index.html?v=32"
       title="BokDesk"
       style={{
         position: "fixed",
