@@ -37,7 +37,7 @@ export default function WorkHubClient({ ownerId }: { ownerId: string }) {
     addScript("workhub-favorites-script", "/work-hub/favorites.js?v=4");
     addScript("workhub-workflow-script", "/work-hub/workflow.js?v=3");
     addScript("workhub-calendar-script", "/work-hub/calendar.js?v=7");
-    addScript("workhub-create-script", "/work-hub/create.js?v=2");
+    addScript("workhub-create-script", "/work-hub/create.js?v=3");
     addScript("workhub-cloud-script", "/work-hub/cloud.js?v=4");
     addScript("workhub-arcade-nav-script", "/work-hub/arcade-nav.js?v=4");
     addScript("workhub-notes-script", "/work-hub/work-notes.js?v=2");

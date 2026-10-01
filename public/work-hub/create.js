@@ -10,12 +10,18 @@
     const style = document.createElement('style');
     style.id = 'workhub-create-due-style';
     style.textContent = `
-      .quick{align-items:center}
-      .quick .quick-title{min-width:0;flex:1 1 auto}
+      .quick{align-items:center;flex-wrap:wrap}
+      .quick .quick-title{min-width:180px;flex:1 1 260px}
+      .quick .quick-due-wrap{display:flex;align-items:center;gap:6px;flex:0 0 auto;border:1px solid var(--line);background:var(--card);border-radius:10px;padding:0 8px 0 9px;min-height:40px}
+      .quick .quick-due-wrap span{font-size:10px;font-weight:850;color:var(--muted);white-space:nowrap}
+      .quick .quick-due{width:132px!important;border:0!important;background:transparent!important;padding:8px 0!important;font-size:12px!important;color:var(--ink)!important;box-shadow:none!important}
+      .quick .quick-due:focus{outline:none!important}
+      .quick .quick-due-wrap:focus-within{border-color:#b38b42;box-shadow:0 0 0 2px rgba(179,139,66,.12)}
       .planneradd{grid-template-columns:minmax(260px,1fr) 150px 150px auto!important}
       .planneradd .due-input{min-width:0}
       .create-hint{font-size:10px;color:var(--muted);margin-top:5px;line-height:1.4}
       @media(max-width:900px){.planneradd{grid-template-columns:1fr 1fr!important}.planneradd .btn{grid-column:span 2}}
+      @media(max-width:700px){.quick .quick-title{flex-basis:100%}.quick .quick-due-wrap{flex:1 1 auto}.quick .quick-due{width:100%!important}}
       @media(max-width:620px){.planneradd{grid-template-columns:1fr!important}.planneradd .btn{grid-column:auto}}
     `;
     document.head.appendChild(style);
@@ -35,7 +41,7 @@
     };
 
     lane = function(title,sub,items,focus,target){
-      return `<section class="lane ${focus?'focus':''}"><div class="lanehead"><div><h3>${title}</h3><p>${sub}</p></div><span class="count">${items.length}</span></div>${target?`<form class="quick" data-target="${target}"><input class="quick-title" name="title" placeholder="빠르게 할 일 추가 · 예: 제안서 송부(수)"><button class="btn primary">+</button></form>`:''}<div class="tasks">${items.length?items.map(x=>task(x)).join(''):'<div class="empty">등록된 업무 없음</div>'}</div></section>`;
+      return `<section class="lane ${focus?'focus':''}"><div class="lanehead"><div><h3>${title}</h3><p>${sub}</p></div><span class="count">${items.length}</span></div>${target?`<form class="quick" data-target="${target}"><input class="quick-title" name="title" placeholder="빠르게 할 일 추가 · 예: 파트너 안내하기"><label class="quick-due-wrap" title="Due Date 선택 (선택사항)"><span>Due</span><input class="quick-due" name="dueDate" type="date" aria-label="Due Date 선택"></label><button class="btn primary">+</button></form>`:''}<div class="tasks">${items.length?items.map(x=>task(x)).join(''):'<div class="empty">등록된 업무 없음</div>'}</div></section>`;
     };
 
     planner = function(){
@@ -46,11 +52,13 @@
     const originalBind = bind;
     bind = function(){
       originalBind();
-      $$('form.quick').forEach(f=>f.onsubmit=e=>{
+      $('form.quick').forEach(f=>f.onsubmit=e=>{
         e.preventDefault();
         const title=f.elements.title.value.trim();
         if(!title)return;
-        addItem({title,target:f.dataset.target,scope:'weekly'});
+        const dueDate=f.elements.dueDate?.value||'';
+        const target=dueDate?mon(dueDate):f.dataset.target;
+        addItem({title,target,scope:'weekly',dueDate});
       });
       const pa=$('#plannerAdd');
       if(pa) pa.onsubmit=e=>{
