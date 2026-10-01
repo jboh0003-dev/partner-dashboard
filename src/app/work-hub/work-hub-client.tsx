@@ -53,7 +53,7 @@ export default function WorkHubClient({ ownerId }: { ownerId: string }) {
   }, [ownerId]);
 
   useEffect(() => {
-    document.title = "Work Hub";
+    document.title = "BokDesk";
     patchAssets();
     const timer = window.setInterval(() => {
       if (patchAssets()) window.clearInterval(timer);
@@ -69,8 +69,8 @@ export default function WorkHubClient({ ownerId }: { ownerId: string }) {
     <iframe
       ref={frameRef}
       onLoad={patchAssets}
-      src="/work-hub/index.html?v=21"
-      title="Work Hub"
+      src="/work-hub/index.html?v=24"
+      title="BokDesk"
       style={{
         position: "fixed",
         inset: 0,
