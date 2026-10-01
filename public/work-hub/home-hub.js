@@ -10,7 +10,7 @@
 
   if (!entry || !readyState || launchers.length !== 3) return;
 
-  let bound = false;
+  let launchersBound = false;
   let attempts = 0;
 
   function setHomeVisible(visible) {
@@ -78,13 +78,13 @@
     window.scrollTo({ top: 0, behavior: 'auto' });
   }
 
-  function bindOnce() {
-    if (bound) return;
-    bound = true;
+  function bindLaunchers() {
+    if (launchersBound) return;
+    launchersBound = true;
 
     launchers.forEach(button => {
-      button.disabled = false;
       button.addEventListener('click', () => {
+        if (button.disabled) return;
         const target = button.dataset.bokdeskOpen;
         if (target === 'schedule') openSchedule();
         if (target === 'live') openLive();
@@ -95,38 +95,54 @@
     document.querySelectorAll('[data-bokdesk-home]').forEach(button => {
       button.addEventListener('click', showHome);
     });
+  }
 
+  function bindBrand() {
     const brand = document.querySelector('.brand');
-    if (brand) {
-      brand.addEventListener('click', showHome);
-      brand.addEventListener('keydown', event => {
-        if (event.key !== 'Enter' && event.key !== ' ') return;
-        event.preventDefault();
-        showHome();
-      });
-    }
-
-    readyState.textContent = '준비 완료';
-    readyState.dataset.ready = 'true';
+    if (!brand || brand.dataset.bokdeskHomeBound === 'true') return;
+    brand.dataset.bokdeskHomeBound = 'true';
+    brand.addEventListener('click', showHome);
+    brand.addEventListener('keydown', event => {
+      if (event.key !== 'Enter' && event.key !== ' ') return;
+      event.preventDefault();
+      showHome();
+    });
   }
 
   function boot() {
     attempts += 1;
     renameInternalNavigation();
+    bindLaunchers();
+    bindBrand();
 
     const coreReady = typeof window.render === 'function';
     const themeReady = window.__workhubKakaoThemeLoaded === true;
     const liveReady = document.getElementById('workhub-live-nav') instanceof HTMLButtonElement;
     const labReady = document.getElementById('workhub-arcade-nav') instanceof HTMLButtonElement;
 
+    const scheduleButton = document.querySelector('[data-bokdesk-open="schedule"]');
+    const liveButton = document.querySelector('[data-bokdesk-open="live"]');
+    const labButton = document.querySelector('[data-bokdesk-open="lab"]');
+
+    if (scheduleButton instanceof HTMLButtonElement) scheduleButton.disabled = !(coreReady && themeReady);
+    if (liveButton instanceof HTMLButtonElement) liveButton.disabled = !(themeReady && liveReady);
+    if (labButton instanceof HTMLButtonElement) labButton.disabled = !(themeReady && labReady);
+
     if (coreReady && themeReady && liveReady && labReady) {
-      bindOnce();
+      readyState.textContent = '준비 완료';
+      readyState.dataset.ready = 'true';
       setHomeVisible(true);
       return;
     }
 
-    if (attempts > 60) {
-      readyState.textContent = '화면 준비가 지연되고 있습니다';
+    if (coreReady && themeReady) {
+      readyState.textContent = '일정관리 준비 완료 · 나머지 불러오는 중';
+    } else {
+      readyState.textContent = '화면 준비 중…';
+    }
+
+    if (attempts > 60 && !(coreReady && themeReady)) {
+      readyState.textContent = '일정 화면 준비가 지연되고 있습니다';
       readyState.title = '새로고침 후에도 계속되면 연결 상태를 확인해주세요.';
     }
 
@@ -134,5 +150,6 @@
   }
 
   setHomeVisible(true);
+  bindLaunchers();
   boot();
 })();
