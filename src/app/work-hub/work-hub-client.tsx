@@ -42,11 +42,11 @@ export default function WorkHubClient({ ownerId }: { ownerId: string }) {
     addScript("workhub-cloud-script", "/work-hub/cloud.js?v=4");
     addScript("workhub-arcade-nav-script", "/work-hub/arcade-nav.js?v=4");
     addScript("workhub-notes-script", "/work-hub/work-notes.js?v=2");
-    addScript("workhub-ledger-script", "/work-hub/work-ledger.js?v=1");
+    addScript("workhub-ledger-script", "/work-hub/work-ledger.js?v=2");
     addScript("workhub-kart-crossing-init", "/work-hub/kart-crossing-init.js?v=1");
     addScript("workhub-kart-crossing-layout", "/work-hub/kart-crossing-layout.js?v=1");
     addScript("workhub-kart-crossing-script", "/work-hub/kart-crossing.js?v=2");
-    addScript("workhub-kakao-theme", "/work-hub/kakao-theme.js?v=1");
+    addScript("workhub-kakao-theme", "/work-hub/kakao-theme.js?v=2");
 
 
     return true;
@@ -69,7 +69,7 @@ export default function WorkHubClient({ ownerId }: { ownerId: string }) {
     <iframe
       ref={frameRef}
       onLoad={patchAssets}
-      src="/work-hub/index.html?v=20"
+      src="/work-hub/index.html?v=21"
       title="Work Hub"
       style={{
         position: "fixed",

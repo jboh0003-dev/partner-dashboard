@@ -264,27 +264,26 @@
       return item;
     }
 
-    function dailyButton(task, date) {
-      const state = taskDailyState(task, date);
-      const mark = state === 'done' ? '✓' : state === 'doing' ? '△' : '·';
-      return `<button type="button" class="ledger-day ${state} ${date===today()?'today':''}" data-ledger-day="1" data-id="${escapeHtml(task.id)}" data-date="${date}" title="${date} ${state ? statusText(state) : '진행 체크'}">${mark}</button>`;
-    }
-
-    function taskRow(task, weekDates) {
+    function taskRow(task) {
       const area = taskArea(task), goal = taskGoal(task), role = taskRole(task);
       const due = task.dueDate ? `Due ${formatDate(task.dueDate)}` : '';
-      return `<div class="ledger-task-row ${task.status==='done'?'is-done':''} ${task.status==='blocked'?'is-blocked':''}">
-        <div class="ledger-task-main"><strong>${escapeHtml(task.title)}</strong><div class="ledger-task-meta"><span class="primary">${escapeHtml(goal || area)}</span>${role?`<span>${escapeHtml(role)}</span>`:''}${due?`<span>${due}</span>`:''}</div></div>
-        ${weekDates.map(date => dailyButton(task,date)).join('')}
-        <div class="ledger-task-actions"><button type="button" class="ledger-status" data-ledger-status="1" data-id="${escapeHtml(task.id)}">${statusMark(task.status)} ${statusText(task.status)}</button><button type="button" data-ledger-classify="1" data-id="${escapeHtml(task.id)}">분류</button>${task.status!=='done'?`<button type="button" class="ledger-carry" data-act="carryWeekV2" data-id="${escapeHtml(task.id)}">차주 →</button>`:''}<button type="button" data-act="edit" data-id="${escapeHtml(task.id)}">수정</button></div>
+      const statusButtons = [
+        ['todo','시작 전'],
+        ['doing','진행 중'],
+        ['done','완료'],
+      ].map(([status,label]) => `<button type="button" class="ledger-state-btn ${task.status===status?'active':''} ${status}" data-ledger-set-status="${status}" data-id="${escapeHtml(task.id)}" aria-pressed="${task.status===status}">${status==='done'?'✓ ':status==='doing'?'● ':''}${label}</button>`).join('');
+      return `<div class="ledger-task-row ${task.status==='done'?'is-done':''} ${task.status==='doing'?'is-doing':''} ${task.status==='blocked'?'is-blocked':''}">
+        <div class="ledger-task-main"><strong>${escapeHtml(task.title)}</strong><div class="ledger-task-meta"><span class="primary">${escapeHtml(goal || area)}</span>${role?`<span>${escapeHtml(role)}</span>`:''}${due?`<span>${due}</span>`:''}${task.status==='blocked'?'<span class="issue-badge">이슈</span>':''}</div></div>
+        <div class="ledger-state-group" role="group" aria-label="${escapeHtml(task.title)} 상태">${statusButtons}</div>
+        <div class="ledger-task-actions"><button type="button" data-ledger-classify="1" data-id="${escapeHtml(task.id)}">분류</button>${task.status!=='done'?`<button type="button" class="ledger-carry" data-act="carryWeekV2" data-id="${escapeHtml(task.id)}">차주 →</button>`:''}<button type="button" data-act="edit" data-id="${escapeHtml(task.id)}">수정</button></div>
       </div>`;
     }
 
-    function areaSection(area, items, weekDates) {
+    function areaSection(area, items) {
       const open = items.length > 0 || area === '기타';
       return `<details class="ledger-area" ${open?'open':''}><summary><b>${escapeHtml(area)}</b><span>${items.length}</span></summary><div class="ledger-area-body">
         <form class="ledger-area-quick" data-ledger-area-quick="1" data-area="${escapeHtml(area)}"><select name="goal">${classificationOptions(area)}</select><input name="title" placeholder="${escapeHtml(area)} 업무 추가 · Enter"><input name="dueDate" type="date" title="Due Date (선택)"><button>+ 추가</button></form>
-        <div class="ledger-scroll"><div class="ledger-grid"><div class="ledger-grid-head"><div>금주 주요 업무</div>${weekDates.map(date=>`<div>${weekdayName(date)}<br>${formatDate(date)}</div>`).join('')}<div>상태 · 관리</div></div>${items.length?items.map(task=>taskRow(task,weekDates)).join(''):'<div class="ledger-empty">이번 주 등록된 업무가 없습니다.</div>'}</div></div>
+        <div class="ledger-grid"><div class="ledger-grid-head"><div>금주 주요 업무</div><div>상태</div><div>관리</div></div>${items.length?items.map(task=>taskRow(task)).join(''):'<div class="ledger-empty">이번 주 등록된 업무가 없습니다.</div>'}</div>
       </div></details>`;
     }
 
@@ -297,18 +296,21 @@
       holder.querySelector('.dashboard')?.remove();
 
       const items = tasksForWeek();
-      const weekDates = datesOfWeek(weekStart);
       const done = items.filter(x=>x.status==='done').length;
       const doing = items.filter(x=>x.status==='doing').length;
+      const todo = items.filter(x=>x.status==='todo').length;
       const blocked = items.filter(x=>x.status==='blocked').length;
-      const dayChecks = items.reduce((sum,task)=>sum+weekDates.filter(date=>taskDailyState(task,date)).length,0);
       const groupedAreas = allAreas();
-      const sections = groupedAreas.map(area => areaSection(area, items.filter(task=>taskArea(task)===area), weekDates)).join('');
+      const sections = groupedAreas.map(area => areaSection(area, items.filter(task=>taskArea(task)===area))).join('');
       const range = `${formatDate(weekStart)} ~ ${formatDate(add(weekStart,4))}`;
       const current = mon(today()) === weekStart;
 
-      const head = `<div class="ledger-metrics"><div class="ledger-metric"><span>주간 업무</span><strong>${items.length}</strong></div><div class="ledger-metric"><span>완료</span><strong>${done}</strong></div><div class="ledger-metric"><span>진행 / 이슈</span><strong>${doing + blocked}</strong></div><div class="ledger-metric"><span>일일 체크</span><strong>${dayChecks}</strong></div></div>
-      <section class="ledger-week"><div class="ledger-week-head"><div class="ledger-week-title"><b>${current?'이번 주 일계표':'주간 일계표'}</b><span>${range} · 큰 업무영역별로 주간업무를 적고 월~금 진행을 체크합니다.</span></div><div class="ledger-week-nav"><button type="button" data-ledger-week-nav="prev">← 이전주</button><button type="button" data-ledger-week-nav="today">이번주</button><button type="button" data-ledger-week-nav="next">차주 →</button></div></div>
+      const head = `<section class="workhub-home-hero">
+        <div class="workhub-home-copy"><span class="workhub-home-kicker">${current?'THIS WEEK':'WEEKLY VIEW'}</span><h2>${current?'이번 주도 하나씩 끝내봐요.':'지난 업무도 편하게 돌아봐요.'}</h2><p>업무는 빠르게 추가하고 <b>시작 전 → 진행 중 → 완료</b>만 눌러 관리합니다. 세부 진행 기록과 완료 시점은 업무이력에 자동으로 남습니다.</p></div>
+        <div class="workhub-mascot-scene" aria-hidden="true"><span class="mascot-bubble">오늘 할 일<br><b>${Math.max(0,items.length-done)}개</b></span><div class="mascot-note"><i></i><i></i><i></i></div><div class="workhub-mascot"><span class="mascot-eye one"></span><span class="mascot-eye two"></span><span class="mascot-smile"></span><span class="mascot-arm"></span></div></div>
+      </section>
+      <div class="ledger-metrics"><div class="ledger-metric"><span>주간 업무</span><strong>${items.length}</strong></div><div class="ledger-metric"><span>시작 전</span><strong>${todo}</strong></div><div class="ledger-metric"><span>진행 중</span><strong>${doing}</strong></div><div class="ledger-metric"><span>완료</span><strong>${done}</strong></div><div class="ledger-metric issue-metric"><span>이슈</span><strong>${blocked}</strong></div></div>
+      <section class="ledger-week"><div class="ledger-week-head"><div class="ledger-week-title"><b>${current?'이번 주 일계표':'주간 일계표'}</b><span>${range} · 큰 업무영역별로 주간업무를 정리하고 상태만 빠르게 업데이트합니다.</span></div><div class="ledger-week-nav"><button type="button" data-ledger-week-nav="prev">← 이전주</button><button type="button" data-ledger-week-nav="today">이번주</button><button type="button" data-ledger-week-nav="next">차주 →</button></div></div>
       <form class="ledger-top-quick" id="ledgerTopQuick"><select name="area">${allAreas().map(area=>`<option value="${escapeHtml(area)}">${escapeHtml(area)}</option>`).join('')}</select><input name="title" placeholder="빠른 추가 · 예: 파트너 안내하기"><input name="dueDate" type="date" title="Due Date (선택)"><button>+ 추가</button></form>${sections}</section>`;
       return head + holder.innerHTML;
     };
@@ -338,9 +340,8 @@
         if (!title) return;
         newWeeklyTask({title,area:form.dataset.area||'기타',goal:form.elements.goal.value||'',dueDate:form.elements.dueDate.value||'',target:weekStart});
       });
-      document.querySelectorAll('[data-ledger-day]').forEach(btn => btn.onclick = () => cycleDaily(btn.dataset.id, btn.dataset.date));
       document.querySelectorAll('[data-ledger-classify]').forEach(btn => btn.onclick = () => openClassification(btn.dataset.id));
-      document.querySelectorAll('[data-ledger-status]').forEach(btn => btn.onclick = () => cycleStatus(btn.dataset.id));
+      document.querySelectorAll('[data-ledger-set-status]').forEach(btn => btn.onclick = () => setStatus(btn.dataset.id, btn.dataset.ledgerSetStatus));
     }
 
     function cycleDaily(id, date) {
@@ -490,12 +491,20 @@
       return [...byId.values()];
     }
 
+    function taskEventDates(task, year) {
+      return ledger().events
+        .filter(event => event.workItemId === task.id)
+        .map(event => String(event.date || event.at || '').slice(0,10))
+        .filter(date => date.startsWith(`${year}-`));
+    }
     function taskDatesInYear(task, year) {
       const dates = [];
       if (task.completedAt?.startsWith(`${year}-`)) dates.push(task.completedAt);
-      Object.keys(task.dailyChecks||{}).forEach(date=>{ if(date.startsWith(`${year}-`)) dates.push(date); });
       if (task.createdAt?.startsWith(`${year}-`)) dates.push(task.createdAt);
-      return dates;
+      taskEventDates(task, year).forEach(date => dates.push(date));
+      // Legacy day-check records are preserved for old history, but no longer drive the current weekly UI.
+      Object.keys(task.dailyChecks||{}).forEach(date=>{ if(date.startsWith(`${year}-`)) dates.push(date); });
+      return [...new Set(dates)];
     }
 
     function renderHistory() {
@@ -508,31 +517,31 @@
       const monthStats = Array.from({length:12},(_,i)=>{
         const key=`${historyYear}-${String(i+1).padStart(2,'0')}`;
         const completed=tasks.filter(t=>t.completedAt?.startsWith(key)).length;
-        const checks=tasks.reduce((sum,t)=>sum+Object.keys(t.dailyChecks||{}).filter(d=>d.startsWith(key)).length,0);
-        return {key,completed,checks};
+        const activity=ledger().events.filter(e=>String(e.date||e.at||'').startsWith(key) && e.workItemId).length;
+        return {key,completed,activity};
       });
       const monthMatch = date => historyMonth==='all' || String(date||'').startsWith(`${historyYear}-${historyMonth}`);
       const areaMatch = task => historyArea==='all' || taskArea(task)===historyArea;
       const relevant = tasks.filter(task=>areaMatch(task) && taskDatesInYear(task,historyYear).some(monthMatch));
       const completedCount = relevant.filter(t=>t.completedAt && monthMatch(t.completedAt)).length;
-      const checkCount = relevant.reduce((sum,t)=>sum+Object.keys(t.dailyChecks||{}).filter(d=>d.startsWith(`${historyYear}-`)&&monthMatch(d)).length,0);
+      const activityCount = ledger().events.filter(e=>e.workItemId && String(e.date||e.at||'').startsWith(`${historyYear}-`) && monthMatch(e.date||e.at) && (historyArea==='all'||!e.area||e.area===historyArea)).length;
       const planCount = ledger().monthlyPlans.filter(p=>p.month?.startsWith(`${historyYear}-`)&&(historyMonth==='all'||p.month.endsWith(`-${historyMonth}`))&&(historyArea==='all'||p.area===historyArea)).length;
       const eventCount = ledger().events.filter(e=>String(e.date||e.at||'').startsWith(`${historyYear}-`)&&monthMatch(e.date||e.at)&& (historyArea==='all'||!e.area||e.area===historyArea)).length;
 
       const monthsToRender = historyMonth==='all' ? Array.from({length:12},(_,i)=>String(i+1).padStart(2,'0')) : [historyMonth];
       const detail = monthsToRender.map(mm=>{
         const key=`${historyYear}-${mm}`;
-        const monthTasks = tasks.filter(task=>areaMatch(task) && (task.completedAt?.startsWith(key)||Object.keys(task.dailyChecks||{}).some(d=>d.startsWith(key))));
+        const monthTasks = tasks.filter(task=>areaMatch(task) && taskDatesInYear(task,historyYear).some(date=>date.startsWith(key)));
         const grouped = new Map();
         monthTasks.forEach(task=>{ const area=taskArea(task); if(!grouped.has(area))grouped.set(area,[]); grouped.get(area).push(task); });
-        const areasHtml=[...grouped.entries()].map(([area,rows])=>`<div class="history-area"><h4>${escapeHtml(area)}</h4>${rows.map(task=>{ const checks=Object.entries(task.dailyChecks||{}).filter(([d])=>d.startsWith(key)); const done=task.completedAt?.startsWith(key)?`완료 ${formatDate(task.completedAt)}`:''; const latest=checks.sort(([a],[b])=>b.localeCompare(a))[0]; const progress=checks.length?`일일체크 ${checks.length}회${latest?` · 최근 ${formatDate(latest[0])} ${statusText(typeof latest[1]==='string'?latest[1]:latest[1]?.status)}`:''}`:''; return `<div class="history-item"><div><strong>${escapeHtml(task.title)}</strong><small>${escapeHtml(taskGoal(task)||taskArea(task))}${taskRole(task)?` · ${escapeHtml(taskRole(task))}`:''}${task.__archived?' · 삭제된 업무':''}</small></div><em>${[done,progress].filter(Boolean).join(' · ')||'기록 있음'}</em></div>`;}).join('')}</div>`).join('');
+        const areasHtml=[...grouped.entries()].map(([area,rows])=>`<div class="history-area"><h4>${escapeHtml(area)}</h4>${rows.map(task=>{ const done=task.completedAt?.startsWith(key)?`완료 ${formatDate(task.completedAt)}`:''; const events=ledger().events.filter(e=>e.workItemId===task.id&&String(e.date||e.at||'').startsWith(key)).sort((a,b)=>String(b.at||b.date||'').localeCompare(String(a.at||a.date||''))); const latest=events[0]; const progress=events.length?`변경 ${events.length}회${latest?` · 최근 ${formatDate(String(latest.date||latest.at||'').slice(0,10))} ${latest.type==='status'&&latest.to?statusText(latest.to):'기록'}`:''}`:''; const legacy=Object.keys(task.dailyChecks||{}).filter(d=>d.startsWith(key)).length; return `<div class="history-item"><div><strong>${escapeHtml(task.title)}</strong><small>${escapeHtml(taskGoal(task)||taskArea(task))}${taskRole(task)?` · ${escapeHtml(taskRole(task))}`:''}${task.__archived?' · 삭제된 업무':''}</small></div><em>${[done,progress,legacy?`기존 일일기록 ${legacy}회`:''].filter(Boolean).join(' · ')||'기록 있음'}</em></div>`;}).join('')}</div>`).join('');
         const monthPlans=ledger().monthlyPlans.filter(p=>p.month===key&&(historyArea==='all'||p.area===historyArea));
         const plansHtml=monthPlans.length?`<div class="history-area"><h4>월간계획</h4>${monthPlans.map(p=>`<div class="history-item"><div><strong>${escapeHtml(p.title)}</strong><small>${escapeHtml(p.area)}${p.goal?` · ${escapeHtml(p.goal)}`:''}</small></div><em>${planStatusText(p.status)}</em></div>`).join('')}</div>`:'';
         if(!areasHtml&&!plansHtml)return '';
-        return `<details class="history-group" ${historyMonth!=='all'||key===today().slice(0,7)?'open':''}><summary>${historyYear}년 ${Number(mm)}월 · 완료 ${monthStats[Number(mm)-1].completed} · 체크 ${monthStats[Number(mm)-1].checks}</summary>${areasHtml}${plansHtml}</details>`;
+        return `<details class="history-group" ${historyMonth!=='all'||key===today().slice(0,7)?'open':''}><summary>${historyYear}년 ${Number(mm)}월 · 완료 ${monthStats[Number(mm)-1].completed} · 활동 ${monthStats[Number(mm)-1].activity}</summary>${areasHtml}${plansHtml}</details>`;
       }).join('');
 
-      rootEl.innerHTML=`<div class="ledger-hero"><div><div class="ledger-kicker">WORK HISTORY · ARCHIVE</div><h2>업무이력</h2><p>주간업무의 일일 체크, 완료 기록, 월간계획을 월·연도별로 다시 봅니다.</p></div><div class="ledger-controls"><select id="historyYear">${years.sort((a,b)=>b-a).map(y=>`<option value="${y}" ${y===historyYear?'selected':''}>${y}년</option>`).join('')}</select><select id="historyMonth"><option value="all" ${historyMonth==='all'?'selected':''}>전체 월</option>${Array.from({length:12},(_,i)=>String(i+1).padStart(2,'0')).map(mm=>`<option value="${mm}" ${mm===historyMonth?'selected':''}>${Number(mm)}월</option>`).join('')}</select><select id="historyArea"><option value="all" ${historyArea==='all'?'selected':''}>전체 업무영역</option>${areas.map(area=>`<option value="${escapeHtml(area)}" ${area===historyArea?'selected':''}>${escapeHtml(area)}</option>`).join('')}</select><button type="button" class="history-copy" id="historyCopy">회고용 복사</button></div></div><div class="history-summary">${monthStats.map((m,i)=>`<button type="button" class="history-month ${historyMonth===String(i+1).padStart(2,'0')?'active':''}" data-history-month="${String(i+1).padStart(2,'0')}"><b>${i+1}</b><span>완료 ${m.completed} · 체크 ${m.checks}</span></button>`).join('')}</div><div class="history-metrics"><div class="history-metric"><span>완료 업무</span><strong>${completedCount}</strong></div><div class="history-metric"><span>일일 체크</span><strong>${checkCount}</strong></div><div class="history-metric"><span>월간 업무</span><strong>${planCount}</strong></div><div class="history-metric"><span>변경 기록</span><strong>${eventCount}</strong></div></div>${detail||'<div class="monthly-empty">선택한 기간의 업무이력이 없습니다.</div>'}`;
+      rootEl.innerHTML=`<div class="ledger-hero"><div><div class="ledger-kicker">WORK HISTORY · ARCHIVE</div><h2>업무이력</h2><p>주간업무의 상태 변경, 완료 기록, 월간계획을 월·연도별로 다시 봅니다.</p></div><div class="ledger-controls"><select id="historyYear">${years.sort((a,b)=>b-a).map(y=>`<option value="${y}" ${y===historyYear?'selected':''}>${y}년</option>`).join('')}</select><select id="historyMonth"><option value="all" ${historyMonth==='all'?'selected':''}>전체 월</option>${Array.from({length:12},(_,i)=>String(i+1).padStart(2,'0')).map(mm=>`<option value="${mm}" ${mm===historyMonth?'selected':''}>${Number(mm)}월</option>`).join('')}</select><select id="historyArea"><option value="all" ${historyArea==='all'?'selected':''}>전체 업무영역</option>${areas.map(area=>`<option value="${escapeHtml(area)}" ${area===historyArea?'selected':''}>${escapeHtml(area)}</option>`).join('')}</select><button type="button" class="history-copy" id="historyCopy">회고용 복사</button></div></div><div class="history-summary">${monthStats.map((m,i)=>`<button type="button" class="history-month ${historyMonth===String(i+1).padStart(2,'0')?'active':''}" data-history-month="${String(i+1).padStart(2,'0')}"><b>${i+1}</b><span>완료 ${m.completed} · 활동 ${m.activity}</span></button>`).join('')}</div><div class="history-metrics"><div class="history-metric"><span>완료 업무</span><strong>${completedCount}</strong></div><div class="history-metric"><span>업무 변경</span><strong>${activityCount}</strong></div><div class="history-metric"><span>월간 업무</span><strong>${planCount}</strong></div><div class="history-metric"><span>변경 기록</span><strong>${eventCount}</strong></div></div>${detail||'<div class="monthly-empty">선택한 기간의 업무이력이 없습니다.</div>'}`;
       bindHistory();
     }
 
@@ -548,11 +557,11 @@
     function copyHistorySummary() {
       const tasks=allHistoryTasks().filter(task=>historyArea==='all'||taskArea(task)===historyArea);
       const monthPrefix=historyMonth==='all'?`${historyYear}-`:`${historyYear}-${historyMonth}`;
-      const relevant=tasks.filter(task=>(task.completedAt||'').startsWith(monthPrefix)||Object.keys(task.dailyChecks||{}).some(d=>d.startsWith(monthPrefix)));
+      const relevant=tasks.filter(task=>(task.completedAt||'').startsWith(monthPrefix)||taskDatesInYear(task,historyYear).some(d=>d.startsWith(monthPrefix)));
       const grouped=new Map();
       relevant.forEach(task=>{const area=taskArea(task);if(!grouped.has(area))grouped.set(area,[]);grouped.get(area).push(task);});
       const lines=[`${historyYear}년${historyMonth==='all'?'':` ${Number(historyMonth)}월`} 업무 정리`,''];
-      for(const [area,rows] of grouped){lines.push(`[${area}]`);rows.forEach(task=>{const checks=Object.keys(task.dailyChecks||{}).filter(d=>d.startsWith(monthPrefix)).length;lines.push(`- ${task.title}${task.completedAt?.startsWith(monthPrefix)?` (완료 ${task.completedAt})`:checks?` (진행기록 ${checks}회)`:''}`);});lines.push('');}
+      for(const [area,rows] of grouped){lines.push(`[${area}]`);rows.forEach(task=>{const events=ledger().events.filter(e=>e.workItemId===task.id&&String(e.date||e.at||'').startsWith(monthPrefix)).length;lines.push(`- ${task.title}${task.completedAt?.startsWith(monthPrefix)?` (완료 ${task.completedAt})`:events?` (변경기록 ${events}회)`:''}`);});lines.push('');}
       const plans=ledger().monthlyPlans.filter(p=>p.month?.startsWith(monthPrefix)&&(historyArea==='all'||p.area===historyArea));
       if(plans.length){lines.push('[월간계획]');plans.forEach(p=>lines.push(`- ${p.title} · ${planStatusText(p.status)}`));}
       navigator.clipboard.writeText(lines.join('\n')).then(()=>toast('회고용 업무 정리를 복사했습니다.'));
