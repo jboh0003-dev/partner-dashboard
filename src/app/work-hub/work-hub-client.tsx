@@ -47,14 +47,13 @@ export default function WorkHubClient({ ownerId }: { ownerId: string }) {
     addScript("workhub-kart-crossing-layout", "/work-hub/kart-crossing-layout.js?v=1");
     addScript("workhub-kart-crossing-script", "/work-hub/kart-crossing.js?v=2");
     addScript("workhub-kakao-theme", "/work-hub/kakao-theme.js?v=2");
-    addScript("workhub-home-hub", "/work-hub/home-hub.js?v=1");
 
 
     return true;
   }, [ownerId]);
 
   useEffect(() => {
-    document.title = "BokDesk · Work Hub";
+    document.title = "Work Hub";
     patchAssets();
     const timer = window.setInterval(() => {
       if (patchAssets()) window.clearInterval(timer);
@@ -70,7 +69,7 @@ export default function WorkHubClient({ ownerId }: { ownerId: string }) {
     <iframe
       ref={frameRef}
       onLoad={patchAssets}
-      src="/work-hub/index.html?v=22"
+      src="/work-hub/index.html?v=21"
       title="Work Hub"
       style={{
         position: "fixed",

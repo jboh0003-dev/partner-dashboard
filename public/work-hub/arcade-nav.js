@@ -114,13 +114,13 @@
     const breakDivider = document.createElement('div');
     breakDivider.className = 'nav-divider';
     breakDivider.setAttribute('aria-hidden', 'true');
-    breakDivider.innerHTML = '<span>PRIVATE</span>';
+    breakDivider.innerHTML = '<span>쉬는 시간</span>';
 
     const arcadeButton = document.createElement('button');
     arcadeButton.id = 'workhub-arcade-nav';
     arcadeButton.type = 'button';
     arcadeButton.dataset.view = 'arcade';
-    arcadeButton.innerHTML = '◌ <span>Lab</span>';
+    arcadeButton.innerHTML = '🎮 <span>딴짓</span>';
     arcadeButton.setAttribute('aria-controls', 'workhub-arcade-root');
     nav.append(infoDivider, liveButton, breakDivider, arcadeButton);
     nav.querySelectorAll('button[data-view]').forEach(button => {
@@ -151,8 +151,8 @@
       <section class="special-hero">
         <div>
           <div class="special-kicker">BREAK ROOM · GAME LIST</div>
-          <h2>Lab</h2>
-          <p>게임과 작은 실험 기능을 업무 화면과 분리해둔 개인 공간입니다.</p>
+          <h2>딴짓</h2>
+          <p>일계표 화면과 게임을 분리했습니다. 아래 목록에서 게임 하나를 골라서 실행하세요.</p>
         </div>
         <span class="special-count">게임 2개</span>
       </section>
@@ -260,7 +260,7 @@
         markNavigation(liveButton);
         window.requestAnimationFrame(() => window.dispatchEvent(new Event('resize')));
       } else if (isArcade) {
-        pageTitle.textContent = 'Lab';
+        pageTitle.textContent = '딴짓';
         markNavigation(arcadeButton);
         setGame(activeGame);
       }
