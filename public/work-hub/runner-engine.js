@@ -185,20 +185,22 @@
     const within = i%5;
     const modes = ['distance','coins','score','combo','distance'];
     const mode=modes[within];
-    const goal=within===0 ? 520 + world*120 : within===1 ? 45 + world*15 : within===2 ? 22000 + world*8500 : within===3 ? 28 + world*8 : 850 + world*160;
-    const bonusGoal=Math.ceil(goal*1.30);
-    const baseDistance=650 + within*110 + world*140;
-    const courseDistance=mode==='distance'?Math.max(baseDistance,bonusGoal+80):baseDistance;
+    const goal=within===0 ? 360 + world*100 : within===1 ? 28 + world*12 : within===2 ? 9000 + world*5500 : within===3 ? 14 + world*6 : 600 + world*140;
+    const star2Multiplier=1.10+world*.025;
+    const bonusGoal=Math.ceil(goal*star2Multiplier);
+    const baseDistance=720 + within*130 + world*170;
+    const courseDistance=mode==='distance'?Math.max(baseDistance,bonusGoal+140):baseDistance;
     ROUNDS.push({
       id:i+1,
       world,
       round:within+1,
       mode,
       goal,
+      star2Multiplier,
       bonusGoal,
       distance:courseDistance,
-      baseSpeed: 250 + world*18 + within*5,
-      difficulty: 1 + world*.18 + within*.08,
+      baseSpeed: 238 + world*18 + within*5,
+      difficulty: .82 + world*.17 + within*.07,
       rewardGold: 180 + i*22,
       rewardGem: within===4 ? 18 + world*3 : 6 + world,
       title: (world+1)+'-'+(within+1)
@@ -211,6 +213,24 @@
     magnet:{id:'magnet',name:'포켓 마그넷',emoji:'🧲',price:160,desc:'첫 15초 자석 효과'},
     revive:{id:'revive',name:'리바이브 캔디',emoji:'💗',price:300,desc:'1회 추가 부활'}
   };
+
+  const POWERUPS = {
+    magnet:{id:'magnet',name:'자석',emoji:'🧲',desc:'근처 코인과 젤리를 자동으로 끌어옵니다.'},
+    booster:{id:'booster',name:'부스터',emoji:'⚡',desc:'속도가 크게 오르고 장애물을 빠르게 돌파합니다.'},
+    giant:{id:'giant',name:'거인',emoji:'🦣',desc:'몸집이 커지고 작은 장애물을 부숩니다. 부스터와 겹치면 모든 장애물을 파괴합니다.'},
+    shield:{id:'shield',name:'실드',emoji:'🛡️',desc:'충돌 1회를 막습니다.'},
+    heart:{id:'heart',name:'회복젤리',emoji:'❤️',desc:'체력을 35 회복합니다.'},
+    star:{id:'star',name:'무적별',emoji:'⭐',desc:'잠시 무적이 되어 장애물을 파괴합니다.'},
+    double:{id:'double',name:'2배 점수',emoji:'2X',desc:'잠시 획득 점수가 2배가 됩니다.'},
+    rush:{id:'rush',name:'코인 러시',emoji:'🪙',desc:'앞쪽에 코인 라인이 연속으로 생성됩니다.'}
+  };
+
+  const RARITY_HP = {N:100,R:110,SR:120,SSR:130};
+  function getCharacterMaxHealth(character,level){
+    const c=character||CHARACTERS[0],lv=clamp(Math.max(1,Number(level)||1),1,10);
+    const defensive=(c.passive&&c.passive.startShield?10:0)+(c.active&&c.active.type==='shield'?10:0);
+    return Math.round((RARITY_HP[c.rarity]||100)+defensive+(lv-1)*2);
+  }
 
   function byId(list,id){ return list.find(function(x){return x.id===id;}) || list[0]; }
   function clamp(v,a,b){ return Math.max(a,Math.min(b,v)); }
@@ -304,11 +324,14 @@
       this.failed=false;
       this.shield=e.startShield+(this.consumables.shield?1:0);
       this.revives=e.revive+(this.consumables.revive?1:0);
+      this.maxHealth=getCharacterMaxHealth(this.character,this.characterLevel);
+      this.health=this.maxHealth;
       this.invincibleFor=0;
       this.magnetFor=this.consumables.magnet?15:0;
       this.doubleScoreFor=0;
       this.coinRushFor=0;
       this.boosterFor=this.consumables.booster?12:0;
+      this.giantFor=0;
       this.skillFor=0;
       this.skillCooldown=0;
       this.skillReady=true;
@@ -338,7 +361,7 @@
     }
 
     get score() {
-      const base=this.distance*8 + this.coins*115*this.effects.coinScore + this.jellies*42 + this.comboPoints + this.bonusScore;
+      const base=this.distance*10 + this.coins*150*this.effects.coinScore + this.jellies*70 + this.comboPoints + this.bonusScore;
       return Math.floor(base*this.scoreMultiplier*this.effects.finalScore);
     }
 
@@ -420,11 +443,14 @@
 
     collectPower(kind) {
       const dur=5*this.effects.powerDuration;
-      if(kind==='shield')this.shield=Math.min(4,this.shield+1);
+      if(kind==='shield')this.shield=Math.min(5,this.shield+1);
       else if(kind==='star')this.invincibleFor=Math.max(this.invincibleFor,dur*this.effects.starDuration);
-      else if(kind==='magnet')this.magnetFor=Math.max(this.magnetFor,8*this.effects.powerDuration);
-      else if(kind==='double')this.doubleScoreFor=Math.max(this.doubleScoreFor,7*this.effects.powerDuration);
-      else if(kind==='rush')this.coinRushFor=Math.max(this.coinRushFor,6*this.effects.powerDuration);
+      else if(kind==='magnet')this.magnetFor=Math.max(this.magnetFor,9*this.effects.powerDuration);
+      else if(kind==='double')this.doubleScoreFor=Math.max(this.doubleScoreFor,8*this.effects.powerDuration);
+      else if(kind==='rush')this.coinRushFor=Math.max(this.coinRushFor,7*this.effects.powerDuration);
+      else if(kind==='booster')this.boosterFor=Math.max(this.boosterFor,7*this.effects.powerDuration);
+      else if(kind==='giant')this.giantFor=Math.max(this.giantFor,6*this.effects.powerDuration);
+      else if(kind==='heart')this.health=Math.min(this.maxHealth,this.health+35);
       else return;
       this.items++;
       this.stats.items++;
@@ -433,50 +459,84 @@
       this.emit('item',this.player.x+20,this.player.y+28,16);
     }
 
+    pushPickup(type,x,y,kind) {
+      const size=type==='item'?30:18;
+      this.objects.push({type:type,kind:kind||type,x:x,y:y,width:size,height:size});
+    }
+
+    pushTrail(x,pattern,count,spacing,baseY) {
+      count=count||8;spacing=spacing||30;baseY=baseY||55;
+      for(let i=0;i<count;i++){
+        let y=baseY;
+        if(pattern==='arc')y=baseY+Math.sin((i/Math.max(1,count-1))*Math.PI)*105;
+        else if(pattern==='wave')y=baseY+Math.sin(i*.9)*55;
+        else if(pattern==='stairs')y=baseY+(i%5)*28;
+        else if(pattern==='zigzag')y=baseY+(i%2?90:20);
+        const type=i%4===0?'jelly':'coin';
+        this.pushPickup(type,x+i*spacing,y,type);
+      }
+    }
+
     spawn(width) {
       const d=this.round.difficulty;
-      const x=width+50;
-      const roll=this.random();
-      let obstacle;
-      if(roll<.28){
-        obstacle={type:'obstacle',kind:'crate',x:x,y:0,width:38,height:40};
-      }else if(roll<.50){
-        obstacle={type:'obstacle',kind:'wall',x:x,y:0,width:34,height:78+Math.round(28*d)};
-      }else if(roll<.72){
-        obstacle={type:'obstacle',kind:'drone',x:x,y:48,width:54,height:28};
-      }else if(roll<.88){
-        obstacle={type:'obstacle',kind:'laser',x:x,y:0,width:72,height:18};
+      const x=width+55;
+      const early=this.round.world===0;
+      const patternRoll=this.random();
+      const obstacle=(kind,ox,oy,w,h)=>this.objects.push({type:'obstacle',kind,x:ox,y:oy||0,width:w,height:h});
+
+      if(patternRoll<.12){
+        // Bonus lane: lots of food, no forced obstacle.
+        this.pushTrail(x,'wave',12,28,70);
+        this.pushTrail(x+40,'arc',8,34,115);
+      }else if(patternRoll<.30){
+        obstacle('crate',x,0,38,40);
+        this.pushTrail(x-25,'arc',10,31,58);
+        if(!early&&this.random()<.35)obstacle('drone',x+220,52,52,28);
+      }else if(patternRoll<.47){
+        obstacle('drone',x,52,56,28);
+        this.pushTrail(x-35,'stairs',10,30,28);
+        if(!early&&this.random()<.45)obstacle('crate',x+210,0,38,40);
+      }else if(patternRoll<.63){
+        obstacle('wall',x,0,34,72+Math.round(22*d));
+        this.pushTrail(x-28,'arc',11,31,88);
+        if(this.round.round>=3&&this.random()<.45)obstacle('laser',x+240,0,72,18);
+      }else if(patternRoll<.78){
+        obstacle('gate',x,0,48,88);
+        obstacle('drone',x+175,50,54,28);
+        this.pushTrail(x-10,'zigzag',12,29,38);
+      }else if(patternRoll<.91){
+        obstacle('laser',x,0,78,18);
+        this.pushTrail(x-20,'wave',11,31,105);
+        if(!early)obstacle('crate',x+220,0,38,40);
       }else{
-        obstacle={type:'obstacle',kind:'gate',x:x,y:0,width:48,height:94};
-      }
-      this.objects.push(obstacle);
-
-      const arcHigh=obstacle.kind==='wall'||obstacle.kind==='gate';
-      const count=5+Math.floor(this.random()*4);
-      for(let i=0;i<count;i++){
-        const t=i/Math.max(1,count-1);
-        const y=(arcHigh?95:55)+Math.sin(t*Math.PI)*(arcHigh?135:70);
-        this.objects.push({type:i%3===0?'jelly':'coin',kind:i%3===0?'jelly':'coin',x:x-15+i*34,y:y,width:18,height:18});
+        // Power combo lane - intentionally encourages booster + giant.
+        this.pushTrail(x,'wave',14,27,75);
+        this.pushPickup('item',x+80,115,'booster');
+        this.pushPickup('item',x+185,125,'giant');
+        if(!early)obstacle('gate',x+320,0,50,92);
       }
 
-      if(this.random()<.35*this.effects.itemChance){
-        const kinds=['shield','magnet','double','star','rush'];
+      const itemChance=Math.min(.72,.42*this.effects.itemChance+.03*this.round.round);
+      if(this.random()<itemChance){
+        const kinds=['shield','magnet','double','star','rush','booster','giant','heart'];
         const kind=kinds[Math.floor(this.random()*kinds.length)];
-        this.objects.push({type:'item',kind:kind,x:x+70+this.random()*80,y:120+this.random()*95,width:28,height:28});
+        this.pushPickup('item',x+100+this.random()*170,105+this.random()*115,kind);
       }
 
       if(this.coinRushFor>0){
-        for(let i=0;i<7;i++)this.objects.push({type:'coin',kind:'coin',x:x+i*29,y:80+Math.sin(i*.8)*42,width:18,height:18});
+        this.pushTrail(x+20,'wave',11,26,80);
+        this.pushTrail(x+70,'arc',8,30,120);
       }
 
-      const pace=Math.max(.72,1.42-(this.speed-250)/900);
-      this.spawnIn=pace+this.random()*.42;
+      const pace=Math.max(.58,early?1.15:1.02-(this.speed-250)/1150);
+      this.spawnIn=pace+this.random()*(early?.34:.28);
     }
 
     revive() {
       if(this.revives<=0)return false;
       this.revives--;
       this.dead=false;
+      this.health=Math.max(1,Math.ceil(this.maxHealth*.55));
       this.invincibleFor=3;
       this.player.y=0;
       this.player.vy=0;
@@ -489,31 +549,36 @@
     }
 
     resolveHit(o) {
-      if(this.invincibleFor>0||this.skillFor>0&&(this.character.active.type==='dash'||this.character.active.type==='airdash')){
+      const smashMode=this.invincibleFor>0||this.giantFor>0||(this.skillFor>0&&(this.character.active.type==='dash'||this.character.active.type==='airdash'));
+      const superSmash=this.giantFor>0&&this.boosterFor>0;
+      if(smashMode){
         o.taken=true;
         this.stats.obstacles++;
-        this.addCombo(1);
-        this.bonusScore+=120;
-        this.emit('break',o.x,o.y,10);
+        this.addCombo(superSmash?3:1);
+        this.bonusScore+=superSmash?320:140;
+        this.emit('break',o.x,o.y,superSmash?20:10);
         return;
       }
       if(this.shield>0){
         this.shield--;
         o.taken=true;
         this.hitCount++;
-        this.invincibleFor=Math.max(this.invincibleFor,this.effects.hitInvincible||1.1);
+        this.invincibleFor=Math.max(this.invincibleFor,this.effects.hitInvincible||1.15);
         this.breakCombo();
         this.emit('hit',this.player.x+18,this.player.y+20,18);
         return;
       }
-      if(this.revives>0){
-        this.revive();
-        o.taken=true;
-        return;
-      }
-      this.dead=true;
-      this.failed=true;
+      const damage=Math.round(28+this.round.world*4+this.round.round*1.5);
+      this.health=Math.max(0,this.health-damage);
+      this.hitCount++;
+      o.taken=true;
+      this.invincibleFor=Math.max(this.invincibleFor,this.effects.hitInvincible||1.35);
       this.breakCombo();
+      this.emit('hit',this.player.x+18,this.player.y+20,18);
+      if(this.health<=0){
+        if(this.revives>0)this.revive();
+        else{this.dead=true;this.failed=true;}
+      }
     }
 
     step(dt,width) {
@@ -529,13 +594,14 @@
         this.doubleScoreFor=Math.max(0,this.doubleScoreFor-d);
         this.coinRushFor=Math.max(0,this.coinRushFor-d);
         this.boosterFor=Math.max(0,this.boosterFor-d);
+        this.giantFor=Math.max(0,this.giantFor-d);
         this.skillFor=Math.max(0,this.skillFor-d);
         this.skillCooldown=Math.max(0,this.skillCooldown-d);
         if(this.skillCooldown<=0)this.skillReady=true;
         if(this.comboTimer>0){this.comboTimer-=d;if(this.comboTimer<=0)this.breakCombo();}
 
         let speed=this.round.baseSpeed+this.distance*.12;
-        if(this.boosterFor>0)speed*=1.2;
+        if(this.boosterFor>0)speed*=1.34;
         if(this.skillFor>0&&(this.character.active.type==='dash'||this.character.active.type==='airdash'))speed*=1+(this.character.active.power||.35)*this.effects.activePower*this.effects.dashPower;
         speed=Math.min(720,speed);
         this.speed=speed;
@@ -573,7 +639,8 @@
             }
           }
 
-          const overlap=p.x+4<o.x+o.width&&p.x+p.width-4>o.x&&p.y+3<o.y+o.height&&p.y+p.height-3>o.y;
+          const giantPad=this.giantFor>0?12:0;
+          const overlap=p.x+4-giantPad<o.x+o.width&&p.x+p.width-4+giantPad>o.x&&p.y+3-giantPad<o.y+o.height&&p.y+p.height-3+giantPad>o.y;
           if(!overlap)continue;
 
           if(o.type==='coin'){
@@ -608,11 +675,11 @@
       const comboBonus=Math.min(120,this.maxCombo*2);
       const gold=Math.floor((this.round.rewardGold+(this.coins*4)+comboBonus)*(clear?1:.45)*this.effects.gold);
       const gems=clear?this.round.rewardGem:0;
-      return {gold:Math.max(0,gold),gems:gems,clear:clear,score:this.score,maxCombo:this.maxCombo,coins:this.coins,distance:Math.floor(this.distance)};
+      return {gold:Math.max(0,gold),gems:gems,clear:clear,score:this.score,maxCombo:this.maxCombo,coins:this.coins,distance:Math.floor(this.distance),health:this.health,maxHealth:this.maxHealth,revives:this.revives};
     }
   }
 
-  const api={RunnerEngine:RunnerEngine,CHARACTERS:CHARACTERS,RELICS:RELICS,SETS:SETS,WORLDS:WORLDS,ROUNDS:ROUNDS,CONSUMABLES:CONSUMABLES,RARITY_ORDER:RARITY_ORDER,RARITY_WEIGHT:RARITY_WEIGHT,buildEffects:buildEffects};
+  const api={RunnerEngine:RunnerEngine,CHARACTERS:CHARACTERS,RELICS:RELICS,SETS:SETS,WORLDS:WORLDS,ROUNDS:ROUNDS,CONSUMABLES:CONSUMABLES,POWERUPS:POWERUPS,RARITY_ORDER:RARITY_ORDER,RARITY_WEIGHT:RARITY_WEIGHT,buildEffects:buildEffects,getCharacterMaxHealth:getCharacterMaxHealth};
   if(typeof module!=='undefined'&&module.exports)module.exports=api;
   else root.WorkHubRunner=api;
 })(typeof window==='undefined'?{}:window);
