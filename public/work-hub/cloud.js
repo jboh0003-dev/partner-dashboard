@@ -53,7 +53,13 @@
 
     function stateScore(st){
       const w = st?.work || st || {};
-      return (w.workItems?.length||0)*100000 + (w.history?.length||0)*100 + (w.legacyArchive?.length||0);
+      const ledger = w.settings?.workLedgerV1 || {};
+      return (w.workItems?.length||0)*100000
+        + (ledger.monthlyPlans?.length||0)*1000
+        + (w.history?.length||0)*100
+        + (ledger.archivedTasks?.length||0)*10
+        + (ledger.events?.length||0)
+        + (w.legacyArchive?.length||0);
     }
     function pack(){
       return {
@@ -114,7 +120,7 @@
       root.innerHTML=`
         <div class="account-modal">
           <div class="account-head">
-            <div><h2>계정관리</h2><p>파트너 커넥트 계정으로 연결된 개인 업무관리입니다.</p></div>
+            <div><h2>계정관리</h2><p>Work Hub 개인 업무 데이터와 설정을 동기화합니다.</p></div>
             <button type="button" class="account-close" id="accountClose">×</button>
           </div>
           <div class="cloud-field"><label>로그인 이메일</label><div class="account-email">${esc(session.user.email||'-')}</div></div>

@@ -52,7 +52,7 @@
     const originalBind = bind;
     bind = function(){
       originalBind();
-      $('form.quick').forEach(f=>f.onsubmit=e=>{
+      $$('form.quick').forEach(f=>f.onsubmit=e=>{
         e.preventDefault();
         const title=f.elements.title.value.trim();
         if(!title)return;
