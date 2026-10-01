@@ -3,7 +3,7 @@
   if (document.getElementById('workhub-runner')) return;
 
   const script=document.createElement('script');
-  script.src='/work-hub/runner-engine.js?v=5';
+  script.src='/work-hub/runner-engine.js?v=6';
   script.onload=mount;
   script.onerror=()=>console.error('BokRun 엔진을 불러오지 못했습니다.');
   document.body.appendChild(script);
@@ -15,7 +15,7 @@
     const section=document.createElement('section');
     section.id='workhub-runner';
     section.className='runner bokrun';
-    section.dataset.version='5';
+    section.dataset.version='6';
     section.setAttribute('aria-label','BokRun Relic Rush');
     document.querySelector('.main').appendChild(section);
 
@@ -81,7 +81,12 @@
       p.selectedConsumables=Array.isArray(raw?.selectedConsumables)?raw.selectedConsumables.filter(id=>CONSUMABLES[id]):[];
       p.equippedRelics=Array.isArray(raw?.equippedRelics)?raw.equippedRelics.filter(id=>p.ownedRelics[id]).slice(0,3):['feather','coinbell'];
       if(!p.ownedCharacters[p.selectedCharacter])p.selectedCharacter='momo';
-      p.unlockedRound=clamp(Number(p.unlockedRound)||1,1,25);
+      const completedIds=[
+        ...Object.entries(p.roundStars||{}).filter(([,stars])=>Number(stars)>=1).map(([id])=>Number(id)),
+        ...Object.entries(p.firstClear||{}).filter(([,done])=>Boolean(done)).map(([id])=>Number(id))
+      ].filter(id=>Number.isFinite(id)&&id>=1&&id<=25);
+      const inferredUnlock=completedIds.length?Math.min(25,Math.max(...completedIds)+1):1;
+      p.unlockedRound=Math.max(clamp(Number(p.unlockedRound)||1,1,25),inferredUnlock);
       if(raw&&typeof raw==='object'&&(Number(raw.economyVersion)||0)<2){
         p.gems=(Number(p.gems)||0)+800;
         p.economyVersion=2;
@@ -92,8 +97,29 @@
     }
 
     function loadProfile(){
-      try{if(typeof S!=='undefined'&&S?.settings?.bokRunV1)return normalizeProfile(S.settings.bokRunV1);}catch{}
-      try{return normalizeProfile(JSON.parse(localStorage.getItem(PROFILE_KEY)||'null'));}catch{return clone(DEFAULT_PROFILE);}
+      let cloudRaw=null,localRaw=null;
+      try{cloudRaw=(typeof S!=='undefined'&&S?.settings?.bokRunV1)?S.settings.bokRunV1:null;}catch{}
+      try{localRaw=JSON.parse(localStorage.getItem(PROFILE_KEY)||'null');}catch{}
+      if(!cloudRaw&&!localRaw)return clone(DEFAULT_PROFILE);
+      const cloud=cloudRaw?normalizeProfile(cloudRaw):null;
+      const local=localRaw?normalizeProfile(localRaw):null;
+      if(!cloud)return local;
+      if(!local)return cloud;
+      const cloudAt=Date.parse(cloud.updatedAt||'')||0;
+      const localAt=Date.parse(local.updatedAt||'')||0;
+      const primary=clone(localAt>=cloudAt?local:cloud);
+      const secondary=localAt>=cloudAt?cloud:local;
+      primary.unlockedRound=Math.max(primary.unlockedRound||1,secondary.unlockedRound||1);
+      const starIds=new Set([...Object.keys(primary.roundStars||{}),...Object.keys(secondary.roundStars||{})]);
+      starIds.forEach(id=>{primary.roundStars[id]=Math.max(Number(primary.roundStars[id])||0,Number(secondary.roundStars[id])||0);});
+      primary.firstClear=Object.assign({},secondary.firstClear||{},primary.firstClear||{});
+      primary.firstThreeStar=Object.assign({},secondary.firstThreeStar||{},primary.firstThreeStar||{});
+      const completed=[
+        ...Object.entries(primary.roundStars||{}).filter(([,stars])=>Number(stars)>=1).map(([id])=>Number(id)),
+        ...Object.entries(primary.firstClear||{}).filter(([,done])=>Boolean(done)).map(([id])=>Number(id))
+      ].filter(id=>Number.isFinite(id)&&id>=1&&id<=25);
+      if(completed.length)primary.unlockedRound=Math.max(primary.unlockedRound,Math.min(25,Math.max(...completed)+1));
+      return normalizeProfile(primary);
     }
 
     let profile=loadProfile();
@@ -328,13 +354,17 @@
       const threeStarBonus=firstThreeStar?25:0;
       const gemReward=rewards.clear?(first?firstClearGem:repeatGem)+threeStarBonus:2;
       profile.gold+=rewards.gold;profile.gems+=gemReward;profile.lifetime.runs++;profile.lifetime.gold+=rewards.gold;profile.lifetime.gems+=gemReward;profile.lifetime.bestScore=Math.max(profile.lifetime.bestScore,rewards.score);profile.lifetime.bestCombo=Math.max(profile.lifetime.bestCombo,rewards.maxCombo);
-      records.unshift({score:rewards.score,stage:w.name+' '+r.title,character:c.name,date:new Date().toLocaleDateString('ko-KR')});records.sort((a,b)=>b.score-a.score);records=records.slice(0,10);saveRecords();persist();showResult(rewards,gemReward,stars,first,firstThreeStar);
+      records.unshift({score:rewards.score,stage:w.name+' '+r.title,character:c.name,date:new Date().toLocaleDateString('ko-KR')});records.sort((a,b)=>b.score-a.score);records=records.slice(0,10);saveRecords();persist();showResult(rewards,gemReward,stars,first,firstThreeStar,r.id);
     }
 
-    function showResult(rewards,gems,stars,first,firstThreeStar){
+    function showResult(rewards,gems,stars,first,firstThreeStar,clearedRoundId){
       const overlay=document.createElement('div');overlay.className='bokrun-overlay';
-      overlay.innerHTML='<div class="bokrun-modal"><h3>'+(rewards.clear?'STAGE CLEAR!':'RUN END')+'</h3><p>'+(rewards.clear?(first?'첫 클리어 보너스를 획득했습니다.'+(firstThreeStar?' 3성 최초 달성 +25💎!':''):'재클리어 보상을 받았습니다.'+(firstThreeStar?' 3성 최초 달성 +25💎!':'')):'실패 보상 2💎를 받았습니다. 빌드와 아이템을 바꿔 다시 도전해보세요.')+'</p><div style="font-size:26px;margin-top:10px;color:#e0a600">'+(rewards.clear?'★'.repeat(stars)+'☆'.repeat(3-stars):'☆☆☆')+'</div><div class="bokrun-result-stats"><div><small>점수</small><b>'+rewards.score.toLocaleString()+'</b></div><div><small>최대 콤보</small><b>'+rewards.maxCombo+'</b></div><div><small>골드</small><b>+'+rewards.gold+'</b></div><div><small>젬</small><b>+'+gems+'</b></div></div><div class="bokrun-modal-actions"><button id="br-retry">다시 도전</button><button class="primary" id="br-lobby">로비로</button></div></div>';
-      document.body.appendChild(overlay);overlay.querySelector('#br-lobby').onclick=()=>{overlay.remove();view='play';render();};overlay.querySelector('#br-retry').onclick=()=>{overlay.remove();startRun();};
+      overlay.innerHTML='<div class="bokrun-modal"><h3>'+(rewards.clear?'STAGE CLEAR!':'RUN END')+'</h3><p>'+(rewards.clear?(first?'첫 클리어 보너스를 획득했습니다.'+(firstThreeStar?' 3성 최초 달성 +25💎!':''):'재클리어 보상을 받았습니다.'+(firstThreeStar?' 3성 최초 달성 +25💎!':''))+(clearedRoundId<25?' · 다음 ROUND '+roundBy(clearedRoundId+1).title+' 해금!':' · 모든 스테이지 완료!'):'실패 보상 2💎를 받았습니다. 빌드와 아이템을 바꿔 다시 도전해보세요.')+'</p><div style="font-size:26px;margin-top:10px;color:#e0a600">'+(rewards.clear?'★'.repeat(stars)+'☆'.repeat(3-stars):'☆☆☆')+'</div><div class="bokrun-result-stats"><div><small>점수</small><b>'+rewards.score.toLocaleString()+'</b></div><div><small>최대 콤보</small><b>'+rewards.maxCombo+'</b></div><div><small>골드</small><b>+'+rewards.gold+'</b></div><div><small>젬</small><b>+'+gems+'</b></div></div><div class="bokrun-modal-actions"><button id="br-retry">다시 도전</button><button id="br-lobby">로비로</button>'+(rewards.clear&&clearedRoundId<25?'<button class="primary" id="br-next">다음 스테이지 ▶</button>':'')+'</div></div>';
+      document.body.appendChild(overlay);
+      overlay.querySelector('#br-lobby').onclick=()=>{overlay.remove();if(rewards.clear&&clearedRoundId<25)selectedRound=clearedRoundId+1;view='play';render();};
+      overlay.querySelector('#br-retry').onclick=()=>{overlay.remove();selectedRound=clearedRoundId;startRun();};
+      const nextBtn=overlay.querySelector('#br-next');
+      if(nextBtn)nextBtn.onclick=()=>{overlay.remove();selectedRound=Math.min(25,clearedRoundId+1);view='play';render();};
     }
 
     function draw(){
