@@ -1,0 +1,3 @@
+/* Work Atlas retired.
+   This tombstone intentionally contains no Atlas presentation rules.
+   It exists so stale cached loaders do not receive an auth redirect or old CSS. */

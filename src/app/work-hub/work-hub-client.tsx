@@ -34,7 +34,8 @@ export default function WorkHubClient({ ownerId }: { ownerId: string }) {
       doc.body.appendChild(script);
     };
 
-    addScript("workhub-favorites-script", "/work-hub/favorites.js?v=4");
+    addScript("workhub-atlas-retired-guard", "/work-hub/work-atlas.js?v=99");
+        addScript("workhub-favorites-script", "/work-hub/favorites.js?v=4");
     addScript("workhub-workflow-script", "/work-hub/workflow.js?v=3");
     addScript("workhub-calendar-script", "/work-hub/calendar.js?v=7");
     addScript("workhub-create-script", "/work-hub/create.js?v=3");
@@ -66,7 +67,7 @@ export default function WorkHubClient({ ownerId }: { ownerId: string }) {
     <iframe
       ref={frameRef}
       onLoad={patchAssets}
-      src="/work-hub/index.html?v=17"
+      src="/work-hub/index.html?v=18"
       title="Work Hub"
       style={{
         position: "fixed",
