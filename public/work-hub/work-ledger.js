@@ -303,11 +303,21 @@
       const groupedAreas = allAreas();
       const sections = groupedAreas.map(area => areaSection(area, items.filter(task=>taskArea(task)===area))).join('');
       const range = `${formatDate(weekStart)} ~ ${formatDate(add(weekStart,4))}`;
-      const current = mon(today()) === weekStart;
+      const currentWeek = mon(today());
+      const current = currentWeek === weekStart;
+      const previous = weekStart < currentWeek;
+      const heroKicker = current ? 'THIS WEEK' : previous ? 'PREVIOUS WEEK' : 'NEXT WEEK';
+      const heroTitle = current
+        ? '이번 주도 하나씩 끝내봐요.'
+        : previous
+          ? '지난 업무도 한번 살펴봐요.'
+          : '다음 주도 미리 준비해봐요.';
+      const bubbleLabel = current ? '이번 주 남은 일' : previous ? '지난주 완료' : '다음주 예정';
+      const bubbleCount = current ? Math.max(0, items.length - done) : previous ? done : items.length;
 
       const head = `<section class="workhub-home-hero">
-        <div class="workhub-home-copy"><span class="workhub-home-kicker">${current?'THIS WEEK':'WEEKLY VIEW'}</span><h2>${current?'이번 주도 하나씩 끝내봐요.':'지난 업무도 편하게 돌아봐요.'}</h2><p>업무는 빠르게 추가하고 <b>시작 전 → 진행 중 → 완료</b>만 눌러 관리합니다. 세부 진행 기록과 완료 시점은 업무이력에 자동으로 남습니다.</p></div>
-        <div class="workhub-mascot-scene" aria-hidden="true"><span class="mascot-bubble">오늘 할 일<br><b>${Math.max(0,items.length-done)}개</b></span><div class="mascot-note"><i></i><i></i><i></i></div><div class="workhub-mascot"><span class="mascot-eye one"></span><span class="mascot-eye two"></span><span class="mascot-smile"></span><span class="mascot-arm"></span></div></div>
+        <div class="workhub-home-copy"><span class="workhub-home-kicker">${heroKicker}</span><h2>${heroTitle}</h2><p>업무는 빠르게 추가하고 <b>시작 전 → 진행 중 → 완료</b>만 눌러 관리합니다. 세부 진행 기록과 완료 시점은 업무이력에 자동으로 남습니다.</p></div>
+        <div class="workhub-mascot-scene" aria-hidden="true"><span class="mascot-bubble">${bubbleLabel}<br><b>${bubbleCount}개</b></span><div class="mascot-note"><i></i><i></i><i></i></div><div class="workhub-mascot"><span class="mascot-eye one"></span><span class="mascot-eye two"></span><span class="mascot-smile"></span><span class="mascot-arm"></span></div></div>
       </section>
       <div class="ledger-metrics"><div class="ledger-metric"><span>주간 업무</span><strong>${items.length}</strong></div><div class="ledger-metric"><span>시작 전</span><strong>${todo}</strong></div><div class="ledger-metric"><span>진행 중</span><strong>${doing}</strong></div><div class="ledger-metric"><span>완료</span><strong>${done}</strong></div><div class="ledger-metric issue-metric"><span>이슈</span><strong>${blocked}</strong></div></div>
       <section class="ledger-week"><div class="ledger-week-head"><div class="ledger-week-title"><b>${current?'이번 주 일계표':'주간 일계표'}</b><span>${range} · 큰 업무영역별로 주간업무를 정리하고 상태만 빠르게 업데이트합니다.</span></div><div class="ledger-week-nav"><button type="button" data-ledger-week-nav="prev">← 이전주</button><button type="button" data-ledger-week-nav="today">이번주</button><button type="button" data-ledger-week-nav="next">차주 →</button></div></div>

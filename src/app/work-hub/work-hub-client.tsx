@@ -42,7 +42,7 @@ export default function WorkHubClient({ ownerId }: { ownerId: string }) {
     addScript("workhub-cloud-script", "/work-hub/cloud.js?v=4");
     addScript("workhub-arcade-nav-script", "/work-hub/arcade-nav.js?v=4");
     addScript("workhub-notes-script", "/work-hub/work-notes.js?v=2");
-    addScript("workhub-ledger-script", "/work-hub/work-ledger.js?v=2");
+    addScript("workhub-ledger-script", "/work-hub/work-ledger.js?v=3");
     addScript("workhub-kart-crossing-init", "/work-hub/kart-crossing-init.js?v=1");
     addScript("workhub-kart-crossing-layout", "/work-hub/kart-crossing-layout.js?v=1");
     addScript("workhub-kart-crossing-script", "/work-hub/kart-crossing.js?v=2");
