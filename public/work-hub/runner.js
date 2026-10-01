@@ -2,503 +2,351 @@
   'use strict';
   if (document.getElementById('workhub-runner')) return;
 
-  const script = document.createElement('script');
-  script.src = '/work-hub/runner-engine.js?v=3';
-  script.onload = mount;
-  script.onerror = () => console.error('미니게임을 불러오지 못했습니다. 새로고침해주세요.');
+  const script=document.createElement('script');
+  script.src='/work-hub/runner-engine.js?v=4';
+  script.onload=mount;
+  script.onerror=()=>console.error('BokRun 엔진을 불러오지 못했습니다.');
   document.body.appendChild(script);
 
-  function mount() {
-    const { RunnerEngine, stages } = window.WorkHubRunner;
-    const engine = new RunnerEngine();
-    const section = document.createElement('section');
-    section.id = 'workhub-runner';
-    section.className = 'runner';
-    section.dataset.version = '3';
-    section.setAttribute('aria-label', '슈퍼마리오 미니게임');
-    section.innerHTML = `
-      <div class="runner-heading">
-        <div>
-          <div class="runner-kicker">THE ARCADE · 잠깐의 휴식</div>
-          <h2>슈퍼마리오 런</h2>
-          <p>덤블링 점프로 장애물을 넘고, 버섯과 별 아이템을 모아 기록에 도전하세요.</p>
-        </div>
-        <div class="runner-controls">
-          <button type="button" class="btn primary" id="runner-start">▶ START · 시작</button>
-          <button type="button" class="btn" id="runner-pause" disabled>일시정지</button>
-          <button type="button" class="btn" id="runner-jump" disabled>Space · 점프</button>
-        </div>
-      </div>
-      <div class="runner-layout">
-        <div class="runner-play">
-          <div class="runner-hud">
-            <span>거리<strong id="runner-distance">0 m</strong></span>
-            <span>코인<strong id="runner-coins">0</strong></span>
-            <span>점수<strong id="runner-score">0</strong></span>
-            <span class="runner-power">아이템<strong id="runner-item">없음</strong></span>
-            <span id="runner-stage">STAGE 1 · 초록 들판</span>
-          </div>
-          <canvas
-            id="runner-canvas"
-            width="1100"
-            height="360"
-            tabindex="0"
-            aria-keyshortcuts="Space ArrowUp"
-            role="img"
-            aria-label="오른쪽으로 달리는 마리오. 스페이스 또는 위쪽 화살표로 점프하고, 공중에서 한 번 더 누르면 이단 점프합니다."
-          ></canvas>
-          <div class="runner-message" id="runner-message" role="status" aria-live="polite">
-            <b>READY TO RUN?</b>
-            <span>START를 누른 뒤 스페이스바로 점프하세요.</span>
-          </div>
-        </div>
-        <aside class="runner-records">
-          <h3>명예의 기록판</h3>
-          <p id="runner-storage-note">이 브라우저의 최고 기록 TOP 5</p>
-          <ol id="runner-scores"></ol>
-        </aside>
-      </div>
-      <div class="runner-foot">Space / ↑ / 화면 터치 = 점프 · 공중에서 한 번 더 = 이단 점프 · 점프 중 자동 덤블링 · 🍄 보호막 · ⭐ 5초 무적 · P = 일시정지</div>`;
-
+  function mount(){
+    const API=window.WorkHubRunner;
+    if(!API)return;
+    const RunnerEngine=API.RunnerEngine, CHARACTERS=API.CHARACTERS, RELICS=API.RELICS, WORLDS=API.WORLDS, ROUNDS=API.ROUNDS, CONSUMABLES=API.CONSUMABLES;
+    const section=document.createElement('section');
+    section.id='workhub-runner';
+    section.className='runner bokrun';
+    section.dataset.version='4';
+    section.setAttribute('aria-label','BokRun Relic Rush');
     document.querySelector('.main').appendChild(section);
 
-    const $ = id => section.querySelector('#' + id);
-    const canvas = $('runner-canvas');
-    const ctx = canvas.getContext('2d');
-    let running = false;
-    let paused = false;
-    let raf = 0;
-    let last = 0;
-    let width = 1100;
-    let records = [];
-    let storageOK = true;
-    const KEY = 'workhub_runner_scores_v2';
-    const LEGACY_KEY = 'workhub_runner_scores_v1';
-
-    function readRecords() {
-      try {
-        const raw = localStorage.getItem(KEY) || localStorage.getItem(LEGACY_KEY) || '[]';
-        const a = JSON.parse(raw);
-        return Array.isArray(a)
-          ? a.filter(r => r && Number.isSafeInteger(r.score) && r.score >= 0 && Number.isFinite(r.distance) && r.distance >= 0 && Number.isSafeInteger(r.coins) && r.coins >= 0 && typeof r.date === 'string')
-            .sort((a, b) => b.score - a.score)
-            .slice(0, 5)
-          : [];
-      } catch {
-        storageOK = false;
-        return [];
-      }
-    }
-
-    records = readRecords();
-
-    function leaderboard() {
-      $('runner-scores').replaceChildren();
-      if (!records.length) {
-        const li = document.createElement('li');
-        li.textContent = '첫 기록의 주인공이 되어보세요.';
-        $('runner-scores').appendChild(li);
-      }
-      records.forEach((r, i) => {
-        const li = document.createElement('li');
-        const left = document.createElement('span');
-        const right = document.createElement('strong');
-        const small = document.createElement('small');
-        const itemText = r.items ? ` · ${r.items}아이템` : '';
-        left.textContent = `${i + 1}. ${Math.floor(r.distance)}m · ${r.coins}코인${itemText}`;
-        small.textContent = r.date;
-        left.appendChild(small);
-        right.textContent = r.score.toLocaleString() + '점';
-        li.append(left, right);
-        $('runner-scores').appendChild(li);
-      });
-      if (!storageOK) $('runner-storage-note').textContent = '저장 공간에 접근할 수 없어 이번 화면에서만 기록됩니다.';
-    }
-
-    function message(title, sub) {
-      $('runner-message').hidden = false;
-      $('runner-message').querySelector('b').textContent = title;
-      $('runner-message').querySelector('span').textContent = sub;
-    }
-
-    function itemLabel() {
-      if (engine.invincibleFor > 0) return `⭐ 무적 ${engine.invincibleFor.toFixed(1)}초`;
-      if (engine.shield > 0) return `🍄 보호막${engine.shield > 1 ? ` ×${engine.shield}` : ''}`;
-      return '없음';
-    }
-
-    function hud() {
-      $('runner-distance').textContent = Math.floor(engine.distance) + ' m';
-      $('runner-coins').textContent = engine.coins;
-      $('runner-score').textContent = engine.score.toLocaleString();
-      $('runner-item').textContent = itemLabel();
-      $('runner-item').classList.toggle('active', engine.invincibleFor > 0 || engine.shield > 0);
-      $('runner-stage').textContent = `STAGE ${engine.stage + 1} · ${stages[engine.stage % stages.length]}`;
-    }
-
-    function finish() {
-      running = false;
-      paused = false;
-      cancelAnimationFrame(raf);
-      $('runner-start').disabled = false;
-      $('runner-start').textContent = '↻ 다시 시작';
-      $('runner-pause').disabled = true;
-      $('runner-jump').disabled = true;
-      // Once storage fails, keep one in-memory history; do not merge it with
-      // the same persisted entries again on every game over.
-      const persisted = storageOK ? readRecords() : null;
-      records = [
-        ...(storageOK ? persisted : records),
-        {
-          score: engine.score,
-          distance: Math.floor(engine.distance),
-          coins: engine.coins,
-          items: engine.items,
-          date: new Date().toLocaleDateString('ko-KR'),
-        },
-      ].sort((a, b) => b.score - a.score).slice(0, 5);
-      try {
-        localStorage.setItem(KEY, JSON.stringify(records));
-      } catch {
-        storageOK = false;
-      }
-      leaderboard();
-      message('GAME OVER', `${engine.score.toLocaleString()}점 · ${Math.floor(engine.distance)}m · ${engine.coins}코인 · ${engine.items}아이템`);
-    }
-
-    function pause() {
-      if (!running || paused) return;
-      paused = true;
-      cancelAnimationFrame(raf);
-      $('runner-pause').textContent = '계속하기';
-      $('runner-jump').disabled = true;
-      message('잠시 쉬어가기', '계속하기를 누르면 이어서 달립니다.');
-    }
-
-    function resume() {
-      if (!running || !paused) return;
-      paused = false;
-      last = 0;
-      $('runner-pause').textContent = '일시정지';
-      $('runner-jump').disabled = false;
-      $('runner-message').hidden = true;
-      canvas.focus({ preventScroll: true });
-      raf = requestAnimationFrame(frame);
-    }
-
-    function jump() {
-      if (running && !paused && engine.jump()) {
-        canvas.focus({ preventScroll: true });
-      }
-    }
-
-    $('runner-start').onclick = () => {
-      cancelAnimationFrame(raf);
-      engine.reset();
-      running = true;
-      paused = false;
-      last = 0;
-      $('runner-message').hidden = true;
-      $('runner-start').disabled = true;
-      $('runner-pause').disabled = false;
-      $('runner-pause').textContent = '일시정지';
-      $('runner-jump').disabled = false;
-      canvas.focus({ preventScroll: true });
-      hud();
-      raf = requestAnimationFrame(frame);
+    const PROFILE_KEY='bokrun_profile_v1';
+    const RECORD_KEY='bokrun_records_v1';
+    const DEFAULT_PROFILE={
+      version:1,gold:2200,gems:360,
+      ownedCharacters:{momo:{level:1,shards:0}},
+      ownedRelics:{feather:{level:1,shards:0},coinbell:{level:1,shards:0}},
+      selectedCharacter:'momo',equippedRelics:['feather','coinbell'],
+      unlockedRound:1,roundStars:{},firstClear:{},
+      inventory:{shield:2,booster:1,magnet:1,revive:1},
+      selectedConsumables:[],
+      pity:{character:0,relic:0},
+      lifetime:{runs:0,clears:0,gold:0,gems:0,bestScore:0,bestCombo:0},
+      updatedAt:new Date().toISOString()
     };
 
-    $('runner-pause').onclick = () => paused ? resume() : pause();
-    $('runner-jump').onclick = jump;
+    function clone(x){return JSON.parse(JSON.stringify(x));}
+    function esc(v){return String(v==null?'':v).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}
+    function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
+    function charBy(id){return CHARACTERS.find(x=>x.id===id)||CHARACTERS[0];}
+    function relicBy(id){return RELICS.find(x=>x.id===id)||RELICS[0];}
+    function roundBy(id){return ROUNDS[Math.max(0,Math.min(ROUNDS.length-1,id-1))];}
+    function rarityClass(r){return 'rarity-'+String(r||'N').toLowerCase();}
 
-    canvas.addEventListener('pointerdown', e => {
-      if (running && !paused) {
-        e.preventDefault();
-        jump();
-      }
-    });
-
-    function isInteractiveTarget(target) {
-      return target instanceof Element && Boolean(target.closest('input,textarea,select,button,[contenteditable="true"]'));
+    function normalizeProfile(raw){
+      const p=Object.assign(clone(DEFAULT_PROFILE),raw&&typeof raw==='object'?raw:{});
+      p.ownedCharacters=Object.assign({},DEFAULT_PROFILE.ownedCharacters,raw?.ownedCharacters||{});
+      p.ownedRelics=Object.assign({},DEFAULT_PROFILE.ownedRelics,raw?.ownedRelics||{});
+      p.roundStars=Object.assign({},raw?.roundStars||{});
+      p.firstClear=Object.assign({},raw?.firstClear||{});
+      p.inventory=Object.assign({},DEFAULT_PROFILE.inventory,raw?.inventory||{});
+      p.pity=Object.assign({},DEFAULT_PROFILE.pity,raw?.pity||{});
+      p.lifetime=Object.assign({},DEFAULT_PROFILE.lifetime,raw?.lifetime||{});
+      p.selectedConsumables=Array.isArray(raw?.selectedConsumables)?raw.selectedConsumables.filter(id=>CONSUMABLES[id]):[];
+      p.equippedRelics=Array.isArray(raw?.equippedRelics)?raw.equippedRelics.filter(id=>p.ownedRelics[id]).slice(0,3):['feather','coinbell'];
+      if(!p.ownedCharacters[p.selectedCharacter])p.selectedCharacter='momo';
+      p.unlockedRound=clamp(Number(p.unlockedRound)||1,1,25);
+      return p;
     }
 
-    document.addEventListener('keydown', e => {
-      if (e.isComposing || e.ctrlKey || e.metaKey || e.altKey || isInteractiveTarget(e.target)) return;
-      if (!section.contains(document.activeElement) || !section.getClientRects().length) return;
-      if (['Space', 'ArrowUp'].includes(e.code) && running && !paused) {
-        e.preventDefault();
-        if (!e.repeat) jump();
-        return;
-      }
-      if (e.code === 'KeyP' && running && !e.repeat) {
-        e.preventDefault();
-        paused ? resume() : pause();
-      }
-    }, { capture: true });
-
-    document.addEventListener('visibilitychange', () => {
-      if (document.hidden) pause();
-    });
-    window.addEventListener('blur', pause);
-    new IntersectionObserver(entries => {
-      if (!entries[0].isIntersecting) pause();
-    }, { threshold: 0 }).observe(canvas);
-
-    function resize() {
-      if (!canvas.clientWidth) return;
-      const nextWidth = Math.max(640, Math.min(1100, canvas.clientWidth));
-      if (nextWidth !== width && running) pause();
-      width = nextWidth;
-      // Match the CSS box to the simulation ratio at every width.
-      canvas.style.aspectRatio = `${width} / 360`;
-      const dpr = Math.min(devicePixelRatio || 1, 2);
-      canvas.width = Math.round(width * dpr);
-      canvas.height = 360 * dpr;
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      draw();
+    function loadProfile(){
+      try{if(typeof S!=='undefined'&&S?.settings?.bokRunV1)return normalizeProfile(S.settings.bokRunV1);}catch{}
+      try{return normalizeProfile(JSON.parse(localStorage.getItem(PROFILE_KEY)||'null'));}catch{return clone(DEFAULT_PROFILE);}
     }
 
-    new ResizeObserver(resize).observe(canvas);
+    let profile=loadProfile();
+    let view='play';
+    let selectedRound=Math.min(profile.unlockedRound,25);
+    let selectedGacha='character';
+    let engine=null,running=false,paused=false,raf=0,last=0,width=1100,ctx=null,canvas=null;
+    let records=readRecords();
 
-    const palettes = [
-      ['#8bcfdf', '#d8ecda', '#76a876', '#41674b', '#a67646'],
-      ['#edb082', '#f5d49c', '#c18b62', '#905c52', '#98684c'],
-      ['#9daecd', '#e6e8ed', '#a9bacc', '#768ba9', '#94a9b5'],
-      ['#242a49', '#4b4262', '#494366', '#302f48', '#6f6278'],
-    ];
-
-    function rect(x, y, w, h, color) {
-      ctx.fillStyle = color;
-      ctx.fillRect(Math.round(x), Math.round(y), w, h);
-    }
-
-    function drawMushroom(x, y) {
-      rect(x + 5, y + 15, 16, 10, '#f6d2a7');
-      rect(x + 3, y + 8, 20, 10, '#e6423d');
-      rect(x + 7, y + 4, 12, 5, '#e6423d');
-      rect(x + 5, y + 7, 5, 5, '#fff3df');
-      rect(x + 16, y + 7, 5, 5, '#fff3df');
-      rect(x + 9, y + 18, 2, 3, '#4b332c');
-      rect(x + 16, y + 18, 2, 3, '#4b332c');
-    }
-
-    function drawStar(x, y, t) {
-      const cx = x + 13;
-      const cy = y + 13;
-      ctx.save();
-      ctx.translate(cx, cy);
-      ctx.rotate(Math.sin(t * 4) * .12);
-      ctx.fillStyle = '#ffd947';
-      ctx.beginPath();
-      for (let i = 0; i < 10; i++) {
-        const r = i % 2 === 0 ? 12 : 5.5;
-        const a = -Math.PI / 2 + i * Math.PI / 5;
-        const px = Math.cos(a) * r;
-        const py = Math.sin(a) * r;
-        if (i === 0) ctx.moveTo(px, py);
-        else ctx.lineTo(px, py);
-      }
-      ctx.closePath();
-      ctx.fill();
-      rect(-5, -2, 2, 4, '#4f4226');
-      rect(3, -2, 2, 4, '#4f4226');
-      ctx.restore();
-    }
-
-    function drawPowerAura(x, y, t) {
-      if (engine.invincibleFor > 0) {
-        ctx.save();
-        ctx.globalAlpha = .25 + Math.sin(t * 18) * .1;
-        ctx.fillStyle = '#fff36b';
-        ctx.beginPath();
-        ctx.arc(x + 16, y + 22, 31 + Math.sin(t * 10) * 2, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
-      }
-      if (engine.shield > 0) {
-        ctx.save();
-        ctx.globalAlpha = .72;
-        ctx.strokeStyle = '#8be8ff';
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        ctx.arc(x + 16, y + 22, 27 + Math.sin(t * 6), 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.restore();
-      }
-    }
-
-    function draw() {
-      const pal = palettes[engine.stage % palettes.length];
-      const ground = 304;
-      const scroll = engine.distance * 10;
-      const grad = ctx.createLinearGradient(0, 0, 0, 304);
-      grad.addColorStop(0, pal[0]);
-      grad.addColorStop(1, pal[1]);
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, width, 360);
-
-      ctx.fillStyle = engine.stage % 4 === 3 ? '#f5e4bd' : '#fff4c9';
-      ctx.beginPath();
-      ctx.arc(width - 95, 62, 24, 0, Math.PI * 2);
-      ctx.fill();
-
-      for (let i = -1; i < 9; i++) {
-        const x = i * 210 - (scroll * .17 % 210);
-        ctx.fillStyle = pal[2];
-        ctx.beginPath();
-        ctx.moveTo(x, ground);
-        if (engine.stage % 4 === 2) {
-          ctx.lineTo(x + 110, 105);
-          ctx.lineTo(x + 235, ground);
-          ctx.fill();
-          ctx.fillStyle = '#fff8ed';
-          ctx.beginPath();
-          ctx.moveTo(x + 110, 105);
-          ctx.lineTo(x + 83, 155);
-          ctx.lineTo(x + 125, 145);
-          ctx.lineTo(x + 143, 157);
-          ctx.closePath();
-          ctx.fill();
-        } else if (engine.stage % 4 === 3) {
-          rect(x, 155, 120, 149, pal[2]);
-          for (let k = 0; k < 4; k++) rect(x + k * 32, 142, 20, 16, pal[2]);
-          rect(x + 45, 212, 30, 92, pal[3]);
-        } else {
-          ctx.quadraticCurveTo(x + 90, engine.stage % 4 === 1 ? 150 : 110, x + 240, ground);
-          ctx.fill();
+    function persist(){
+      profile.updatedAt=new Date().toISOString();
+      try{localStorage.setItem(PROFILE_KEY,JSON.stringify(profile));}catch{}
+      try{
+        if(typeof S!=='undefined'){
+          S.settings=S.settings||{};
+          S.settings.bokRunV1=clone(profile);
+          if(typeof save==='function')save();
         }
-      }
-
-      for (let i = -1; i < 7; i++) {
-        const x = i * 250 - (scroll * .4 % 250);
-        if (engine.stage % 4 === 0) {
-          rect(x + 24, 236, 12, 68, '#7a6248');
-          ctx.fillStyle = pal[3];
-          ctx.beginPath();
-          ctx.arc(x + 30, 221, 35, 0, Math.PI * 2);
-          ctx.fill();
-        } else if (engine.stage % 4 === 1) {
-          rect(x + 25, 238, 12, 66, pal[3]);
-          rect(x + 7, 254, 20, 10, pal[3]);
-          rect(x + 7, 238, 9, 20, pal[3]);
-        } else if (engine.stage % 4 === 2) {
-          ctx.fillStyle = '#f4f8fc';
-          for (let k = 0; k < 6; k++) ctx.fillRect((x + k * 39 + scroll * .1) % width, 45 + k * 33, 3, 3);
-        } else {
-          rect(x, 265, 180, 39, pal[3]);
-        }
-      }
-
-      rect(0, ground, width, 56, pal[4]);
-      rect(0, ground, width, 7, engine.stage % 4 === 2 ? '#f7fafc' : engine.stage % 4 === 0 ? '#567b44' : '#d1ae79');
-      for (let i = -1; i < width / 48 + 1; i++) {
-        const x = i * 48 - (scroll % 48);
-        rect(x, ground + 26, 46, 2, '#ffffff25');
-        rect(x, ground + 8, 2, 18, '#00000022');
-        rect(x + 24, ground + 28, 2, 26, '#00000022');
-      }
-
-      for (const o of engine.objects) {
-        const y = ground - o.y - o.height;
-        if (o.type === 'coin') {
-          ctx.fillStyle = '#ae701c';
-          ctx.beginPath();
-          ctx.ellipse(o.x + 10, y + 10, 9, 11, 0, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.fillStyle = '#ffdf63';
-          ctx.beginPath();
-          ctx.ellipse(o.x + 10, y + 9, 7, 9, 0, 0, Math.PI * 2);
-          ctx.fill();
-          rect(o.x + 9, y + 3, 2, 12, '#bf8620');
-        } else if (o.type === 'item') {
-          if (o.kind === 'mushroom') drawMushroom(o.x, y);
-          else drawStar(o.x, y, engine.elapsed);
-        } else if (o.kind === 'pipe') {
-          rect(o.x, y, o.width, o.height, '#377946');
-          rect(o.x + 5, y + 8, 7, o.height - 8, '#79b962');
-          rect(o.x - 4, y, o.width + 8, 14, '#285c38');
-          rect(o.x - 2, y + 2, o.width + 4, 8, '#69a65b');
-        } else {
-          rect(o.x, y, o.width, o.height, '#96654e');
-          for (let j = 0; j < o.height; j += 22) {
-            rect(o.x, y + j, o.width, 2, '#e2b58a');
-            rect(o.x + (j % 44 === 0 ? 12 : 30), y + j, 2, 22, '#583c38');
-          }
-        }
-      }
-
-      const marioY = ground - engine.player.y - 44;
-      drawPowerAura(engine.player.x, marioY, engine.elapsed);
-      drawMario(
-        engine.player.x,
-        marioY,
-        engine.elapsed,
-        engine.player.y > 0,
-        engine.player.spin,
-        engine.invincibleFor > 0,
-      );
-
-      if (running && !paused) {
-        ctx.fillStyle = '#ffffffba';
-        ctx.font = '12px sans-serif';
-        ctx.fillText(`${(engine.speed / 260).toFixed(1)}× SPEED`, 18, 26);
-      }
+      }catch{}
     }
 
-    const sprite = [
-      '.....RRRRRR.....',
-      '....RRRRRRRRRR..',
-      '....BBBSSBS.....',
-      '...BSBSSSBS.....',
-      '...BSBBSSSSBSS..',
-      '....BSSSSBBBB...',
-      '.....SSSSSSS....',
-      '....RRBRRRB.....',
-      '...RRRBRRRBRR...',
-      '..SSRRBBBBBRSS..',
-      '..SSSBBYBBYBSS..',
-      '.....BBBBBBB....',
-      '....BBBBBBBB....',
-      '....BBB..BBB....',
-      '...BBB....BBB...',
-      '..KKKK....KKKK..',
-    ];
+    function readRecords(){
+      try{const a=JSON.parse(localStorage.getItem(RECORD_KEY)||'[]');return Array.isArray(a)?a.slice(0,10):[];}catch{return [];}
+    }
+    function saveRecords(){try{localStorage.setItem(RECORD_KEY,JSON.stringify(records.slice(0,10)));}catch{}}
 
-    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const style=document.createElement('style');
+    style.id='bokrun-style-v4';
+    style.textContent="\n.bokrun{margin:18px 18px 34px!important;border:0!important;background:transparent!important;border-radius:0!important;overflow:visible!important;color:#191919!important;font-family:Pretendard,\"Apple SD Gothic Neo\",\"Noto Sans KR\",\"Malgun Gothic\",sans-serif!important}\n.bokrun *{box-sizing:border-box}\n.bokrun-shell{border:1px solid #ececec;border-radius:26px;background:#fff;overflow:hidden;box-shadow:0 12px 34px rgba(0,0,0,.055)}\n.bokrun-hero{display:flex;justify-content:space-between;gap:20px;align-items:center;padding:22px 24px;background:linear-gradient(120deg,#fff8ad,#fee500 58%,#ffd83b);color:#191919}\n.bokrun-kicker{font-size:10px;letter-spacing:1.2px;font-weight:900;opacity:.62}\n.bokrun-hero h2{margin:3px 0 5px!important;font-family:inherit!important;font-size:29px!important;letter-spacing:-1.2px!important}\n.bokrun-hero p{margin:0;font-size:12px;line-height:1.55;color:#5d5500}\n.bokrun-wallet{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}.bokrun-wallet span{display:flex;gap:6px;align-items:center;background:rgba(255,255,255,.72);padding:9px 11px;border-radius:999px;font-size:11px;font-weight:850}.bokrun-wallet strong{font-size:14px}\n.bokrun-nav{display:flex;gap:5px;padding:10px 12px;border-bottom:1px solid #eee;background:#fafafa;overflow:auto}.bokrun-nav button{border:0;background:transparent;color:#777;padding:9px 14px;border-radius:12px;font-weight:800;white-space:nowrap;cursor:pointer}.bokrun-nav button.active{background:#191919;color:#fff}\n.bokrun-body{padding:18px}.bokrun-grid{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(300px,.55fr);gap:16px}.bokrun-card{background:#fff;border:1px solid #ececec;border-radius:18px;padding:16px}.bokrun-card h3{margin:0 0 4px;font-size:17px;letter-spacing:-.4px}.bokrun-card>p,.bokrun-sub{margin:0;color:#888;font-size:11px;line-height:1.55}\n.bokrun-worlds{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin-top:13px}.bokrun-world{border:1px solid #eee;background:#fafafa;border-radius:14px;padding:11px;text-align:left;cursor:pointer;min-height:88px}.bokrun-world.active{border-color:#fee500;box-shadow:inset 0 0 0 2px #fee500;background:#fffdf0}.bokrun-world.locked{opacity:.38;cursor:not-allowed}.bokrun-world b{display:block;margin-top:5px;font-size:12px}.bokrun-world small{display:block;color:#999;margin-top:3px;font-size:9px}\n.bokrun-rounds{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px}.bokrun-round{width:54px;height:54px;border:1px solid #eee;background:#fafafa;border-radius:14px;font-weight:850;cursor:pointer;position:relative}.bokrun-round.active{background:#191919;color:#fff;border-color:#191919}.bokrun-round.locked{opacity:.35;cursor:not-allowed}.bokrun-stars{position:absolute;bottom:3px;left:0;right:0;font-size:8px;color:#e7aa00}\n.bokrun-objective{margin-top:13px;padding:12px 13px;border-radius:14px;background:#f7f7f7;display:flex;justify-content:space-between;gap:12px;align-items:center}.bokrun-objective b{font-size:13px}.bokrun-objective small{display:block;color:#888;font-size:10px;margin-top:3px}.bokrun-objective em{font-style:normal;font-size:20px}\n.bokrun-loadout{display:grid;grid-template-columns:1fr;gap:9px;margin-top:12px}.bokrun-slot{display:flex;align-items:center;gap:10px;padding:10px;border:1px solid #eee;border-radius:14px;background:#fafafa}.bokrun-avatar{width:46px;height:46px;border-radius:15px;display:grid;place-items:center;font-size:24px;flex:0 0 auto}.bokrun-slot b{display:block;font-size:12px}.bokrun-slot small{display:block;color:#888;font-size:9px;margin-top:2px;line-height:1.4}.bokrun-slot .rarity{margin-left:auto;font-size:9px;font-weight:900}\n.bokrun-consumables{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-top:12px}.bokrun-consume{border:1px solid #eee;background:#fafafa;border-radius:12px;padding:9px 5px;text-align:center;cursor:pointer;position:relative}.bokrun-consume.active{background:#fff9c9;border-color:#fee500}.bokrun-consume:disabled{opacity:.36;cursor:not-allowed}.bokrun-consume span{display:block;font-size:20px}.bokrun-consume b{display:block;font-size:9px;margin-top:4px}.bokrun-consume small{position:absolute;right:5px;top:4px;font-size:8px;background:#191919;color:#fff;border-radius:999px;padding:2px 5px}\n.bokrun-start{width:100%;margin-top:12px;border:0;border-radius:14px;background:#fee500;color:#191919;padding:13px;font-size:14px;font-weight:900;cursor:pointer}.bokrun-start:hover{background:#f4dc00}\n.bokrun-record-list{margin:12px 0 0;padding:0;list-style:none}.bokrun-record-list li{display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid #eee;font-size:10px}.bokrun-record-list li:last-child{border:0}.bokrun-record-list strong{white-space:nowrap}\n.bokrun-collection-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:14px}.bokrun-unit{border:1px solid #eee;border-radius:16px;padding:13px;background:#fafafa;position:relative}.bokrun-unit.locked{filter:grayscale(.7);opacity:.58}.bokrun-unit.selected{border-color:#fee500;box-shadow:inset 0 0 0 2px #fee500}.bokrun-unit-top{display:flex;gap:9px;align-items:center}.bokrun-unit h4{margin:0;font-size:12px}.bokrun-unit p{margin:7px 0;color:#777;font-size:9px;line-height:1.5;min-height:40px}.bokrun-unit-meta{display:flex;justify-content:space-between;gap:6px;font-size:9px;color:#999}.bokrun-unit-actions{display:flex;gap:5px;margin-top:9px}.bokrun-unit-actions button{flex:1;border:0;border-radius:9px;background:#eee;padding:7px;font-size:9px;font-weight:800;cursor:pointer}.bokrun-unit-actions button.primary{background:#fee500}.bokrun-unit-actions button:disabled{opacity:.4;cursor:not-allowed}\n.rarity-n{color:#777}.rarity-r{color:#2b7ccc}.rarity-sr{color:#8d58d5}.rarity-ssr{color:#d89000}\n.bokrun-gacha-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:13px}.bokrun-banner{border:1px solid #eee;border-radius:18px;padding:18px;background:linear-gradient(140deg,#fafafa,#fff)}.bokrun-banner.active{border-color:#fee500;box-shadow:inset 0 0 0 2px #fee500}.bokrun-banner h3{font-size:18px}.bokrun-rates{display:flex;gap:6px;flex-wrap:wrap;margin:12px 0}.bokrun-rates span{background:#f4f4f4;border-radius:999px;padding:5px 7px;font-size:9px;font-weight:800}.bokrun-gacha-actions{display:flex;gap:7px}.bokrun-gacha-actions button{flex:1;border:0;border-radius:11px;padding:10px;background:#191919;color:#fff;font-size:10px;font-weight:850;cursor:pointer}.bokrun-gacha-actions button.ten{background:#fee500;color:#191919}.bokrun-gacha-actions button:disabled{opacity:.38}\n.bokrun-shop{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:13px}.bokrun-shop-item{border:1px solid #eee;border-radius:16px;padding:14px;background:#fafafa;text-align:center}.bokrun-shop-item .icon{font-size:32px}.bokrun-shop-item h4{margin:7px 0 4px;font-size:12px}.bokrun-shop-item p{margin:0;color:#888;font-size:9px;min-height:28px}.bokrun-shop-item button{width:100%;margin-top:10px;border:0;border-radius:10px;background:#fee500;padding:8px;font-size:10px;font-weight:850;cursor:pointer}.bokrun-shop-item button:disabled{opacity:.4}\n.bokrun-game{position:relative;background:#111;border-radius:18px;overflow:hidden}.bokrun-game-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 12px;background:#191919;color:#fff}.bokrun-hud{display:flex;gap:11px;flex:1;flex-wrap:wrap}.bokrun-hud span{font-size:9px;color:#aaa}.bokrun-hud strong{display:block;font-size:13px;color:#fff}.bokrun-skill{border:0;border-radius:10px;background:#fee500;color:#191919;padding:9px 12px;font-weight:900;cursor:pointer}.bokrun-skill:disabled{opacity:.45}.bokrun-game canvas{display:block;width:100%;height:auto;aspect-ratio:1100/390;background:#bde8ff;touch-action:none}.bokrun-progress{height:6px;background:#333}.bokrun-progress i{display:block;height:100%;background:#fee500;width:0%}.bokrun-mobile-controls{display:flex;gap:7px;padding:10px;background:#191919}.bokrun-mobile-controls button{flex:1;border:0;border-radius:11px;padding:11px;background:#2d2d2d;color:#fff;font-weight:850}.bokrun-mobile-controls button.skill{background:#fee500;color:#191919}\n.bokrun-runmsg{position:absolute;left:50%;top:54%;transform:translate(-50%,-50%);min-width:260px;max-width:85%;padding:17px 20px;background:rgba(17,17,17,.88);color:#fff;border-radius:16px;text-align:center;pointer-events:none;backdrop-filter:blur(5px)}.bokrun-runmsg[hidden]{display:none}.bokrun-runmsg b{display:block;font-size:21px}.bokrun-runmsg span{display:block;margin-top:5px;color:#ccc;font-size:11px;line-height:1.45}\n.bokrun-overlay{position:fixed;inset:0;z-index:10000;display:grid;place-items:center;padding:20px;background:rgba(0,0,0,.55);backdrop-filter:blur(7px)}.bokrun-modal{width:min(720px,100%);max-height:90vh;overflow:auto;border-radius:24px;background:#fff;padding:20px;box-shadow:0 24px 80px rgba(0,0,0,.25)}.bokrun-modal h3{margin:0 0 6px;font-size:22px}.bokrun-modal p{margin:0;color:#777;font-size:11px}.bokrun-result-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin:14px 0}.bokrun-result-stats div{background:#f7f7f7;border-radius:12px;padding:10px;text-align:center}.bokrun-result-stats small{display:block;color:#999;font-size:8px}.bokrun-result-stats b{font-size:14px}.bokrun-modal-actions{display:flex;gap:7px}.bokrun-modal-actions button{flex:1;border:0;border-radius:12px;padding:11px;font-weight:850;cursor:pointer}.bokrun-modal-actions .primary{background:#fee500}.bokrun-pulls{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin:14px 0}.bokrun-pull{border:1px solid #eee;border-radius:13px;padding:10px 6px;text-align:center;background:#fafafa}.bokrun-pull span{display:block;font-size:26px}.bokrun-pull b{display:block;font-size:9px;margin-top:4px}.bokrun-pull small{font-size:8px}\nbody.dark .bokrun-shell,body.dark .bokrun-card,body.dark .bokrun-modal{background:#242424;color:#f5f5f5;border-color:#373737}.dark .bokrun-nav{background:#202020;border-color:#333}.dark .bokrun-world,.dark .bokrun-slot,.dark .bokrun-unit,.dark .bokrun-banner,.dark .bokrun-shop-item,.dark .bokrun-objective{background:#2d2d2d;border-color:#3b3b3b}.dark .bokrun-sub,.dark .bokrun-card>p,.dark .bokrun-unit p,.dark .bokrun-unit-meta{color:#aaa}\n@media(max-width:1050px){.bokrun-grid{grid-template-columns:1fr}.bokrun-worlds{grid-template-columns:repeat(3,1fr)}.bokrun-collection-grid{grid-template-columns:repeat(2,1fr)}}\n@media(max-width:700px){.bokrun{margin:10px!important}.bokrun-hero{align-items:flex-start;flex-direction:column}.bokrun-wallet{justify-content:flex-start}.bokrun-body{padding:12px}.bokrun-worlds{grid-template-columns:repeat(2,1fr)}.bokrun-collection-grid{grid-template-columns:1fr}.bokrun-gacha-grid{grid-template-columns:1fr}.bokrun-shop{grid-template-columns:repeat(2,1fr)}.bokrun-result-stats{grid-template-columns:repeat(2,1fr)}.bokrun-pulls{grid-template-columns:repeat(2,1fr)}}\n";
+    document.head.appendChild(style);
 
-    function drawMario(x, y, t, air, spin, starPower) {
-      const colors = { R: '#e43a34', B: '#225baa', S: '#ffd2a0', K: '#593d33', Y: '#f8d65b' };
-      ctx.save();
-      if (air && !reducedMotion.matches) {
-        ctx.translate(x + 16, y + 22);
-        ctx.rotate(spin);
-        ctx.translate(-(x + 16), -(y + 22));
+    function header(){
+      return '<div class="bokrun-hero"><div><div class="bokrun-kicker">BOKRUN · RELIC RUSH</div><h2>BokRun</h2><p>캐릭터와 유물의 조합을 만들고, 새로운 월드와 라운드를 하나씩 해금하세요.</p></div><div class="bokrun-wallet"><span>🪙 골드 <strong>'+profile.gold.toLocaleString()+'</strong></span><span>💎 젬 <strong>'+profile.gems.toLocaleString()+'</strong></span><span>🏆 클리어 <strong>'+profile.lifetime.clears+'</strong></span></div></div>';
+    }
+    function nav(){
+      const tabs=[['play','PLAY'],['collection','COLLECTION'],['gacha','GACHA'],['shop','SHOP']];
+      return '<div class="bokrun-nav">'+tabs.map(t=>'<button data-br-view="'+t[0]+'" class="'+(view===t[0]?'active':'')+'">'+t[1]+'</button>').join('')+'</div>';
+    }
+    function render(){
+      if(running){renderGame();return;}
+      section.innerHTML='<div class="bokrun-shell">'+header()+nav()+'<div class="bokrun-body">'+(view==='play'?renderPlay():view==='collection'?renderCollection():view==='gacha'?renderGacha():renderShop())+'</div></div>';
+      bind();
+    }
+
+    function objectiveText(r){
+      if(r.mode==='coins')return '코인 '+r.goal+'개 수집';
+      if(r.mode==='score')return r.goal.toLocaleString()+'점 달성';
+      if(r.mode==='combo')return r.goal+' COMBO 달성';
+      return r.goal+'m 도달';
+    }
+
+    function renderPlay(){
+      const r=roundBy(selectedRound),w=WORLDS[r.world],c=charBy(profile.selectedCharacter);
+      const eq=profile.equippedRelics.map(relicBy);
+      const worlds=WORLDS.map((world,idx)=>{
+        const first=idx*5+1,locked=profile.unlockedRound<first;
+        return '<button class="bokrun-world '+(r.world===idx?'active ':'')+(locked?'locked':'')+'" data-world="'+idx+'" '+(locked?'disabled':'')+'><span>'+world.emoji+'</span><b>'+esc(world.name)+'</b><small>'+(locked?'ROUND '+first+' 해금 필요':'ROUND '+first+'-'+(first+4))+'</small></button>';
+      }).join('');
+      const start=r.world*5+1;
+      const rounds=Array.from({length:5},(_,i)=>{
+        const id=start+i,locked=id>profile.unlockedRound,stars=profile.roundStars[id]||0;
+        return '<button class="bokrun-round '+(selectedRound===id?'active ':'')+(locked?'locked':'')+'" data-round="'+id+'" '+(locked?'disabled':'')+'>'+w.emoji+'<br>'+id+'<span class="bokrun-stars">'+('★'.repeat(stars)+'☆'.repeat(3-stars))+'</span></button>';
+      }).join('');
+      const consume=Object.values(CONSUMABLES).map(it=>{
+        const count=profile.inventory[it.id]||0,active=profile.selectedConsumables.includes(it.id);
+        return '<button class="bokrun-consume '+(active?'active':'')+'" data-consume="'+it.id+'" '+(!count?'disabled':'')+'><small>'+count+'</small><span>'+it.emoji+'</span><b>'+esc(it.name)+'</b></button>';
+      }).join('');
+      const loadout='<div class="bokrun-loadout"><div class="bokrun-slot"><span class="bokrun-avatar" style="background:'+c.accent+'">'+c.emoji+'</span><span><b>'+esc(c.name)+' · '+c.rarity+'</b><small>'+esc(c.desc)+'</small></span><span class="rarity '+rarityClass(c.rarity)+'">Lv.'+(profile.ownedCharacters[c.id]?.level||1)+'</span></div>'+eq.map(x=>'<div class="bokrun-slot"><span class="bokrun-avatar" style="background:#f4f4f4">'+x.emoji+'</span><span><b>'+esc(x.name)+' · '+x.rarity+'</b><small>'+esc(x.desc)+'</small></span></div>').join('')+'</div>';
+      const recordsHtml=records.length?records.slice(0,5).map((x,i)=>'<li><span>'+(i+1)+'. '+esc(x.character)+' · '+esc(x.stage)+'</span><strong>'+Number(x.score||0).toLocaleString()+'</strong></li>').join(''):'<li><span>아직 기록이 없습니다.</span></li>';
+      return '<div class="bokrun-grid"><div class="bokrun-card"><h3>스테이지 선택</h3><p>월드를 클리어할수록 다음 테마가 열립니다.</p><div class="bokrun-worlds">'+worlds+'</div><div class="bokrun-rounds">'+rounds+'</div><div class="bokrun-objective"><div><b>'+w.emoji+' '+esc(w.name)+' · ROUND '+r.title+'</b><small>'+objectiveText(r)+' · 총 '+r.distance+'m 코스</small></div><em>'+(profile.roundStars[r.id]?'★'.repeat(profile.roundStars[r.id]):'NEW')+'</em></div></div><aside class="bokrun-card"><h3>RUN BUILD</h3><p>캐릭터와 유물 조합이 실제 런 능력에 적용됩니다.</p>'+loadout+'<div class="bokrun-consumables">'+consume+'</div><button class="bokrun-start" id="bokrun-start">▶ ROUND '+r.title+' 시작</button></aside></div><div class="bokrun-card" style="margin-top:16px"><h3>BEST RUNS</h3><ul class="bokrun-record-list">'+recordsHtml+'</ul></div>';
+    }
+
+    function needShards(level){return 2+level*2;}
+    function renderCollection(){
+      const chars=CHARACTERS.map(c=>{
+        const own=profile.ownedCharacters[c.id],selected=profile.selectedCharacter===c.id,need=own?needShards(own.level):0;
+        return '<article class="bokrun-unit '+(!own?'locked ':'')+(selected?'selected':'')+'"><div class="bokrun-unit-top"><span class="bokrun-avatar" style="background:'+c.accent+'">'+c.emoji+'</span><div><h4>'+esc(c.name)+'</h4><span class="'+rarityClass(c.rarity)+'">'+c.rarity+' · '+(own?'Lv.'+own.level:'미보유')+'</span></div></div><p><b>'+esc(c.skill)+'</b><br>'+esc(c.desc)+'</p><div class="bokrun-unit-meta"><span>조각 '+(own?own.shards:0)+'/'+need+'</span><span>'+c.active.cooldown+'초 스킬</span></div><div class="bokrun-unit-actions">'+(own?'<button class="primary" data-select-char="'+c.id+'">'+(selected?'선택됨':'선택')+'</button><button data-up-char="'+c.id+'" '+(own.shards<need?'disabled':'')+'>강화</button>':'<button disabled>가챠에서 획득</button>')+'</div></article>';
+      }).join('');
+      const relics=RELICS.map(r=>{
+        const own=profile.ownedRelics[r.id],eq=profile.equippedRelics.includes(r.id),need=own?needShards(own.level):0;
+        return '<article class="bokrun-unit '+(!own?'locked ':'')+(eq?'selected':'')+'"><div class="bokrun-unit-top"><span class="bokrun-avatar" style="background:#f4f4f4">'+r.emoji+'</span><div><h4>'+esc(r.name)+'</h4><span class="'+rarityClass(r.rarity)+'">'+r.rarity+' · '+(own?'Lv.'+own.level:'미보유')+'</span></div></div><p>'+esc(r.desc)+'</p><div class="bokrun-unit-meta"><span>조각 '+(own?own.shards:0)+'/'+need+'</span><span>'+(eq?'장착 중':'최대 3개 장착')+'</span></div><div class="bokrun-unit-actions">'+(own?'<button class="primary" data-equip-relic="'+r.id+'">'+(eq?'해제':'장착')+'</button><button data-up-relic="'+r.id+'" '+(own.shards<need?'disabled':'')+'>강화</button>':'<button disabled>가챠에서 획득</button>')+'</div></article>';
+      }).join('');
+      return '<div class="bokrun-card"><h3>캐릭터 '+Object.keys(profile.ownedCharacters).length+' / '+CHARACTERS.length+'</h3><p>액티브 스킬과 패시브가 실제 플레이에 반영됩니다.</p><div class="bokrun-collection-grid">'+chars+'</div></div><div class="bokrun-card" style="margin-top:16px"><h3>유물 '+Object.keys(profile.ownedRelics).length+' / '+RELICS.length+' · 장착 '+profile.equippedRelics.length+'/3</h3><p>유물 3개 조합으로 점프·자석·스킬·콤보·점수 빌드를 만듭니다.</p><div class="bokrun-collection-grid">'+relics+'</div></div>';
+    }
+
+    function renderGacha(){
+      const banners=[['character','CHARACTER GACHA','새 러너와 중복 조각을 획득합니다.',100],['relic','RELIC GACHA','새 유물과 강화 조각을 획득합니다.',80]].map(b=>{
+        const active=selectedGacha===b[0],cost=b[3],pity=profile.pity[b[0]]||0;
+        return '<div class="bokrun-banner '+(active?'active':'')+'" data-gacha-banner="'+b[0]+'"><h3>'+b[1]+'</h3><p>'+b[2]+'</p><div class="bokrun-rates"><span>N 72%</span><span>R 22%</span><span>SR 5%</span><span>SSR 1%</span><span>SSR PITY '+pity+'/40</span></div><div class="bokrun-gacha-actions"><button data-pull="'+b[0]+'" data-count="1" '+(profile.gems<cost?'disabled':'')+'>1회 💎 '+cost+'</button><button class="ten" data-pull="'+b[0]+'" data-count="10" '+(profile.gems<cost*9?'disabled':'')+'>10회 💎 '+(cost*9)+'</button></div></div>';
+      }).join('');
+      return '<div class="bokrun-card"><h3>GACHA</h3><p>실제 결제는 없습니다. 런/클리어로 얻은 젬만 사용합니다. 10회는 R 이상 1개 보장, 40회 내 SSR 보장.</p><div class="bokrun-gacha-grid">'+banners+'</div></div>';
+    }
+
+    function renderShop(){
+      const items=Object.values(CONSUMABLES).map(it=>'<div class="bokrun-shop-item"><div class="icon">'+it.emoji+'</div><h4>'+esc(it.name)+'</h4><p>'+esc(it.desc)+'</p><div class="bokrun-sub">보유 '+(profile.inventory[it.id]||0)+'개</div><button data-buy="'+it.id+'" '+(profile.gold<it.price?'disabled':'')+'>🪙 '+it.price.toLocaleString()+' 구매</button></div>').join('');
+      return '<div class="bokrun-card"><h3>RUN SHOP</h3><p>골드는 런 결과로 획득합니다. 구매한 아이템은 PLAY 화면에서 선택해서 사용합니다.</p><div class="bokrun-shop">'+items+'</div></div>';
+    }
+
+    function bind(){
+      section.querySelectorAll('[data-br-view]').forEach(b=>b.onclick=()=>{view=b.dataset.brView;render();});
+      section.querySelectorAll('[data-world]').forEach(b=>b.onclick=()=>{const w=Number(b.dataset.world),id=w*5+1;if(id<=profile.unlockedRound){selectedRound=Math.max(id,Math.min(profile.unlockedRound,id+4));render();}});
+      section.querySelectorAll('[data-round]').forEach(b=>b.onclick=()=>{const id=Number(b.dataset.round);if(id<=profile.unlockedRound){selectedRound=id;render();}});
+      section.querySelectorAll('[data-consume]').forEach(b=>b.onclick=()=>toggleConsume(b.dataset.consume));
+      const start=section.querySelector('#bokrun-start');if(start)start.onclick=startRun;
+      section.querySelectorAll('[data-select-char]').forEach(b=>b.onclick=()=>{profile.selectedCharacter=b.dataset.selectChar;persist();render();});
+      section.querySelectorAll('[data-up-char]').forEach(b=>b.onclick=()=>upgrade('character',b.dataset.upChar));
+      section.querySelectorAll('[data-equip-relic]').forEach(b=>b.onclick=()=>equipRelic(b.dataset.equipRelic));
+      section.querySelectorAll('[data-up-relic]').forEach(b=>b.onclick=()=>upgrade('relic',b.dataset.upRelic));
+      section.querySelectorAll('[data-gacha-banner]').forEach(b=>b.onclick=e=>{if(e.target.closest('[data-pull]'))return;selectedGacha=b.dataset.gachaBanner;render();});
+      section.querySelectorAll('[data-pull]').forEach(b=>b.onclick=()=>pull(b.dataset.pull,Number(b.dataset.count)));
+      section.querySelectorAll('[data-buy]').forEach(b=>b.onclick=()=>buy(b.dataset.buy));
+    }
+
+    function toggleConsume(id){
+      if(!(profile.inventory[id]>0))return;
+      const i=profile.selectedConsumables.indexOf(id);
+      if(i>=0)profile.selectedConsumables.splice(i,1);else profile.selectedConsumables.push(id);
+      persist();render();
+    }
+    function equipRelic(id){
+      const i=profile.equippedRelics.indexOf(id);
+      if(i>=0)profile.equippedRelics.splice(i,1);
+      else{if(profile.equippedRelics.length>=3)profile.equippedRelics.shift();profile.equippedRelics.push(id);}
+      persist();render();
+    }
+    function upgrade(type,id){
+      const map=type==='character'?profile.ownedCharacters:profile.ownedRelics,own=map[id];if(!own)return;
+      const need=needShards(own.level);if(own.shards<need)return;
+      own.shards-=need;own.level++;persist();render();
+    }
+    function buy(id){
+      const item=CONSUMABLES[id];if(!item||profile.gold<item.price)return;
+      profile.gold-=item.price;profile.inventory[id]=(profile.inventory[id]||0)+1;persist();render();
+    }
+
+    function rarityRoll(type,forceR){
+      if((profile.pity[type]||0)>=39)return 'SSR';
+      const x=Math.random()*100;
+      if(x<1)return 'SSR';if(x<6)return 'SR';if(x<28)return 'R';if(forceR)return 'R';return 'N';
+    }
+    function pull(type,count){
+      selectedGacha=type;
+      const cost=(type==='character'?100:80)*(count===10?9:1);
+      if(profile.gems<cost)return;
+      profile.gems-=cost;
+      const pool=type==='character'?CHARACTERS:RELICS,map=type==='character'?profile.ownedCharacters:profile.ownedRelics;
+      const results=[];
+      for(let i=0;i<count;i++){
+        const guaranteed=count===10&&i===count-1&&!results.some(x=>['R','SR','SSR'].includes(x.item.rarity));
+        const rarity=rarityRoll(type,guaranteed),candidates=pool.filter(x=>x.rarity===rarity),item=candidates[Math.floor(Math.random()*candidates.length)]||pool[0],isNew=!map[item.id];
+        if(isNew)map[item.id]={level:1,shards:0};else map[item.id].shards+=item.rarity==='SSR'?4:item.rarity==='SR'?3:item.rarity==='R'?2:1;
+        profile.pity[type]=item.rarity==='SSR'?0:(profile.pity[type]||0)+1;results.push({item,isNew});
       }
-      const starFlash = starPower; // Steady gold avoids rapid flashing during invincibility.
-      sprite.forEach((row, j) => [...row].forEach((ch, i) => {
-        if (ch === '.') return;
-        let dx = 0;
-        if (j > 12 && !air) dx = Math.sin(t * 20) * (i < 8 ? 2 : -2);
-        let color = colors[ch];
-        if (j >= 2 && j <= 5 && ch === 'B') color = '#593d33';
-        if (starFlash && ch !== 'K') color = ch === 'S' ? '#fff2ad' : '#ffd84f';
-        rect(x + i * 2 + dx, y + j * 2.75, 2.2, 2.9, color);
-      }));
-      ctx.restore();
+      persist();showGachaResult(results,type);
     }
 
-    function frame(time) {
-      if (!running || paused) return;
-      const dt = last ? (time - last) / 1000 : 0;
-      last = time;
-      engine.step(dt, width);
-      hud();
-      draw();
-      if (engine.dead) finish();
-      else raf = requestAnimationFrame(frame);
+    function showGachaResult(results,type){
+      const overlay=document.createElement('div');overlay.className='bokrun-overlay';
+      overlay.innerHTML='<div class="bokrun-modal"><h3>'+(type==='character'?'CHARACTER':'RELIC')+' RESULT</h3><p>중복 획득은 강화 조각으로 전환됩니다.</p><div class="bokrun-pulls">'+results.map(r=>'<div class="bokrun-pull '+rarityClass(r.item.rarity)+'"><span>'+r.item.emoji+'</span><b>'+esc(r.item.name)+'</b><small>'+r.item.rarity+(r.isNew?' · NEW':' · 조각')+'</small></div>').join('')+'</div><div class="bokrun-modal-actions"><button class="primary" id="bokrun-gacha-close">확인</button></div></div>';
+      document.body.appendChild(overlay);overlay.querySelector('#bokrun-gacha-close').onclick=()=>{overlay.remove();render();};
     }
 
-    leaderboard();
-    resize();
+    function consumeSelected(){
+      const used={};profile.selectedConsumables.forEach(id=>{if(profile.inventory[id]>0){profile.inventory[id]--;used[id]=true;}});profile.selectedConsumables=[];return used;
+    }
+
+    function startRun(){
+      const used=consumeSelected();persist();
+      engine=new RunnerEngine(Math.random);engine.configure({characterId:profile.selectedCharacter,characterLevel:profile.ownedCharacters[profile.selectedCharacter]?.level||1,relicIds:profile.equippedRelics,relicLevels:Object.fromEntries(profile.equippedRelics.map(id=>[id,profile.ownedRelics[id]?.level||1])),roundId:selectedRound,consumables:used});
+      running=true;paused=false;last=0;renderGame();requestAnimationFrame(()=>{resizeCanvas();updateHud();raf=requestAnimationFrame(frame);});
+    }
+
+    function renderGame(){
+      const c=charBy(profile.selectedCharacter),r=roundBy(selectedRound),w=WORLDS[r.world];
+      section.innerHTML='<div class="bokrun-shell"><div class="bokrun-hero"><div><div class="bokrun-kicker">RUNNING · '+esc(w.name)+'</div><h2>'+c.emoji+' '+esc(c.name)+' · '+r.title+'</h2><p>'+objectiveText(r)+' · Q/Shift 스킬 · ↓ 슬라이드 · Space 점프</p></div><div class="bokrun-wallet"><span>'+w.emoji+' '+esc(w.name)+'</span></div></div><div class="bokrun-body"><div class="bokrun-game"><div class="bokrun-game-top"><div class="bokrun-hud"><span>점수<strong id="br-score">0</strong></span><span>거리<strong id="br-distance">0m</strong></span><span>코인<strong id="br-coins">0</strong></span><span>콤보<strong id="br-combo">0</strong></span><span>실드<strong id="br-shield">0</strong></span><span>목표<strong id="br-objective">-</strong></span></div><button class="bokrun-skill" id="br-skill">'+esc(c.skill)+'</button></div><div class="bokrun-progress"><i id="br-progress"></i></div><canvas id="bokrun-canvas" width="1100" height="390" tabindex="0" aria-label="BokRun 러닝 게임"></canvas><div class="bokrun-runmsg" id="br-message" hidden><b></b><span></span></div><div class="bokrun-mobile-controls"><button id="br-jump">점프</button><button id="br-slide">슬라이드</button><button class="skill" id="br-skill2">'+esc(c.skill)+'</button><button id="br-pause">일시정지</button></div></div></div></div>';
+      canvas=section.querySelector('#bokrun-canvas');ctx=canvas.getContext('2d');
+      section.querySelector('#br-jump').onpointerdown=jump;
+      const slide=section.querySelector('#br-slide');slide.onpointerdown=()=>engine.slide(true);slide.onpointerup=()=>engine.slide(false);slide.onpointerleave=()=>engine.slide(false);
+      section.querySelector('#br-skill').onclick=useSkill;section.querySelector('#br-skill2').onclick=useSkill;section.querySelector('#br-pause').onclick=togglePause;
+      canvas.onpointerdown=e=>{e.preventDefault();jump();};canvas.focus({preventScroll:true});new ResizeObserver(resizeCanvas).observe(canvas);
+    }
+
+    function showRunMessage(title,sub){const el=section.querySelector('#br-message');if(!el)return;el.hidden=false;el.querySelector('b').textContent=title;el.querySelector('span').textContent=sub;}
+    function hideRunMessage(){const el=section.querySelector('#br-message');if(el)el.hidden=true;}
+    function jump(){if(running&&!paused&&engine)engine.jump();}
+    function useSkill(){if(running&&!paused&&engine&&engine.useSkill())updateHud();}
+    function togglePause(){if(!running)return;paused=!paused;const b=section.querySelector('#br-pause');if(b)b.textContent=paused?'계속하기':'일시정지';if(paused){cancelAnimationFrame(raf);showRunMessage('PAUSED','계속하기를 누르면 이어집니다.');}else{hideRunMessage();last=0;raf=requestAnimationFrame(frame);}}
+
+    function resizeCanvas(){if(!canvas||!canvas.clientWidth)return;width=Math.max(620,Math.min(1100,canvas.clientWidth));const dpr=Math.min(devicePixelRatio||1,2);canvas.width=Math.round(width*dpr);canvas.height=390*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);draw();}
+
+    function updateHud(){
+      if(!engine)return;const set=(id,v)=>{const el=section.querySelector('#'+id);if(el)el.textContent=v;};
+      set('br-score',engine.score.toLocaleString());set('br-distance',Math.floor(engine.distance)+'m');set('br-coins',engine.coins);set('br-combo',engine.combo);set('br-shield',engine.shield);set('br-objective',engine.objectiveLabel);
+      const prog=section.querySelector('#br-progress');if(prog)prog.style.width=(engine.progress*100).toFixed(1)+'%';
+      const c=charBy(profile.selectedCharacter),label=engine.skillReady?c.skill:c.skill+' '+engine.skillCooldown.toFixed(1)+'s';
+      [section.querySelector('#br-skill'),section.querySelector('#br-skill2')].forEach(b=>{if(b){b.textContent=label;b.disabled=!engine.skillReady;}});
+    }
+
+    function frame(time){if(!running||paused||!engine)return;const dt=last?(time-last)/1000:0;last=time;engine.step(dt,width);updateHud();draw();if(engine.dead||engine.cleared)finishRun();else raf=requestAnimationFrame(frame);}
+
+    function finishRun(){
+      running=false;paused=false;cancelAnimationFrame(raf);
+      const rewards=engine.getRewards(),r=roundBy(selectedRound),w=WORLDS[r.world],c=charBy(profile.selectedCharacter);
+      let first=false,stars=0;
+      if(rewards.clear){
+        first=!profile.firstClear[r.id];profile.firstClear[r.id]=true;profile.unlockedRound=Math.max(profile.unlockedRound,Math.min(25,r.id+1));
+        const performance=engine.objectiveValue/r.goal;stars=1+(performance>=1.3?1:0)+(engine.hitCount===0&&performance>=1.05?1:0);profile.roundStars[r.id]=Math.max(profile.roundStars[r.id]||0,stars);profile.lifetime.clears++;
+      }
+      const gemReward=rewards.clear?(first?rewards.gems:Math.max(1,Math.floor(rewards.gems*.18))):0;
+      profile.gold+=rewards.gold;profile.gems+=gemReward;profile.lifetime.runs++;profile.lifetime.gold+=rewards.gold;profile.lifetime.gems+=gemReward;profile.lifetime.bestScore=Math.max(profile.lifetime.bestScore,rewards.score);profile.lifetime.bestCombo=Math.max(profile.lifetime.bestCombo,rewards.maxCombo);
+      records.unshift({score:rewards.score,stage:w.name+' '+r.title,character:c.name,date:new Date().toLocaleDateString('ko-KR')});records.sort((a,b)=>b.score-a.score);records=records.slice(0,10);saveRecords();persist();showResult(rewards,gemReward,stars,first);
+    }
+
+    function showResult(rewards,gems,stars,first){
+      const overlay=document.createElement('div');overlay.className='bokrun-overlay';
+      overlay.innerHTML='<div class="bokrun-modal"><h3>'+(rewards.clear?'STAGE CLEAR!':'RUN END')+'</h3><p>'+(rewards.clear?(first?'첫 클리어 보너스를 획득했습니다.':'기록을 갱신하고 보상을 받았습니다.'):'목표를 달성하지 못했습니다. 빌드와 아이템을 바꿔 다시 도전해보세요.')+'</p><div style="font-size:26px;margin-top:10px;color:#e0a600">'+(rewards.clear?'★'.repeat(stars)+'☆'.repeat(3-stars):'☆☆☆')+'</div><div class="bokrun-result-stats"><div><small>점수</small><b>'+rewards.score.toLocaleString()+'</b></div><div><small>최대 콤보</small><b>'+rewards.maxCombo+'</b></div><div><small>골드</small><b>+'+rewards.gold+'</b></div><div><small>젬</small><b>+'+gems+'</b></div></div><div class="bokrun-modal-actions"><button id="br-retry">다시 도전</button><button class="primary" id="br-lobby">로비로</button></div></div>';
+      document.body.appendChild(overlay);overlay.querySelector('#br-lobby').onclick=()=>{overlay.remove();view='play';render();};overlay.querySelector('#br-retry').onclick=()=>{overlay.remove();startRun();};
+    }
+
+    function draw(){
+      if(!ctx||!engine)return;
+      const world=WORLDS[engine.round.world],pal=world.palette,ground=326,scroll=engine.distance*9;
+      const grad=ctx.createLinearGradient(0,0,0,ground);grad.addColorStop(0,pal[0]);grad.addColorStop(1,pal[1]);ctx.fillStyle=grad;ctx.fillRect(0,0,width,390);
+      drawWorld(world,ground,scroll);ctx.fillStyle=pal[4];ctx.fillRect(0,ground,width,64);ctx.fillStyle=engine.round.world===2?'#edfaff':'#ffffff35';ctx.fillRect(0,ground,width,6);
+      for(let x=-50-(scroll%54);x<width+54;x+=54){ctx.fillStyle='#00000016';ctx.fillRect(x,ground+30,38,2);}
+      engine.objects.forEach(o=>drawObject(o,ground));drawParticles(ground);drawRunner(engine.player.x,ground-engine.player.y-engine.player.height,charBy(profile.selectedCharacter),engine);
+      if(engine.invincibleFor>0||engine.magnetFor>0||engine.doubleScoreFor>0||engine.skillFor>0)drawAura(engine.player.x+17,ground-engine.player.y-22,engine);
+    }
+
+    function drawWorld(world,ground,scroll){
+      const wi=engine.round.world,round=engine.round.round;ctx.globalAlpha=.28;
+      for(let i=-1;i<8;i++){
+        const x=i*220-(scroll*.17%220);ctx.fillStyle=world.palette[2];
+        if(wi===0){ctx.beginPath();ctx.arc(x+90,ground-92,90,Math.PI,0);ctx.fill();}
+        else if(wi===1){ctx.fillRect(x,ground-150-(i%3)*34,92,150+(i%3)*34);for(let y=ground-135;y<ground-25;y+=22){ctx.fillStyle=i%2?'#71e4ff':'#ff68ce';ctx.fillRect(x+16,y,5,8);ctx.fillStyle=world.palette[2];}}
+        else if(wi===2){ctx.beginPath();ctx.moveTo(x,ground);ctx.lineTo(x+100,ground-220);ctx.lineTo(x+210,ground);ctx.fill();}
+        else if(wi===3){ctx.beginPath();ctx.arc(x+100,ground+20,125,Math.PI,Math.PI*2);ctx.fill();ctx.fillStyle='#ff704f';ctx.fillRect(x+95,ground-55,10,75);}
+        else{ctx.fillRect(x+20,ground-130,150,22);ctx.fillRect(x+45,ground-165,18,45);ctx.fillRect(x+130,ground-190,18,70);}
+      }
+      ctx.globalAlpha=1;const t=engine.elapsed;
+      if(world.weather==='snow'){ctx.fillStyle='#fff';for(let i=0;i<30;i++){const x=(i*83+t*22*(i%3+1))%width,y=(i*47+t*36)%ground;ctx.globalAlpha=.4+(i%4)*.12;ctx.fillRect(x,y,2+(i%2),2+(i%2));}ctx.globalAlpha=1;}
+      else if(world.weather==='ember'){ctx.fillStyle='#ffca73';for(let i=0;i<20;i++){const x=(i*97+t*18)%width,y=ground-((i*37+t*45)%ground);ctx.globalAlpha=.2+(i%3)*.2;ctx.fillRect(x,y,2,5);}ctx.globalAlpha=1;}
+      else if(world.weather==='spark'){for(let i=0;i<12;i++){ctx.fillStyle=i%2?'#66e6ff':'#ff76d6';ctx.globalAlpha=.25;ctx.fillRect((i*137-scroll*.05)%width,45+(i%5)*43,28,2);}ctx.globalAlpha=1;}
+      else if(world.weather==='petal'){ctx.fillStyle='#fff';for(let i=0;i<18;i++){ctx.globalAlpha=.35;ctx.fillRect((i*101+t*18)%width,60+(i*37+t*12)%210,5,3);}ctx.globalAlpha=1;}
+      else{ctx.fillStyle='#fff';for(let i=0;i<9;i++){ctx.globalAlpha=.35;ctx.beginPath();ctx.ellipse((i*170-scroll*.09)%width,70+(i%3)*55,38,13,0,0,Math.PI*2);ctx.fill();}ctx.globalAlpha=1;}
+      ctx.fillStyle='#ffffffaa';ctx.font='800 11px sans-serif';ctx.fillText(world.name+' · ROUND '+engine.round.title+' · '+round+'/5',18,25);
+    }
+
+    function drawObject(o,ground){
+      const y=ground-o.y-o.height;
+      if(o.type==='coin'){ctx.fillStyle='#ffca26';ctx.beginPath();ctx.arc(o.x+9,y+9,8,0,Math.PI*2);ctx.fill();ctx.fillStyle='#fff0a0';ctx.fillRect(o.x+7,y+3,3,12);return;}
+      if(o.type==='jelly'){ctx.fillStyle='#ff78b4';roundRect(o.x,y,o.width,o.height,6,true);ctx.fillStyle='#fff';ctx.fillRect(o.x+5,y+6,3,3);ctx.fillRect(o.x+11,y+6,3,3);return;}
+      if(o.type==='item'){const icons={shield:'S',magnet:'M',double:'2X',star:'★',rush:'R'};ctx.fillStyle=o.kind==='star'?'#fee500':o.kind==='double'?'#8e79ff':'#62d3c2';ctx.beginPath();ctx.arc(o.x+14,y+14,13,0,Math.PI*2);ctx.fill();ctx.fillStyle='#191919';ctx.font='900 9px sans-serif';ctx.textAlign='center';ctx.fillText(icons[o.kind]||'?',o.x+14,y+17);ctx.textAlign='left';return;}
+      const wi=engine.round.world,colors=[['#805d42','#b78a62'],['#472b68','#8e5ac0'],['#6c98a6','#d4f5ff'],['#552a2c','#d95742'],['#7d765e','#c7c09b']][wi];ctx.fillStyle=colors[0];
+      if(o.kind==='drone'){roundRect(o.x,y,o.width,o.height,8,true);ctx.fillStyle=colors[1];ctx.fillRect(o.x+8,y+8,o.width-16,5);}
+      else if(o.kind==='laser'){ctx.fillStyle='#ff4f5f';ctx.fillRect(o.x,y+4,o.width,o.height-8);ctx.fillStyle='#fff';ctx.globalAlpha=.4;ctx.fillRect(o.x,y+8,o.width,3);ctx.globalAlpha=1;}
+      else if(o.kind==='gate'){roundRect(o.x,y,o.width,o.height,6,true);ctx.fillStyle=colors[1];ctx.fillRect(o.x+8,y+10,o.width-16,8);ctx.fillRect(o.x+8,y+32,o.width-16,8);}
+      else{roundRect(o.x,y,o.width,o.height,5,true);ctx.fillStyle=colors[1];for(let yy=y+9;yy<y+o.height;yy+=18)ctx.fillRect(o.x+5,yy,o.width-10,3);}
+    }
+
+    function roundRect(x,y,w,h,r,fill){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();if(fill)ctx.fill();}
+
+    function drawRunner(x,y,c,e){
+      const p=e.player,scale=p.slide?.72:1;ctx.save();ctx.translate(x+17,y+p.height/2);if(p.y>0)ctx.rotate(p.spin);ctx.scale(1,scale);ctx.translate(-17,-p.height/2);ctx.fillStyle=c.color;roundRect(1,4,32,38,12,true);ctx.fillStyle=c.accent;ctx.beginPath();ctx.arc(17,16,10,0,Math.PI*2);ctx.fill();
+      if(c.id==='momo'){ctx.fillStyle=c.color;roundRect(6,-8,7,17,5,true);roundRect(21,-8,7,17,5,true);}
+      if(c.id==='mint'){ctx.fillStyle=c.color;ctx.beginPath();ctx.moveTo(7,8);ctx.lineTo(10,-5);ctx.lineTo(17,6);ctx.fill();ctx.beginPath();ctx.moveTo(20,6);ctx.lineTo(27,-5);ctx.lineTo(29,9);ctx.fill();}
+      if(c.id==='bolt'){ctx.fillStyle=c.color;ctx.beginPath();ctx.moveTo(5,9);ctx.lineTo(7,-7);ctx.lineTo(16,7);ctx.fill();ctx.beginPath();ctx.moveTo(21,7);ctx.lineTo(29,-7);ctx.lineTo(31,10);ctx.fill();}
+      ctx.fillStyle='#191919';ctx.fillRect(11,14,3,4);ctx.fillRect(21,14,3,4);ctx.fillRect(15,23,6,2);ctx.fillStyle='#fff';ctx.globalAlpha=.35;ctx.fillRect(7,30,20,4);ctx.globalAlpha=1;ctx.restore();
+      if(e.boosterFor>0||e.skillFor>0&&(c.active.type==='dash'||c.active.type==='airdash')){ctx.strokeStyle='#fee500';ctx.lineWidth=3;for(let i=0;i<4;i++){ctx.globalAlpha=.2+i*.15;ctx.beginPath();ctx.moveTo(x-15-i*16,y+16+i*5);ctx.lineTo(x-3,y+16+i*5);ctx.stroke();}ctx.globalAlpha=1;}
+    }
+
+    function drawAura(cx,cy,e){ctx.save();ctx.lineWidth=3;if(e.invincibleFor>0){ctx.strokeStyle='#fff06a';ctx.globalAlpha=.8;ctx.beginPath();ctx.arc(cx,cy,31+Math.sin(e.elapsed*9)*3,0,Math.PI*2);ctx.stroke();}if(e.magnetFor>0){ctx.strokeStyle='#6ce4d2';ctx.globalAlpha=.45;ctx.beginPath();ctx.arc(cx,cy,43+Math.sin(e.elapsed*5)*2,0,Math.PI*2);ctx.stroke();}if(e.doubleScoreFor>0){ctx.strokeStyle='#9a7dff';ctx.globalAlpha=.45;ctx.beginPath();ctx.arc(cx,cy,36,0,Math.PI*2);ctx.stroke();}ctx.restore();}
+
+    function drawParticles(ground){engine.particles.forEach(p=>{const colors={coin:'#ffd342',jelly:'#ff80b9',jump:'#fff',land:'#fff',item:'#fee500',skill:'#fee500',break:'#ff9b5c',hit:'#ff655c',revive:'#ff87c4'};ctx.fillStyle=colors[p.kind]||'#fff';ctx.globalAlpha=clamp(p.life/p.max,0,1);ctx.fillRect(p.x,ground-p.y,3,3);});ctx.globalAlpha=1;}
+
+    document.addEventListener('keydown',e=>{
+      if(!running||paused||e.isComposing||e.ctrlKey||e.metaKey||e.altKey)return;
+      if(!section.contains(document.activeElement)&&document.activeElement!==document.body)return;
+      if(e.code==='Space'||e.code==='ArrowUp'){e.preventDefault();if(!e.repeat)jump();}
+      else if(e.code==='ArrowDown'||e.code==='KeyS'){e.preventDefault();engine.slide(true);}
+      else if(e.code==='KeyQ'||e.code==='ShiftLeft'||e.code==='ShiftRight'){e.preventDefault();if(!e.repeat)useSkill();}
+      else if(e.code==='KeyP'){e.preventDefault();if(!e.repeat)togglePause();}
+    },true);
+    document.addEventListener('keyup',e=>{if(running&&(e.code==='ArrowDown'||e.code==='KeyS'))engine.slide(false);},true);
+    document.addEventListener('visibilitychange',()=>{if(document.hidden&&running&&!paused)togglePause();});
+    window.addEventListener('blur',()=>{if(running&&!paused)togglePause();});
+    render();
   }
 })();

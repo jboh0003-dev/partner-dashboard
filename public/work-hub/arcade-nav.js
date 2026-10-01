@@ -158,14 +158,14 @@
       </section>
       <div class="arcade-game-list" role="tablist" aria-label="게임 목록">
         <button type="button" class="arcade-game-card" data-arcade-game="runner" role="tab" aria-controls="arcade-runner-panel">
-          <span class="arcade-game-icon">🏃</span><span><b>슈퍼마리오 런</b><small>덤블링 점프 · 코인 · 버섯 · 별 아이템</small></span><span class="arcade-game-arrow">›</span>
+          <span class="arcade-game-icon">✨</span><span><b>BokRun · Relic Rush</b><small>캐릭터 · 유물 · 가챠 · 스테이지 · 러닝 RPG</small></span><span class="arcade-game-arrow">›</span>
         </button>
         <button type="button" class="arcade-game-card" data-arcade-game="kart" role="tab" aria-controls="arcade-kart-panel">
           <span class="arcade-game-icon">🏎️</span><span><b>카트 크로싱</b><small>차선 횡단 · 캐릭터 가챠 · 차고 · 승급</small></span><span class="arcade-game-arrow">›</span>
         </button>
       </div>
       <div class="arcade-stage">
-        <div class="arcade-game-panel" id="arcade-runner-panel" data-arcade-panel="runner" role="tabpanel"><div class="arcade-loading">슈퍼마리오 런을 불러오는 중입니다.</div></div>
+        <div class="arcade-game-panel" id="arcade-runner-panel" data-arcade-panel="runner" role="tabpanel"><div class="arcade-loading">BokRun을 불러오는 중입니다.</div></div>
         <div class="arcade-game-panel" id="arcade-kart-panel" data-arcade-panel="kart" role="tabpanel" hidden><div class="arcade-loading">카트 크로싱을 불러오는 중입니다.</div></div>
       </div>`;
     main.append(liveRoot, arcadeRoot);
