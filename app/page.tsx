@@ -31,7 +31,6 @@ export default function Home() {
     addScript("workhub-workflow-script", "/work-hub/workflow.js?v=3");
     addScript("workhub-calendar-script", "/work-hub/calendar.js?v=7");
     addScript("workhub-create-script", "/work-hub/create.js?v=3");
-    addScript("workhub-cloud-personal", "/work-hub/cloud-personal.js?v=1");
     addScript("workhub-arcade-nav-script", "/work-hub/arcade-nav.js?v=5");
     addScript("workhub-notes-script", "/work-hub/work-notes.js?v=2");
     addScript("workhub-ledger-script", "/work-hub/work-ledger.js?v=3");
