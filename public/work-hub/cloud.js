@@ -134,13 +134,12 @@
             <button type="button" class="btn primary" id="accountSyncNow">지금 동기화</button>
           </div>
           <div class="account-section">
-            <h3>파트너 커넥트 계정</h3>
-            <p>비밀번호와 계정 정보는 파트너 커넥트에서 함께 관리합니다.</p>
-            <a class="btn" href="/dashboard/settings/account" target="_top">내 계정 관리</a>
+            <h3>Work Hub 계정</h3>
+            <p>Work Hub 전용 로그인 세션으로 클라우드 업무 데이터를 동기화합니다.</p>
           </div>
           <div class="account-section">
             <div class="account-danger">
-              <div><h3 style="margin-bottom:4px">로그아웃</h3><p style="margin:0">이 기기에서 파트너 커넥트와 워크허브를 함께 로그아웃합니다.</p></div>
+              <div><h3 style="margin-bottom:4px">로그아웃</h3><p style="margin:0">이 기기에서 Work Hub 로그인을 종료합니다.</p></div>
               <button type="button" class="btn" id="accountLogout">로그아웃</button>
             </div>
           </div>
@@ -250,7 +249,7 @@
       window.clearTimeout(saveTimer);
       window.clearInterval(pullTimer);
       // The parent and iframe share the existing Connect login.
-      window.top.location.replace('/login?redirect=%2Fwork-hub');
+      window.top.location.replace('/');
     }
 
     async function afterAuth(s){
