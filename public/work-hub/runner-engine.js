@@ -388,7 +388,8 @@
       if(this.dead||this.cleared||p.slide||p.jumps>=this.effects.maxJumps)return false;
       const mult=this.effects.jump;
       p.vy=(p.jumps===0?650:560)*mult;
-      p.spinRate=p.jumps===0?8.4:11.8;
+      p.spin=0;
+      p.spinRate=0;
       p.jumps++;
       this.emit('jump',p.x+16,p.y+4,8);
       return true;
@@ -620,7 +621,7 @@
           }
         }else{
           p.slide=false;p.height=p.baseHeight;
-          p.spin=(p.spin+p.spinRate*d)%(Math.PI*2);
+          p.spin=0;
         }
 
         this.spawnIn-=d;
