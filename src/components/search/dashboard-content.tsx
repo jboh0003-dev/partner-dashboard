@@ -1,7 +1,7 @@
 "use client";
 
 import type { CSSProperties, ReactNode } from "react";
-import { OkePanelShell } from "@/components/search/oke-panel-shell";
+import { LazyOkePanel } from "@/components/search/lazy-oke-panel";
 import { useOkeDockedPanel, useOkePanel } from "@/components/search/oke-panel-context";
 
 export function DashboardContent({ children }: { children: ReactNode }) {
@@ -29,7 +29,7 @@ export function DashboardContent({ children }: { children: ReactNode }) {
           style={{ width: "var(--oke-panel-width)" }}
         >
           <div className="sticky top-0 h-screen">
-            <OkePanelShell className="h-full border-l shadow-none" />
+            <LazyOkePanel className="h-full border-l shadow-none" />
           </div>
         </div>
       ) : null}

@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { AnimatedSection } from "@/components/common/animated-section";
 import { Skeleton } from "@/components/common/skeleton";
+import { BrandLoading } from "@/components/common/brand-loading";
 import { DashboardQuickActions } from "@/components/dashboard/dashboard-quick-actions";
 import { ExecutiveKpiGrid } from "@/components/dashboard/executive-kpi-grid";
 import { PartnerCompositionSection } from "@/components/dashboard/partner-composition-section";
@@ -39,52 +40,53 @@ function DashboardHero() {
   );
 }
 
-async function DashboardOverviewColumns() {
-  const [stats, performanceStats] = await Promise.all([
-    fetchDashboardRuntimeStats(),
-    fetchExecutivePerformanceStats()
-  ]);
-  const currentYear = new Date().getFullYear();
+type StatsPromise = ReturnType<typeof fetchDashboardRuntimeStats>;
+type PerformancePromise = ReturnType<typeof fetchExecutivePerformanceStats>;
 
-  return (
-    <div className="mt-4 grid items-start gap-4 xl:grid-cols-[0.92fr_1.48fr]">
-      <div className="min-w-0 space-y-4">
-        <AnimatedSection delayMs={60}>
-          <ExecutiveKpiGrid compact stats={stats} currentYear={currentYear} />
-        </AnimatedSection>
+async function Kpis({ data }: { data: StatsPromise }) {
+  const stats = await data;
+  return <ExecutiveKpiGrid compact stats={stats} currentYear={new Date().getFullYear()} />;
+}
 
-        <AnimatedSection delayMs={110}>
-          <ExecutivePipelineSummarySection compact stats={performanceStats} />
-        </AnimatedSection>
+async function Composition({ data }: { data: StatsPromise }) {
+  return <PartnerCompositionSection compact stats={await data} />;
+}
 
-        <AnimatedSection delayMs={150}>
-          <DashboardQuickActions />
-        </AnimatedSection>
-      </div>
+async function PipelineSummary({ data }: { data: PerformancePromise }) {
+  return <ExecutivePipelineSummarySection compact stats={await data} />;
+}
 
-      <div className="min-w-0 space-y-4">
-        <AnimatedSection delayMs={90}>
-          <PartnerCompositionSection compact stats={stats} />
-        </AnimatedSection>
-
-        <AnimatedSection delayMs={140}>
-          <DashboardPipelineTrends stats={performanceStats} />
-        </AnimatedSection>
-      </div>
-    </div>
-  );
+async function PipelineTrends({ data }: { data: PerformancePromise }) {
+  return <DashboardPipelineTrends stats={await data} />;
 }
 
 export default function DashboardPage() {
+  // Start both reads once, then stream independent sections as each finishes.
+  // Share the same promises between consumers; retain existing cache/permissions.
+  const stats = fetchDashboardRuntimeStats();
+  const performance = fetchExecutivePerformanceStats();
   return (
     <>
-      <Suspense fallback={<SectionSkeleton height="h-24" />}>
-        <DashboardHero />
-      </Suspense>
-
-      <Suspense fallback={<SectionSkeleton height="h-[44rem]" />}>
-        <DashboardOverviewColumns />
-      </Suspense>
+      <DashboardHero />
+      <div className="mt-4 grid items-start gap-4 xl:grid-cols-[0.92fr_1.48fr]">
+        <div className="min-w-0 space-y-4">
+          <Suspense fallback={<BrandLoading message="파트너 현황을 불러오고 있습니다." />}>
+            <Kpis data={stats} />
+          </Suspense>
+          <Suspense fallback={<BrandLoading message="파이프라인을 불러오고 있습니다." />}>
+            <PipelineSummary data={performance} />
+          </Suspense>
+          <DashboardQuickActions />
+        </div>
+        <div className="min-w-0 space-y-4">
+          <Suspense fallback={<SectionSkeleton height="h-64" />}>
+            <Composition data={stats} />
+          </Suspense>
+          <Suspense fallback={<SectionSkeleton height="h-64" />}>
+            <PipelineTrends data={performance} />
+          </Suspense>
+        </div>
+      </div>
     </>
   );
 }
