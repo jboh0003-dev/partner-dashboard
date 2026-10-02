@@ -177,6 +177,7 @@
       if(running){renderGame();return;}
       section.innerHTML='<div class="bokrun-shell">'+header()+nav()+'<div class="bokrun-body">'+(view==='play'?renderPlay():view==='collection'?renderCollection():view==='gacha'?renderGacha():renderShop())+'</div></div>';
       bind();
+      paintCharacterPreviews(section);
     }
 
     function objectiveText(r){
@@ -206,7 +207,7 @@
       const missingCost=Object.values(CONSUMABLES).reduce((sum,it)=>sum+((profile.inventory[it.id]||0)>0?0:it.price),0);
       const buyAll='<label class="bokrun-buyall"><input id="br-buy-all" type="checkbox"><span><b>4종 모두 구매 + 모두 장착</b><br>골드 ∞ · 없는 아이템만 1개씩 바로 추가합니다.</span></label>';
 
-      const loadout='<div class="bokrun-loadout"><div class="bokrun-slot"><span class="bokrun-avatar" style="background:'+character.accent+'">'+character.emoji+'</span><span><b>'+esc(character.name)+' · '+character.rarity+'</b><small>HP '+getCharacterMaxHealth(character,profile.ownedCharacters[character.id]?.level||1)+' · '+esc(character.skill)+' · '+esc(character.desc)+'</small></span><span class="rarity '+rarityClass(character.rarity)+'">Lv.'+(profile.ownedCharacters[character.id]?.level||1)+'</span></div>'+equipped.map(x=>'<div class="bokrun-slot"><span class="bokrun-avatar" style="background:#f4f4f4">'+x.emoji+'</span><span><b>'+esc(x.name)+' · '+x.rarity+'</b><small>'+esc(x.desc)+'</small></span></div>').join('')+'</div>';
+      const loadout='<div class="bokrun-loadout"><div class="bokrun-slot"><canvas class="bokrun-avatar" data-bokrun-char="'+character.id+'" width="52" height="52" style="background:'+character.accent+'"></canvas><span><b>'+esc(character.name)+' · '+character.rarity+'</b><small>HP '+getCharacterMaxHealth(character,profile.ownedCharacters[character.id]?.level||1)+' · '+esc(character.skill)+' · '+esc(character.desc)+'</small></span><span class="rarity '+rarityClass(character.rarity)+'">Lv.'+(profile.ownedCharacters[character.id]?.level||1)+'</span></div>'+equipped.map(x=>'<div class="bokrun-slot"><span class="bokrun-avatar" style="background:#f4f4f4">'+x.emoji+'</span><span><b>'+esc(x.name)+' · '+x.rarity+'</b><small>'+esc(x.desc)+'</small></span></div>').join('')+'</div>';
       const recordsHtml=records.length?records.slice(0,5).map((x,i)=>'<li><span>'+(i+1)+'. '+esc(x.character)+' · '+esc(x.stage)+'</span><strong>'+Number(x.score||0).toLocaleString()+'</strong></li>').join(''):'<li><span>아직 기록이 없습니다.</span></li>';
       const build=recommendedBuild(round),buildChar=charBy(build.character),buildRelics=build.relics.map(relicBy),canApply=ownsBuild(build);
       const activeSets=activeSetIds();
@@ -230,7 +231,7 @@
         const visible=collectionRarity==='ALL'?CHARACTERS:CHARACTERS.filter(c=>c.rarity===collectionRarity);
         body=visible.map(c=>{
           const own=profile.ownedCharacters[c.id],selected=profile.selectedCharacter===c.id,level=own?.level||1,need=own?needShards(level):0;
-          return '<article class="bokrun-compact '+(!own?'locked ':'')+(selected?'selected':'')+'"><span class="bokrun-avatar" style="background:'+c.accent+'">'+c.emoji+'</span><div class="bokrun-compact-main"><b>'+esc(c.name)+' <span class="'+rarityClass(c.rarity)+'">'+c.rarity+'</span></b><small>HP '+getCharacterMaxHealth(c,level)+' · '+esc(c.skill)+' · '+(own?'Lv.'+level:'미보유')+'</small></div><div class="bokrun-compact-actions"><button data-detail-char="'+c.id+'">상세</button>'+(own?'<button class="primary" data-select-char="'+c.id+'">'+(selected?'선택됨':'선택')+'</button><button data-up-char="'+c.id+'" '+(own.shards<need||level>=levelCap()?'disabled':'')+'>강화</button>':'')+'</div></article>';
+          return '<article class="bokrun-compact '+(!own?'locked ':'')+(selected?'selected':'')+'"><canvas class="bokrun-avatar" data-bokrun-char="'+c.id+'" width="52" height="52" style="background:'+c.accent+'"></canvas><div class="bokrun-compact-main"><b>'+esc(c.name)+' <span class="'+rarityClass(c.rarity)+'">'+c.rarity+'</span></b><small>HP '+getCharacterMaxHealth(c,level)+' · '+esc(c.skill)+' · '+(own?'Lv.'+level:'미보유')+'</small></div><div class="bokrun-compact-actions"><button data-detail-char="'+c.id+'">상세</button>'+(own?'<button class="primary" data-select-char="'+c.id+'">'+(selected?'선택됨':'선택')+'</button><button data-up-char="'+c.id+'" '+(own.shards<need||level>=levelCap()?'disabled':'')+'>강화</button>':'')+'</div></article>';
         }).join('');
       }else if(collectionType==='relic'){
         const visible=collectionRarity==='ALL'?RELICS:RELICS.filter(x=>x.rarity===collectionRarity);
@@ -249,7 +250,7 @@
       let html='';
       if(type==='character'){
         const c=charBy(id),own=profile.ownedCharacters[c.id],level=own?.level||1,hp=getCharacterMaxHealth(c,level);
-        html='<h3>'+c.emoji+' '+esc(c.name)+'</h3><p>'+c.rarity+' · '+(own?'Lv.'+level:'미보유')+'</p><div class="bokrun-detail-grid"><div class="bokrun-detail-hero" style="background:'+c.accent+'">'+c.emoji+'</div><div><b>'+esc(c.skill)+'</b><p style="margin-top:5px">'+esc(c.desc)+'</p><div class="bokrun-detail-stats"><div><small>체력</small><b>'+hp+'</b></div><div><small>기본 쿨타임</small><b>'+c.active.cooldown+'s</b></div><div><small>최대 점프</small><b>'+((c.passive&&c.passive.maxJumps)||2)+'회</b></div></div><p style="margin-top:10px">'+(own?charLevelSummary(c,level):'가챠에서 획득하면 사용할 수 있습니다.')+'</p></div></div>';
+        html='<h3>'+c.emoji+' '+esc(c.name)+'</h3><p>'+c.rarity+' · '+(own?'Lv.'+level:'미보유')+'</p><div class="bokrun-detail-grid"><div class="bokrun-detail-hero" style="background:'+c.accent+'"><canvas data-bokrun-char="'+c.id+'" width="112" height="112" style="width:96px;height:96px"></canvas></div><div><b>'+esc(c.skill)+'</b><p style="margin-top:5px">'+esc(c.desc)+'</p><div class="bokrun-detail-stats"><div><small>체력</small><b>'+hp+'</b></div><div><small>기본 쿨타임</small><b>'+c.active.cooldown+'s</b></div><div><small>최대 점프</small><b>'+((c.passive&&c.passive.maxJumps)||2)+'회</b></div></div><p style="margin-top:10px">'+(own?charLevelSummary(c,level):'가챠에서 획득하면 사용할 수 있습니다.')+'</p></div></div>';
       }else if(type==='relic'){
         const x=relicBy(id),own=profile.ownedRelics[x.id],level=own?.level||1;
         html='<h3>'+x.emoji+' '+esc(x.name)+'</h3><p>'+x.rarity+' · '+(own?'Lv.'+level:'미보유')+'</p><div class="bokrun-detail-grid"><div class="bokrun-detail-hero">'+x.emoji+'</div><div><b>고유 효과</b><p style="margin-top:5px">'+esc(x.desc)+'</p><div class="bokrun-detail-stats"><div><small>장착</small><b>'+(profile.equippedRelics.includes(x.id)?'장착 중':'미장착')+'</b></div><div><small>레벨</small><b>'+level+'/10</b></div><div><small>강화</small><b>레벨당 +15%</b></div></div><p style="margin-top:10px">'+(own?relicLevelSummary(level):'가챠에서 획득하면 장착할 수 있습니다.')+'</p></div></div>';
@@ -260,6 +261,7 @@
       }
       overlay.innerHTML='<div class="bokrun-modal">'+html+'<div class="bokrun-modal-actions" style="margin-top:14px"><button class="primary" id="br-detail-close">확인</button></div></div>';
       document.body.appendChild(overlay);
+      paintCharacterPreviews(overlay);
       overlay.querySelector('#br-detail-close').onclick=()=>overlay.remove();
       overlay.onclick=e=>{if(e.target===overlay)overlay.remove();};
     }
@@ -513,12 +515,155 @@
 
     function roundRect(x,y,w,h,r,fill){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();if(fill)ctx.fill();}
 
+    function artRoundRect(g,x,y,w,h,r,color){
+      g.fillStyle=color;g.beginPath();g.moveTo(x+r,y);g.arcTo(x+w,y,x+w,y+h,r);g.arcTo(x+w,y+h,x,y+h,r);g.arcTo(x,y+h,x,y,r);g.arcTo(x,y,x+w,y,r);g.closePath();g.fill();
+    }
+    function artPoly(g,pts,color){g.fillStyle=color;g.beginPath();g.moveTo(pts[0][0],pts[0][1]);for(let i=1;i<pts.length;i++)g.lineTo(pts[i][0],pts[i][1]);g.closePath();g.fill();}
+    function artCircle(g,x,y,r,color){g.fillStyle=color;g.beginPath();g.arc(x,y,r,0,Math.PI*2);g.fill();}
+    function artLine(g,x1,y1,x2,y2,color,width=3){g.strokeStyle=color;g.lineWidth=width;g.lineCap='round';g.beginPath();g.moveTo(x1,y1);g.lineTo(x2,y2);g.stroke();}
+    function artFace(g,x=24,y=21,mood='smile'){
+      const ink='#2a211d';artCircle(g,x-5,y-2,1.7,ink);artCircle(g,x+5,y-2,1.7,ink);g.strokeStyle=ink;g.lineWidth=1.6;g.lineCap='round';g.beginPath();
+      if(mood==='cool'){g.moveTo(x-4,y+5);g.lineTo(x+4,y+4);}
+      else if(mood==='fierce'){g.moveTo(x-4,y+5);g.quadraticCurveTo(x,y+2,x+4,y+5);}
+      else{g.arc(x,y+2,4,0.2,Math.PI-0.2);}
+      g.stroke();
+    }
+    function artCookie(g,c,t,shape='round',opt={}){
+      const body=opt.body||c.color,icing=opt.icing||c.accent,ink=opt.ink||'#6a432f';
+      const step=Math.sin(t*10)*2;
+      artLine(g,18,45,16-step,53,ink,4);artLine(g,30,45,32+step,53,ink,4);
+      artLine(g,8,31,2,35-step,ink,4);artLine(g,40,31,46,35+step,ink,4);
+      if(shape==='robe'){artPoly(g,[[13,28],[35,28],[42,48],[6,48]],body);artRoundRect(g,15,23,18,16,7,icing);}
+      else if(shape==='cup'){artPoly(g,[[11,25],[37,25],[34,49],[14,49]],body);artRoundRect(g,12,24,24,8,4,icing);}
+      else if(shape==='armor'){artRoundRect(g,8,26,32,23,7,body);artRoundRect(g,4,28,8,13,4,icing);artRoundRect(g,36,28,8,13,4,icing);}
+      else if(shape==='slim'){artRoundRect(g,14,25,20,24,8,body);}
+      else if(shape==='wide'){artRoundRect(g,6,27,36,21,9,body);}
+      else{artRoundRect(g,10,25,28,24,10,body);}
+      artCircle(g,24,19,opt.headR||13,body);artCircle(g,24,20,opt.faceR||10,icing);
+      artFace(g,24,20,opt.mood||'smile');
+    }
+    function drawCharacterArt(g,c,t=0){
+      const bob=Math.sin(t*6)*.7;g.save();g.translate(0,bob);
+      switch(c.id){
+        case 'momo':
+          artRoundRect(g,12,24,24,25,10,c.color);artCircle(g,24,19,13,c.color);artRoundRect(g,13,-2,7,21,4,c.color);artRoundRect(g,28,-2,7,21,4,c.color);
+          artRoundRect(g,15,1,3,14,2,'#ffd6e1');artRoundRect(g,30,1,3,14,2,'#ffd6e1');artCircle(g,24,20,10,c.accent);artFace(g,24,20);artLine(g,10,34,4,40,'#d95a7b',4);artCircle(g,38,40,5,'#fff3f7');break;
+        case 'mint':
+          artRoundRect(g,12,24,24,25,9,c.color);artCircle(g,24,19,13,c.color);artPoly(g,[[11,12],[15,-1],[22,10]],c.color);artPoly(g,[[26,10],[34,-1],[37,13]],c.color);
+          artCircle(g,24,20,10,c.accent);artFace(g,24,20,'cool');artLine(g,37,38,46,31,c.color,4);artLine(g,46,31,43,24,c.color,4);artCircle(g,9,35,3,'#dffcf4');break;
+        case 'bolt':
+          artRoundRect(g,11,24,26,25,7,c.color);artCircle(g,24,18,13,c.color);artPoly(g,[[9,11],[13,-3],[22,9]],c.color);artPoly(g,[[26,9],[36,-3],[39,12]],c.color);
+          artPoly(g,[[10,16],[24,11],[38,16],[34,22],[14,22]],'#5d372a');artCircle(g,24,20,9,c.accent);artFace(g,24,20,'fierce');artPoly(g,[[37,36],[49,27],[44,38],[51,43],[36,46]],'#ffca6e');break;
+        case 'bobo':
+          artRoundRect(g,7,25,34,24,12,c.color);artCircle(g,24,19,14,c.color);artCircle(g,12,8,6,c.color);artCircle(g,36,8,6,c.color);artCircle(g,24,20,10,c.accent);artFace(g,24,20);
+          artRoundRect(g,14,31,20,14,6,'#f0b742');artLine(g,17,31,20,27,'#684628',2);artLine(g,31,31,28,27,'#684628',2);artCircle(g,24,36,3,'#fff1a6');break;
+        case 'nova':
+          artPoly(g,[[24,0],[29,12],[43,10],[34,22],[44,33],[30,31],[24,49],[18,31],[4,33],[14,22],[5,10],[19,12]],c.color);artCircle(g,24,22,11,c.accent);artFace(g,24,22,'cool');
+          artCircle(g,9,10,2,'#fff');artCircle(g,39,7,1.5,'#fff');artCircle(g,41,31,2,'#ffe77f');artLine(g,24,43,20,54,c.color,3);artLine(g,24,43,29,54,c.color,3);break;
+        case 'goldy':
+          artRoundRect(g,5,25,38,24,11,c.color);artCircle(g,24,18,14,c.color);artCircle(g,24,20,10,c.accent);artFace(g,24,20);
+          artPoly(g,[[13,8],[17,-1],[23,7],[29,-1],[35,8]],'#f6c83f');artLine(g,35,34,46,38,'#9f713e',5);artCircle(g,42,41,6,'#f6c83f');artLine(g,42,38,42,44,'#8b6400',1.5);break;
+
+        case 'strawberry_milk':
+          artCookie(g,c,t,'robe');artPoly(g,[[12,9],[18,1],[22,8],[27,0],[31,9],[38,7],[33,14],[15,14]],'#5ca85b');artCircle(g,11,25,2,'#fff4b8');artCircle(g,36,30,2,'#fff4b8');
+          artRoundRect(g,4,27,7,17,3,'#fff');artLine(g,7,28,7,21,'#ff668a',2);break;
+        case 'banana_cream':
+          artCookie(g,c,t,'slim',{headR:12});g.strokeStyle='#f8d94f';g.lineWidth=7;g.beginPath();g.arc(20,9,13,3.6,6.0);g.stroke();artPoly(g,[[11,28],[24,24],[37,28],[33,34],[15,34]],'#fff3c4');artCircle(g,24,31,4,'#fff');break;
+        case 'apple_jam':
+          artCookie(g,c,t,'wide');artLine(g,25,6,27,-2,'#6b4b2d',3);artPoly(g,[[26,4],[35,1],[31,9]],'#67a94f');artCircle(g,10,34,5,'#c92f38');artRoundRect(g,36,28,8,15,2,'#fff0d3');artRoundRect(g,36,34,8,9,2,'#d7474c');break;
+        case 'milk_tea':
+          artCookie(g,c,t,'cup');artLine(g,32,25,38,5,'#694b39',3);artRoundRect(g,10,9,28,7,4,'#f1d7b3');artCircle(g,17,38,2,'#624331');artCircle(g,24,41,2,'#624331');artCircle(g,31,37,2,'#624331');break;
+        case 'blue_soda':
+          artCookie(g,c,t,'slim');artRoundRect(g,16,-2,16,10,4,'#d8f7ff');artLine(g,27,1,32,-5,'#fff',2);artCircle(g,39,14,3,'#dffbff');artCircle(g,43,8,2,'#dffbff');artCircle(g,7,27,2,'#dffbff');artLine(g,13,31,35,31,'#fff',2);break;
+        case 'honey_butter':
+          artCookie(g,c,t,'wide');artRoundRect(g,12,5,24,7,2,'#ffe28b');artPoly(g,[[8,28],[1,20],[2,36]],'#fff4b9');artPoly(g,[[40,28],[47,20],[46,36]],'#fff4b9');artLine(g,14,34,34,34,'#a86f1d',3);artCircle(g,24,38,3,'#f2b72e');break;
+        case 'yogurt':
+          artCookie(g,c,t,'cup',{body:'#f2f0e8'});artRoundRect(g,11,5,26,7,3,'#75a9e4');artLine(g,35,12,43,0,'#b8bdc4',3);artCircle(g,43,0,3,'#d9dce0');artLine(g,14,35,34,35,'#75a9e4',2);break;
+        case 'peach_jelly':
+          artCookie(g,c,t,'robe');artCircle(g,17,5,7,'#f48e7f');artCircle(g,31,5,7,'#f7b19d');artPoly(g,[[23,8],[26,0],[31,7]],'#6fa75d');g.globalAlpha=.35;artRoundRect(g,7,34,34,14,7,'#ffd7d0');g.globalAlpha=1;break;
+        case 'coconut_milk':
+          artCookie(g,c,t,'wide',{body:'#b58e67'});g.strokeStyle='#6f5038';g.lineWidth=6;g.beginPath();g.arc(24,13,16,3.25,6.18);g.stroke();artLine(g,30,8,37,-4,'#7ccb66',3);artLine(g,13,31,35,31,'#f7f0df',3);break;
+        case 'chocochip':
+          artCookie(g,c,t,'round',{body:'#9a6849',icing:'#f0d0a7'});artCircle(g,14,11,3,'#4a2c22');artCircle(g,33,13,2.5,'#4a2c22');artCircle(g,10,35,2.5,'#4a2c22');artCircle(g,34,39,2,'#4a2c22');artPoly(g,[[30,3],[40,7],[34,14]],'#f2efe6');break;
+
+        case 'lemon_soda':
+          artCookie(g,c,t,'slim');artCircle(g,24,7,10,'#f7e84f');artCircle(g,24,7,7,'#fff8b6');for(let i=0;i<6;i++){const a=i*Math.PI/3;artLine(g,24,7,24+Math.cos(a)*7,7+Math.sin(a)*7,'#dfc935',1);}
+          artCircle(g,41,17,3,'#e7ffff');artCircle(g,44,10,2,'#e7ffff');break;
+        case 'lime_mint':
+          artCookie(g,c,t,'slim');artPoly(g,[[9,12],[16,0],[24,10],[33,0],[39,12],[30,9],[24,16],[17,9]],'#4dae79');artLine(g,7,33,1,24,'#b9f1d3',4);artLine(g,41,33,47,24,'#b9f1d3',4);break;
+        case 'caramel_popcorn':
+          artCookie(g,c,t,'wide');artPoly(g,[[8,13],[12,3],[18,8],[22,0],[28,8],[34,3],[40,13]],'#fff4d6');artRoundRect(g,11,31,26,16,3,'#c73f3f');artLine(g,17,31,17,47,'#fff4d6',3);artLine(g,30,31,30,47,'#fff4d6',3);break;
+        case 'blueberry_yogurt':
+          artCookie(g,c,t,'robe',{body:'#f5f1e8'});artCircle(g,13,6,6,'#5967b9');artCircle(g,23,2,6,'#7180d0');artCircle(g,33,7,6,'#4f5a9f');artPoly(g,[[15,28],[5,35],[11,46]],'#7b86d7');artPoly(g,[[33,28],[43,35],[37,46]],'#7b86d7');break;
+        case 'grapefruit_ade':
+          artCookie(g,c,t,'cup');artCircle(g,33,7,9,'#f07b6e');artCircle(g,33,7,6,'#ffd7c4');artLine(g,33,1,33,13,'#fff',1);artLine(g,27,7,39,7,'#fff',1);artLine(g,11,25,4,11,'#8ac8d9',3);break;
+        case 'pistachio_cream':
+          artCookie(g,c,t,'armor',{mood:'fierce'});artPoly(g,[[12,15],[14,3],[21,8],[24,0],[27,8],[35,3],[37,15]],'#76985a');artRoundRect(g,15,31,18,5,2,'#e9f1d6');artCircle(g,6,35,5,'#d7e5ba');break;
+        case 'cherry_cola':
+          artCookie(g,c,t,'slim',{body:'#7f2936',icing:'#ffe1df'});artLine(g,17,8,13,-1,'#5a8a4d',2);artLine(g,31,8,35,-1,'#5a8a4d',2);artCircle(g,11,-1,5,'#c52e45');artCircle(g,37,-1,5,'#d13d52');artLine(g,12,34,36,34,'#f5d1c8',2);break;
+        case 'maple_pancake':
+          artCookie(g,c,t,'wide');artRoundRect(g,9,3,30,5,3,'#d69853');artRoundRect(g,8,8,32,5,3,'#e3b06a');artRoundRect(g,10,13,28,4,2,'#cf7c32');artPoly(g,[[24,2],[28,7],[24,11],[20,7]],'#efb22d');artLine(g,12,33,36,33,'#9f5d27',3);break;
+        case 'green_grape':
+          artCookie(g,c,t,'robe');[[14,4],[22,0],[30,4],[18,9],[27,10],[35,9]].forEach(p=>artCircle(g,p[0],p[1],5,'#9acb62'));artPoly(g,[[25,-1],[30,-7],[33,0]],'#4b8c45');artCircle(g,7,35,4,'#c7e78a');break;
+        case 'brown_sugar':
+          artCookie(g,c,t,'cup',{body:'#8a6047',icing:'#f2d7bc'});artLine(g,32,26,38,4,'#3f2b22',3);[15,21,27,33].forEach((x,i)=>artCircle(g,x,40+(i%2)*3,2.5,'#3f2b22'));artRoundRect(g,10,8,28,6,3,'#b98966');break;
+
+        case 'black_sesame':
+          artCookie(g,c,t,'robe',{body:'#403b47',icing:'#e9e5ec',mood:'cool'});artPoly(g,[[7,24],[2,14],[15,18]],'#26232a');artPoly(g,[[41,24],[46,14],[33,18]],'#26232a');artCircle(g,24,4,8,'#222026');artCircle(g,24,4,3,'#eee');artLine(g,18,34,31,34,'#c7becd',2);break;
+        case 'earl_grey':
+          artCookie(g,c,t,'robe',{body:'#8e789d'});artRoundRect(g,11,1,26,8,4,'#ead9f0');artCircle(g,24,0,6,'#f7eaf9');artLine(g,40,29,45,42,'#6f5a79',3);artCircle(g,45,42,3,'#d8bedf');artPoly(g,[[11,28],[5,35],[13,40]],'#d8bedf');break;
+        case 'salt_caramel':
+          artCookie(g,c,t,'armor',{body:'#bd7e4c',icing:'#fff0df',mood:'fierce'});artRoundRect(g,12,2,24,8,2,'#fff');artCircle(g,17,4,1,'#777');artCircle(g,23,4,1,'#777');artCircle(g,29,4,1,'#777');artPoly(g,[[36,27],[48,31],[39,38]],'#e8c49b');artLine(g,12,37,35,30,'#7b4d2e',3);break;
+        case 'ruby_grapefruit':
+          artCookie(g,c,t,'robe');artPoly(g,[[13,10],[17,0],[24,6],[31,0],[36,10]],'#dc4770');artCircle(g,24,5,3,'#fff1f4');artPoly(g,[[7,29],[0,21],[3,38]],'#f3a3aa');artPoly(g,[[41,29],[48,21],[45,38]],'#f3a3aa');artCircle(g,9,39,4,'#ffbd9d');break;
+        case 'mint_choco_frappe':
+          artCookie(g,c,t,'cup',{body:'#58bca5',icing:'#eefbf6'});artPoly(g,[[13,10],[17,4],[21,8],[25,1],[29,8],[34,4],[37,11]],'#fff');artLine(g,34,13,41,-4,'#613e36',3);artCircle(g,11,34,3,'#5b3b33');artCircle(g,36,38,3,'#5b3b33');break;
+        case 'yuja_ginger':
+          artCookie(g,c,t,'slim',{body:'#d59a40',icing:'#fff0c4',mood:'fierce'});artPoly(g,[[13,10],[8,0],[18,6],[24,-2],[30,6],[40,0],[35,11]],'#c27a2d');artCircle(g,39,9,6,'#f2c34d');artLine(g,39,9,45,9,'#fff1a8',1);artLine(g,39,9,42,4,'#fff1a8',1);break;
+        case 'chestnut_tiramisu':
+          artCookie(g,c,t,'armor',{body:'#73503f',icing:'#ead7c8'});g.strokeStyle='#5b3c30';g.lineWidth=7;g.beginPath();g.arc(24,11,15,3.3,6.15);g.stroke();artPoly(g,[[9,29],[3,38],[11,46]],'#3e2d2a');artPoly(g,[[39,29],[45,38],[37,46]],'#3e2d2a');artLine(g,13,34,35,34,'#d3a37c',2);break;
+        case 'raspberry_choco':
+          artCookie(g,c,t,'robe',{body:'#6c3046',icing:'#ffe2ec'});artCircle(g,15,3,5,'#d64f79');artCircle(g,24,0,5,'#b83d69');artCircle(g,33,4,5,'#e56288');artLine(g,40,28,46,48,'#5e3428',3);artPoly(g,[[44,46],[48,50],[42,51]],'#e9bfc8');break;
+        case 'honey_lavender':
+          artCookie(g,c,t,'robe',{body:'#9471bd',icing:'#f2e6ff'});[[14,5],[23,1],[32,6]].forEach(p=>{artCircle(g,p[0],p[1],4,'#b391dd');artCircle(g,p[0]+2,p[1]-2,2,'#e9d8ff');});artPoly(g,[[10,29],[1,23],[4,38]],'#ffe59a');artPoly(g,[[38,29],[47,23],[44,38]],'#ffe59a');artLine(g,8,34,4,31,'#4a3527',2);break;
+        case 'matcha_brulee':
+          artCookie(g,c,t,'armor',{body:'#668e53',icing:'#edf6df',mood:'fierce'});artRoundRect(g,10,4,28,7,3,'#d8b46d');artLine(g,39,28,47,14,'#604734',3);artPoly(g,[[47,14],[42,7],[47,1],[51,8]],'#ff874f');artLine(g,14,35,34,35,'#b88946',3);break;
+
+        case 'aurora_soda':
+          artCookie(g,c,t,'robe',{body:'#607df1',icing:'#ecf3ff'});artPoly(g,[[7,16],[12,2],[18,10],[24,-3],[29,10],[37,0],[41,16]],'#72e1de');artPoly(g,[[4,27],[0,41],[14,35]],'#ba7cf1');artPoly(g,[[44,27],[48,41],[34,35]],'#6ddbd5');artCircle(g,41,8,3,'#fff');break;
+        case 'golden_mango':
+          artCookie(g,c,t,'robe',{body:'#e3a92f',icing:'#fff0bd'});artPoly(g,[[9,11],[14,0],[20,8],[24,-3],[29,8],[36,0],[40,12]],'#f6cf4a');artPoly(g,[[6,28],[0,40],[11,47]],'#f8dc70');artPoly(g,[[42,28],[48,40],[37,47]],'#f8dc70');artCircle(g,24,34,5,'#b06b23');break;
+        case 'black_diamond_choco':
+          artCookie(g,c,t,'armor',{body:'#2f3040',icing:'#dfe5ff',mood:'fierce'});artPoly(g,[[24,-4],[32,7],[24,15],[16,7]],'#8ca3ff');artPoly(g,[[5,26],[0,18],[13,22]],'#4a4b66');artPoly(g,[[43,26],[48,18],[35,22]],'#4a4b66');artLine(g,13,39,35,31,'#7384c7',3);break;
+        case 'moonlight_milk':
+          artCookie(g,c,t,'robe',{body:'#b9bde4',icing:'#fbfbff'});g.strokeStyle='#fff7c4';g.lineWidth=5;g.beginPath();g.arc(24,7,12,0.7,5.0);g.stroke();artCircle(g,38,2,2,'#fff');artPoly(g,[[8,29],[3,44],[16,38]],'#dfe1f7');artPoly(g,[[40,29],[45,44],[32,38]],'#dfe1f7');break;
+        case 'stardust_berry':
+          artCookie(g,c,t,'robe',{body:'#7c4db8',icing:'#f0e7ff'});artPoly(g,[[24,-4],[27,4],[36,4],[29,9],[32,17],[24,12],[16,17],[19,9],[12,4],[21,4]],'#ffd86e');artCircle(g,7,25,2,'#fff');artCircle(g,42,31,2,'#9ee6ff');artCircle(g,36,8,1.5,'#fff');break;
+        case 'royal_vanilla':
+          artCookie(g,c,t,'robe',{body:'#e3c893',icing:'#fff9e9'});artPoly(g,[[11,10],[15,-2],[22,6],[28,-2],[36,10]],'#e8b93f');artCircle(g,24,5,3,'#fff0a3');artLine(g,41,27,44,50,'#b18743',3);artCircle(g,44,25,5,'#fff1bc');artPoly(g,[[7,28],[0,38],[11,46]],'#fff4d6');break;
+        case 'dragonfruit':
+          artCookie(g,c,t,'armor',{body:'#d53869',icing:'#ffe7f0',mood:'fierce'});artPoly(g,[[12,11],[9,-3],[18,6],[24,-5],[30,6],[39,-2],[36,12]],'#4a9a67');artPoly(g,[[8,28],[-2,18],[4,38]],'#4a9a67');artPoly(g,[[40,28],[50,18],[44,38]],'#4a9a67');artLine(g,39,42,49,50,'#d53869',5);artPoly(g,[[47,48],[52,45],[50,53]],'#4a9a67');break;
+        case 'crimson_cherry':
+          artCookie(g,c,t,'armor',{body:'#9f1735',icing:'#ffe6e9',mood:'fierce'});artLine(g,18,8,13,-1,'#3f7e43',2);artLine(g,30,8,35,-1,'#3f7e43',2);artCircle(g,11,-2,6,'#c42345');artCircle(g,37,-2,6,'#a91734');artLine(g,7,30,0,47,'#d9d9df',3);artLine(g,41,30,48,47,'#d9d9df',3);break;
+        case 'emerald_melon':
+          artCookie(g,c,t,'armor',{body:'#3fa779',icing:'#e5fff4'});artPoly(g,[[24,-4],[30,5],[24,13],[18,5]],'#8ef0ba');artPoly(g,[[7,27],[1,19],[15,23]],'#60c996');artPoly(g,[[41,27],[47,19],[33,23]],'#60c996');artLine(g,24,31,24,46,'#d4ffe7',2);artCircle(g,24,38,4,'#76e7aa');break;
+        case 'sunset_peach':
+          artCookie(g,c,t,'robe',{body:'#e98270',icing:'#fff0e8'});artCircle(g,24,4,11,'#ffbf58');artCircle(g,24,4,6,'#ff7b68');artPoly(g,[[7,29],[0,34],[10,47]],'#f3a080');artPoly(g,[[41,29],[48,34],[38,47]],'#f4c48e');artLine(g,13,34,35,34,'#8f5144',2);break;
+        default:
+          artCookie(g,c,t,'round');
+      }
+      g.restore();
+    }
+    function paintCharacterPreviews(root){
+      (root||document).querySelectorAll('canvas[data-bokrun-char]').forEach(el=>{
+        const c=charBy(el.dataset.bokrunChar),g=el.getContext('2d');if(!c||!g)return;
+        const w=el.width||52,h=el.height||52;g.clearRect(0,0,w,h);const scale=Math.min(w/58,h/62);g.save();g.translate(w/2-24*scale,h/2-28*scale);g.scale(scale,scale);drawCharacterArt(g,c,.4);g.restore();
+      });
+    }
+
     function drawRunner(x,y,c,e){
-      const p=e.player,giant=e.giantFor>0?1.55:1,scale=(p.slide?.72:1)*giant;ctx.save();ctx.translate(x+17,y+p.height/2);if(p.y>0)ctx.rotate(p.spin);ctx.scale(1,scale);ctx.translate(-17,-p.height/2);ctx.fillStyle=c.color;roundRect(1,4,32,38,12,true);ctx.fillStyle=c.accent;ctx.beginPath();ctx.arc(17,16,10,0,Math.PI*2);ctx.fill();
-      if(c.id==='momo'){ctx.fillStyle=c.color;roundRect(6,-8,7,17,5,true);roundRect(21,-8,7,17,5,true);}
-      if(c.id==='mint'){ctx.fillStyle=c.color;ctx.beginPath();ctx.moveTo(7,8);ctx.lineTo(10,-5);ctx.lineTo(17,6);ctx.fill();ctx.beginPath();ctx.moveTo(20,6);ctx.lineTo(27,-5);ctx.lineTo(29,9);ctx.fill();}
-      if(c.id==='bolt'){ctx.fillStyle=c.color;ctx.beginPath();ctx.moveTo(5,9);ctx.lineTo(7,-7);ctx.lineTo(16,7);ctx.fill();ctx.beginPath();ctx.moveTo(21,7);ctx.lineTo(29,-7);ctx.lineTo(31,10);ctx.fill();}
-      ctx.fillStyle='#191919';ctx.fillRect(11,14,3,4);ctx.fillRect(21,14,3,4);ctx.fillRect(15,23,6,2);ctx.fillStyle='#fff';ctx.globalAlpha=.35;ctx.fillRect(7,30,20,4);ctx.globalAlpha=1;ctx.restore();
+      const p=e.player,giant=e.giantFor>0?1.55:1,scale=(p.slide?.72:1)*giant;
+      ctx.save();ctx.translate(x+17,y+p.height/2);if(p.y>0)ctx.rotate(p.spin);ctx.scale(.72,.72*scale);ctx.translate(-24,-28);drawCharacterArt(ctx,c,e.elapsed);ctx.restore();
       if(e.boosterFor>0||e.skillFor>0&&(c.active.type==='dash'||c.active.type==='airdash')){ctx.strokeStyle='#fee500';ctx.lineWidth=3;for(let i=0;i<4;i++){ctx.globalAlpha=.2+i*.15;ctx.beginPath();ctx.moveTo(x-15-i*16,y+16+i*5);ctx.lineTo(x-3,y+16+i*5);ctx.stroke();}ctx.globalAlpha=1;}
     }
 
