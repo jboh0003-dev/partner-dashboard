@@ -24,6 +24,23 @@ function isProtectedPath(pathname: string): boolean {
 export async function middleware(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
 
+  const detachedWorkHub =
+    pathname === "/work-hub" ||
+    pathname.startsWith("/work-hub/") ||
+    pathname === "/api/work-hub" ||
+    pathname.startsWith("/api/work-hub/") ||
+    pathname.startsWith("/api/public/work-hub-");
+
+  if (detachedWorkHub) {
+    return new NextResponse(null, {
+      status: 404,
+      headers: {
+        "Cache-Control": "no-store",
+        "X-Robots-Tag": "noindex, nofollow"
+      }
+    });
+  }
+
   let supabaseResponse = NextResponse.next({
     request
   });
