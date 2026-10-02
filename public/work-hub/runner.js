@@ -349,7 +349,10 @@
       const x=Math.random()*100;
       if(x<1)return 'SSR';if(x<6)return 'SR';if(x<28)return 'R';if(forceR)return 'R';return 'N';
     }
+    let gachaPullLocked=false;
     function pull(type,count){
+      if(gachaPullLocked||document.querySelector('.bokrun-overlay[data-gacha-result="1"]'))return;
+      gachaPullLocked=true;
       selectedGacha=type;
       const cost=(type==='character'?100:80)*(count===10?9:1);
       const pool=type==='character'?CHARACTERS:RELICS,map=type==='character'?profile.ownedCharacters:profile.ownedRelics;
@@ -360,13 +363,50 @@
         if(isNew)map[item.id]={level:1,shards:0};else map[item.id].shards+=item.rarity==='SSR'?4:item.rarity==='SR'?3:item.rarity==='R'?2:1;
         profile.pity[type]=item.rarity==='SSR'?0:(profile.pity[type]||0)+1;results.push({item,isNew});
       }
-      persist();showGachaResult(results,type);
+      persist();
+      showGachaResult(results,type);
+      window.setTimeout(()=>{gachaPullLocked=false;},120);
     }
 
     function showGachaResult(results,type){
-      const overlay=document.createElement('div');overlay.className='bokrun-overlay';
-      overlay.innerHTML='<div class="bokrun-modal"><h3>'+(type==='character'?'CHARACTER':'RELIC')+' RESULT</h3><p>중복 획득은 강화 조각으로 전환됩니다.</p><div class="bokrun-pulls">'+results.map(r=>'<div class="bokrun-pull '+rarityClass(r.item.rarity)+'"><span>'+r.item.emoji+'</span><b>'+esc(r.item.name)+'</b><small>'+r.item.rarity+(r.isNew?' · NEW':' · 조각')+'</small></div>').join('')+'</div><div class="bokrun-modal-actions"><button class="primary" id="bokrun-gacha-close">확인</button></div></div>';
-      document.body.appendChild(overlay);overlay.querySelector('#bokrun-gacha-close').onclick=()=>{overlay.remove();render();};
+      // Never allow result backdrops to stack. A focused pull button behind the
+      // modal used to receive Enter again, creating another result overlay.
+      document.querySelectorAll('.bokrun-overlay[data-gacha-result="1"]').forEach(x=>x.remove());
+
+      const overlay=document.createElement('div');
+      overlay.className='bokrun-overlay';
+      overlay.dataset.gachaResult='1';
+      overlay.setAttribute('role','dialog');
+      overlay.setAttribute('aria-modal','true');
+
+      overlay.innerHTML='<div class="bokrun-modal"><h3>'+(type==='character'?'CHARACTER':'RELIC')+' RESULT</h3><p>중복 획득은 강화 조각으로 전환됩니다.</p><div class="bokrun-pulls">'+results.map(r=>'<div class="bokrun-pull '+rarityClass(r.item.rarity)+'"><span>'+r.item.emoji+'</span><b>'+esc(r.item.name)+'</b><small>'+r.item.rarity+(r.isNew?' · NEW':' · 조각')+'</small></div>').join('')+'</div><div class="bokrun-modal-actions"><button class="primary" id="bokrun-gacha-close" type="button">확인</button></div></div>';
+
+      const close=()=>{
+        if(!overlay.isConnected)return;
+        overlay.remove();
+        render();
+        const gachaTab=section.querySelector('[data-br-view="gacha"]');
+        if(gachaTab)gachaTab.focus({preventScroll:true});
+      };
+
+      overlay.addEventListener('keydown',e=>{
+        if(e.key==='Enter'||e.key==='Escape'){
+          e.preventDefault();
+          e.stopPropagation();
+          if(!e.repeat)close();
+        }
+      },true);
+
+      overlay.addEventListener('click',e=>{
+        if(e.target===overlay)close();
+      });
+
+      document.body.appendChild(overlay);
+      const closeBtn=overlay.querySelector('#bokrun-gacha-close');
+      closeBtn.onclick=close;
+
+      // Move focus off the pull button underneath before Enter can fire again.
+      requestAnimationFrame(()=>closeBtn.focus({preventScroll:true}));
     }
 
     function consumeSelected(){
