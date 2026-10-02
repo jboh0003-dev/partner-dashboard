@@ -8,6 +8,8 @@ type WorkHubWindow = Window & {
   __workhubAuthorizedUserId?: string;
 };
 
+const WORK_HUB_OWNER_ID = "6b290f26-391a-432f-bec9-a72c3cc8335c";
+
 export default function Home() {
   const frameRef = useRef<HTMLIFrameElement>(null);
   const [user, setUser] = useState<User | null>(null);
@@ -34,13 +36,17 @@ export default function Home() {
     let active = true;
     supabase.auth.getUser().then(({ data }) => {
       if (!active) return;
-      setUser(data.user ?? null);
+      const nextUser = data.user?.id === WORK_HUB_OWNER_ID ? data.user : null;
+      if (data.user && !nextUser) void supabase.auth.signOut({ scope: "local" });
+      setUser(nextUser);
       setReady(true);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!active) return;
-      setUser(session?.user ?? null);
+      const nextUser = session?.user?.id === WORK_HUB_OWNER_ID ? session.user : null;
+      if (session?.user && !nextUser) void supabase.auth.signOut({ scope: "local" });
+      setUser(nextUser);
       setReady(true);
     });
 
@@ -111,11 +117,16 @@ export default function Home() {
     if (!supabase) return;
     setSigningIn(true);
     setAuthError("");
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email: email.trim(),
       password,
     });
-    if (error) setAuthError("로그인 정보를 확인해주세요.");
+    if (error) {
+      setAuthError("로그인 정보를 확인해주세요.");
+    } else if (data.user?.id !== WORK_HUB_OWNER_ID) {
+      await supabase.auth.signOut({ scope: "local" });
+      setAuthError("이 계정은 Work Hub에 접근할 수 없습니다.");
+    }
     setSigningIn(false);
   }
 
