@@ -71,9 +71,11 @@ export async function middleware(request: NextRequest) {
   const claims = claimsData?.claims;
   const userId = typeof claims?.sub === "string" ? claims.sub : null;
 
-  // 로그인 페이지: 이미 세션 있으면 redirect/dashboard로
+  // 로그인 페이지: 일반 로그인은 기존 세션이 있으면 목적지로 보내지만,
+  // Work Hub 소유자 계정 전환 요청은 로그인 화면을 그대로 보여준다.
   if (pathname === "/login") {
-    if (userId) {
+    const forceWorkHubSwitch = request.nextUrl.searchParams.get("switch") === "workhub";
+    if (userId && !forceWorkHubSwitch) {
       const redirectParam = request.nextUrl.searchParams.get("redirect");
       const target = getSafeRedirectPath(redirectParam, "/dashboard");
       const url = request.nextUrl.clone();
@@ -124,6 +126,21 @@ export async function middleware(request: NextRequest) {
   if (isWorkHubPath(pathname)) {
     const { data: { user }, error } = await supabase.auth.getUser();
     if (error || !user || !isWorkHubOwner(user.id)) {
+      // 사람이 /work-hub를 직접 여는 경우에는 JSON 오류 대신
+      // 소유자 계정으로 다시 인증할 수 있는 로그인 화면으로 보낸다.
+      if (pathname === "/work-hub") {
+        const url = request.nextUrl.clone();
+        url.pathname = "/login";
+        url.search = "";
+        url.searchParams.set("redirect", "/work-hub");
+        url.searchParams.set("switch", "workhub");
+        url.searchParams.set("reason", "workhub-owner");
+        const redirectResponse = NextResponse.redirect(url);
+        redirectResponse.headers.set("Cache-Control", "private, no-store, max-age=0");
+        redirectResponse.headers.set("Vary", "Cookie");
+        return redirectResponse;
+      }
+
       return NextResponse.json(
         { ok: false, message: "내 업무관리는 소유자 계정만 이용할 수 있습니다." },
         { status: user && !error ? 403 : 401, headers: { "Cache-Control": "private, no-store", Vary: "Cookie" } }

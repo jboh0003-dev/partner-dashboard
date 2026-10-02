@@ -7,6 +7,7 @@ import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { BrandLogo } from "@/components/layout/brand-logo";
 import { mapAuthErrorMessage, SESSION_EXPIRED_MESSAGE } from "@/lib/auth/errors";
 import { getSafeRedirectPath } from "@/lib/auth/redirect";
+import { isWorkHubOwner } from "@/lib/auth/work-hub-access";
 import { createClient } from "@/lib/supabase/client";
 
 function LoginForm() {
@@ -16,6 +17,9 @@ function LoginForm() {
     [searchParams]
   );
   const expired = searchParams.get("reason") === "expired";
+  const workHubSwitch =
+    searchParams.get("switch") === "workhub" ||
+    searchParams.get("reason") === "workhub-owner";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -62,6 +66,13 @@ function LoginForm() {
         return;
       }
 
+      if (workHubSwitch && !isWorkHubOwner(verifiedUser.id)) {
+        await supabase.auth.signOut({ scope: "local" }).catch(() => undefined);
+        setError("Work Hub 소유자 계정으로 로그인해주세요.");
+        setLoading(false);
+        return;
+      }
+
       // /api/account/me는 no-store이고, 전체 페이지 이동으로 서버 세션도 즉시 재검증한다.
       window.location.replace(redirectTo);
     } catch {
@@ -77,21 +88,35 @@ function LoginForm() {
       </div>
 
       <h1 className="text-center text-xl font-bold text-slate-950">
-        Partner{" "}
-        <span className="bg-gradient-to-r from-okestro-600 via-blue-500 to-cyan-500 bg-clip-text font-black italic tracking-[-0.045em] text-transparent">
-          Connect
-        </span>
+        {workHubSwitch ? (
+          "Work Hub"
+        ) : (
+          <>
+            Partner{" "}
+            <span className="bg-gradient-to-r from-okestro-600 via-blue-500 to-cyan-500 bg-clip-text font-black italic tracking-[-0.045em] text-transparent">
+              Connect
+            </span>
+          </>
+        )}
       </h1>
       <p className="mt-2 text-center text-sm text-slate-500">
-        승인된 사내 계정으로 로그인하세요.
+        {workHubSwitch
+          ? "다른 사내 계정 세션이 감지되어 Work Hub 소유자 계정으로 다시 인증합니다."
+          : "승인된 사내 계정으로 로그인하세요."}
       </p>
-      <p className="mt-1 text-center text-xs text-slate-400">
-        외부 업체의 파트너 신청은{" "}
-        <a href="/partner-apply" className="text-okestro-700 underline">
-          로그인 없이
-        </a>{" "}
-        진행할 수 있습니다.
-      </p>
+      {!workHubSwitch ? (
+        <p className="mt-1 text-center text-xs text-slate-400">
+          외부 업체의 파트너 신청은{" "}
+          <a href="/partner-apply" className="text-okestro-700 underline">
+            로그인 없이
+          </a>{" "}
+          진행할 수 있습니다.
+        </p>
+      ) : (
+        <p className="mt-1 text-center text-xs text-slate-400">
+          Work Hub 데이터는 소유자 계정에서만 열립니다.
+        </p>
+      )}
 
       <form onSubmit={handleLogin} className="mt-6 space-y-4">
         <div>
