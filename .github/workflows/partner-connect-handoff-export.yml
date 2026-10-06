@@ -1,0 +1,51 @@
+name: Partner Connect handoff source export
+
+on:
+  push:
+    branches:
+      - cxms-handoff-partner-connect
+
+permissions:
+  contents: read
+
+jobs:
+  export-source:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout handoff branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Remove personal and non-handoff content
+        shell: bash
+        run: |
+          rm -rf .git
+          rm -rf .next node_modules tmp
+          rm -rf public/work-hub
+          rm -rf src/app/work-hub
+          rm -rf src/app/api/work-hub
+          rm -rf src/app/api/public/work-hub-holidays
+          rm -rf src/app/api/public/work-hub-market
+          rm -rf src/app/api/public/work-hub-sports
+          rm -rf work-hub-app
+          rm -f scripts/test-workhub-access.cjs scripts/test-workhub-atlas.cjs scripts/test-workhub-runner.cjs
+          rm -f src/lib/auth/work-hub-access.ts
+          rm -f supabase/migrations/*workhub*
+          find . -maxdepth 2 -type f \( -name ".env" -o -name ".env.*" \) -delete
+          rm -f .env.local.example
+          mkdir -p _handoff_meta
+          printf '%s\n'             'Sanitized Partner Connect source snapshot'             'Work Hub/BokDesk/일계표 excluded'             'No .git history included'             'No environment value files included' > _handoff_meta/README.txt
+
+      - name: Build sanitized source zip
+        shell: bash
+        run: |
+          zip -qr partner-connect-source.zip . -x "partner-connect-source.zip"
+
+      - name: Upload sanitized source
+        uses: actions/upload-artifact@v4
+        with:
+          name: partner-connect-source
+          path: partner-connect-source.zip
+          if-no-files-found: error
+          retention-days: 3
