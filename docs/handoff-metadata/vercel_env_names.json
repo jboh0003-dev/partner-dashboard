@@ -1,0 +1,79 @@
+{
+  "result": {
+    "envs": [
+      {
+        "type": "sensitive",
+        "value": "",
+        "target": [
+          "production"
+        ],
+        "configurationId": null,
+        "customEnvironmentIds": [],
+        "id": "x0OJNgsX7ZGWzuGz",
+        "key": "SUPABASE_SERVICE_ROLE_KEY",
+        "createdAt": 1782367417443,
+        "updatedAt": 1782367417443,
+        "createdBy": "prBindsXlFtfusPlADZLoNPX",
+        "updatedBy": null,
+        "decrypted": false,
+        "lastEditedByDisplayName": "jaebok Oh",
+        "lastEditedByPrincipal": {
+          "type": "user",
+          "id": "prBindsXlFtfusPlADZLoNPX",
+          "name": "jaebok Oh",
+          "username": "ohjb0003-5831"
+        },
+        "securityIssues": []
+      },
+      {
+        "type": "sensitive",
+        "value": "",
+        "target": [
+          "production"
+        ],
+        "configurationId": null,
+        "customEnvironmentIds": [],
+        "id": "Yi0uXsZYv1NTmlE6",
+        "key": "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+        "createdAt": 1782367409167,
+        "updatedAt": 1782367409167,
+        "createdBy": "prBindsXlFtfusPlADZLoNPX",
+        "updatedBy": null,
+        "decrypted": false,
+        "lastEditedByDisplayName": "jaebok Oh",
+        "lastEditedByPrincipal": {
+          "type": "user",
+          "id": "prBindsXlFtfusPlADZLoNPX",
+          "name": "jaebok Oh",
+          "username": "ohjb0003-5831"
+        },
+        "securityIssues": []
+      },
+      {
+        "type": "sensitive",
+        "value": "",
+        "target": [
+          "production"
+        ],
+        "configurationId": null,
+        "customEnvironmentIds": [],
+        "id": "O8T8g6aQDSdvRllc",
+        "key": "NEXT_PUBLIC_SUPABASE_URL",
+        "createdAt": 1782367384458,
+        "updatedAt": 1782367384458,
+        "createdBy": "prBindsXlFtfusPlADZLoNPX",
+        "updatedBy": null,
+        "decrypted": false,
+        "lastEditedByDisplayName": "jaebok Oh",
+        "lastEditedByPrincipal": {
+          "type": "user",
+          "id": "prBindsXlFtfusPlADZLoNPX",
+          "name": "jaebok Oh",
+          "username": "ohjb0003-5831"
+        },
+        "securityIssues": []
+      }
+    ],
+    "hiddenProductionEnvCount": 0
+  }
+}
