@@ -1,0 +1,38 @@
+{
+  "result": {
+    "id": "prj_7ylh989egOcPl03VhzvY83lmgucr",
+    "name": "partner-dashboard",
+    "framework": "nextjs",
+    "accountId": "team_ns7mnrdNdmBM38yLRtVzBpDb",
+    "createdAt": 1782367171879,
+    "updatedAt": 1790914683286,
+    "nodeVersion": "24.x",
+    "live": false,
+    "latestDeployment": {
+      "id": "dpl_5995UAHZQ7D73bKLDBSfW1QD79LC",
+      "url": "partner-dashboard-gsmuqwgra-jaebok-oh-s-projects.vercel.app",
+      "createdAt": 1791245619856,
+      "readyState": "ERROR",
+      "target": null
+    },
+    "domains": [
+      "partner-dashboard-lemon.vercel.app",
+      "partner-dashboard-jaebok-oh-s-projects.vercel.app",
+      "partner-dashboard-git-main-jaebok-oh-s-projects.vercel.app"
+    ],
+    "passwordProtection": {
+      "enabled": false,
+      "deploymentType": null
+    },
+    "ssoProtection": {
+      "enabled": true,
+      "deploymentType": "all_except_custom_domains"
+    },
+    "trustedIps": {
+      "enabled": false,
+      "deploymentType": null,
+      "addresses": [],
+      "protectionMode": null
+    }
+  }
+}
