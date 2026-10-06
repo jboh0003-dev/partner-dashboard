@@ -1,0 +1,16 @@
+{
+  "migrations": [
+    {
+      "version": "20260916054623",
+      "name": "auto_fill_partner_region_from_address"
+    },
+    {
+      "version": "20260922014749",
+      "name": "enable_rls_core_partner_tables_20260922"
+    },
+    {
+      "version": "20260929070448",
+      "name": "contract_export_access"
+    }
+  ]
+}
