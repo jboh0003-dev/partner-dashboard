@@ -20,26 +20,65 @@ jobs:
       - name: Remove personal and non-handoff content
         shell: bash
         run: |
-          rm -rf .git
-          rm -rf .next node_modules tmp
-          rm -rf public/work-hub
-          rm -rf src/app/work-hub
-          rm -rf src/app/api/work-hub
-          rm -rf src/app/api/public/work-hub-holidays
-          rm -rf src/app/api/public/work-hub-market
-          rm -rf src/app/api/public/work-hub-sports
+          rm -rf .git .next node_modules tmp
+          rm -rf public/work-hub public/dayflow
+          rm -rf src/app/work-hub src/app/api/work-hub
+          rm -rf src/app/api/public/work-hub-holidays src/app/api/public/work-hub-market src/app/api/public/work-hub-sports
           rm -rf work-hub-app
           rm -f scripts/test-workhub-access.cjs scripts/test-workhub-atlas.cjs scripts/test-workhub-runner.cjs
           rm -f src/lib/auth/work-hub-access.ts
           rm -f supabase/migrations/*workhub*
-          find . -maxdepth 2 -type f \( -name ".env" -o -name ".env.*" \) -delete
+          rm -rf assets/fonts
+          find . -type f \( -name ".env" -o -name ".env.*" \) -delete
           rm -f .env.local.example
-          mkdir -p _handoff_meta
-          printf '%s\n'             'Sanitized Partner Connect source snapshot'             'Work Hub/BokDesk/일계표 excluded'             'No .git history included'             'No environment value files included' > _handoff_meta/README.txt
+          rm -f tsconfig.tsbuildinfo
+          find scripts -maxdepth 1 -type f \( -name "*.pdf" -o -name "*.docx" \) -delete
+          find tests/fixtures -type f \( -name "*.xlsx" -o -name "*.docx" -o -name "*.pdf" \) -delete 2>/dev/null || true
+          rm -rf .github
+
+      - name: Detach Work Hub references from shared login/middleware
+        shell: python
+        run: |
+          from pathlib import Path
+          p=Path("src/middleware.ts")
+          s=p.read_text()
+          s=s.replace('import { isWorkHubOwner, isWorkHubPath } from "@/lib/auth/work-hub-access";\n','')
+          s=s.replace('  if (isWorkHubPath(pathname)) return true;\n','')
+          start='\n  const detachedWorkHub =\n'
+          if start in s:
+              a=s.index(start); b=s.index('\n\n  let supabaseResponse',a); s=s[:a]+s[b:]
+          s=s.replace('  // 로그인 페이지: 일반 로그인은 기존 세션이 있으면 목적지로 보내지만,\n  // Work Hub 소유자 계정 전환 요청은 로그인 화면을 그대로 보여준다.\n','  // 로그인 페이지: 기존 세션이 있으면 목적지로 보낸다.\n')
+          s=s.replace('    const forceWorkHubSwitch = request.nextUrl.searchParams.get("switch") === "workhub";\n    if (userId && !forceWorkHubSwitch) {','    if (userId) {')
+          marker="\n  // The private workspace uses Connect's account,"
+          if marker in s:
+              a=s.index(marker); b=s.index('\n  const denied = await enforceAdminAccess',a); s=s[:a]+s[b:]
+          s=s.replace('    "/work-hub/:path*",\n','')
+          p.write_text(s)
+
+          p=Path("src/app/login/page.tsx")
+          s=p.read_text()
+          s=s.replace('import { isWorkHubOwner } from "@/lib/auth/work-hub-access";\n','')
+          s=s.replace('  const workHubSwitch =\n    searchParams.get("switch") === "workhub" ||\n    searchParams.get("reason") === "workhub-owner";\n','')
+          block='''\n      if (workHubSwitch && !isWorkHubOwner(verifiedUser.id)) {\n        await supabase.auth.signOut({ scope: "local" }).catch(() => undefined);\n        setError("Work Hub 소유자 계정으로 로그인해주세요.");\n        setLoading(false);\n        return;\n      }\n'''
+          s=s.replace(block,'\n')
+          old='''        {workHubSwitch ? (\n          "Work Hub"\n        ) : (\n          <>\n            Partner{" "}\n            <span className="bg-gradient-to-r from-okestro-600 via-blue-500 to-cyan-500 bg-clip-text font-black italic tracking-[-0.045em] text-transparent">\n              Connect\n            </span>\n          </>\n        )}\n'''
+          new='''        <>\n          Partner{" "}\n          <span className="bg-gradient-to-r from-okestro-600 via-blue-500 to-cyan-500 bg-clip-text font-black italic tracking-[-0.045em] text-transparent">\n            Connect\n          </span>\n        </>\n'''
+          s=s.replace(old,new)
+          s=s.replace('''        {workHubSwitch\n          ? "다른 사내 계정 세션이 감지되어 Work Hub 소유자 계정으로 다시 인증합니다."\n          : "승인된 사내 계정으로 로그인하세요."}\n''','''        승인된 사내 계정으로 로그인하세요.\n''')
+          s=s.replace('''      {!workHubSwitch ? (\n        <p className="mt-1 text-center text-xs text-slate-400">\n          외부 업체의 파트너 신청은{" "}\n          <a href="/partner-apply" className="text-okestro-700 underline">\n            로그인 없이\n          </a>{" "}\n          진행할 수 있습니다.\n        </p>\n      ) : (\n        <p className="mt-1 text-center text-xs text-slate-400">\n          Work Hub 데이터는 소유자 계정에서만 열립니다.\n        </p>\n      )}\n''','''      <p className="mt-1 text-center text-xs text-slate-400">\n        외부 업체의 파트너 신청은{" "}\n        <a href="/partner-apply" className="text-okestro-700 underline">\n          로그인 없이\n        </a>{" "}\n        진행할 수 있습니다.\n      </p>\n''')
+          p.write_text(s)
+
+      - name: Type-check sanitized source
+        shell: bash
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm run typecheck
 
       - name: Build sanitized source zip
         shell: bash
         run: |
+          mkdir -p _handoff_meta
+          printf '%s\n'             'Sanitized Partner Connect source snapshot'             'Work Hub/BokDesk/Dayflow/일계표 excluded'             'No .git history included'             'No environment value files included'             'Font binaries excluded from handoff package'             'TypeScript typecheck passed in GitHub Actions' > _handoff_meta/README.txt
           zip -qr partner-connect-source.zip . -x "partner-connect-source.zip"
 
       - name: Upload sanitized source
