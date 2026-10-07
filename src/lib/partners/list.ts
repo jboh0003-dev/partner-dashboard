@@ -3,7 +3,6 @@ import {
   getDisplayPartnerGradeLabel
 } from "@/lib/partners/grade";
 import { formatPartnerNo } from "@/lib/partners/partner-no";
-import { formatDate } from "@/lib/utils";
 import type { Partner, PartnerContact } from "@/types/partner";
 
 export type PartnerListRow = {
@@ -82,6 +81,9 @@ export function filterPartnerListRows(
       getDisplayPartnerGrade(row.partner),
       getDisplayPartnerGradeLabel(row.partner),
       row.partner.sales_owner,
+      row.partner.region_group,
+      row.partner.region,
+      row.partner.city,
       row.partner.contract_contact_name,
       row.partner.contract_contact_email,
       row.partner.contract_contact_phone,
@@ -102,9 +104,8 @@ export function partnerListRowsToCsv(rows: PartnerListRow[]) {
     번호: formatPartnerNo(row.partner) === "-" ? "" : formatPartnerNo(row.partner),
     회사명: row.partner.company_name,
     등급: getDisplayPartnerGradeLabel(row.partner),
-    계약일자: row.partner.contract_start_date
-      ? formatDate(row.partner.contract_start_date)
-      : "",
+    광역권: row.partner.region_group ?? "",
+    지역: row.partner.region ?? "",
     담당자명: row.contactName ?? "",
     직급: row.contactPosition ?? "",
     연락처: row.contactPhone ?? "",

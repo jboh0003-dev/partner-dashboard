@@ -21,7 +21,6 @@ import {
 import { formatPartnerNo } from "@/lib/partners/partner-no";
 import type { Partner } from "@/types/partner";
 import type { PartnerListRow } from "@/lib/partners/list";
-import { formatDate } from "@/lib/utils";
 import {
   PARTNER_SELECTED_ROW_TSV,
   partnerRowToCopyable
@@ -146,12 +145,18 @@ export function PartnerAdminTable({ rows, csvRows, isAdmin = false }: PartnerAdm
         render: (row) => getDisplayPartnerGradeLabel(row.partner)
       },
       {
-        key: "contract_start_date",
-        label: "계약일자",
-        kind: "date",
-        value: (row) => row.partner.contract_start_date,
-        render: (row) =>
-          row.partner.contract_start_date ? formatDate(row.partner.contract_start_date) : "-"
+        key: "region_group",
+        label: "광역권",
+        kind: "text",
+        value: (row) => row.partner.region_group,
+        render: (row) => row.partner.region_group ?? "-"
+      },
+      {
+        key: "region",
+        label: "지역",
+        kind: "text",
+        value: (row) => row.partner.region,
+        render: (row) => row.partner.region ?? "-"
       },
       {
         key: "contact_name",
