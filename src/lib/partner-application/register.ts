@@ -586,10 +586,50 @@ export async function registerPartnerApplication(
     if (/invalid input syntax for type date/i.test(raw)) {
       return { ok: false, message: FOUNDED_DATE_FORMAT_HINT };
     }
+
+    if (/번은 이미 .+에서 사용 중입니다\.?$/i.test(raw)) {
+      console.error("[partner-application] register failed", raw);
+      return {
+        ok: false,
+        message: `파트너 번호 중복: ${raw} 다른 번호를 입력하거나 기존 파트너 번호를 확인해 주세요.`
+      };
+    }
+
+    if (/duplicate key value violates unique constraint.*business_number/i.test(raw)) {
+      const normalizedBusinessNumber = normalizeBusinessNumber(input.company.business_number);
+      let duplicateLabel = "";
+
+      if (normalizedBusinessNumber) {
+        const { data: rows } = await supabase
+          .from("partners")
+          .select("external_no, company_name, business_number")
+          .is("deleted_at", null)
+          .limit(5000);
+
+        const duplicate = (rows ?? []).find(
+          (row) => normalizeBusinessNumber(row.business_number as string | null) === normalizedBusinessNumber
+        );
+
+        if (duplicate) {
+          duplicateLabel = duplicate.external_no
+            ? `파트너 ${String(duplicate.external_no)}번 ${String(duplicate.company_name)}`
+            : String(duplicate.company_name);
+        }
+      }
+
+      console.error("[partner-application] register failed", raw);
+      return {
+        ok: false,
+        message: duplicateLabel
+          ? `사업자등록번호 중복: ${formatBusinessNumberDisplay(input.company.business_number)}는 이미 ${duplicateLabel}에 등록되어 있습니다. 기존 파트너를 선택해 업데이트하거나 사업자등록번호를 확인해 주세요.`
+          : `사업자등록번호 중복: ${formatBusinessNumberDisplay(input.company.business_number)}가 이미 다른 활성 파트너에 등록되어 있습니다. 기존 파트너 매칭 여부를 확인해 주세요.`
+      };
+    }
+
     console.error("[partner-application] register failed", raw);
     return {
       ok: false,
-      message: "파트너 신청서 등록에 실패했습니다. 입력값을 확인한 뒤 다시 시도해 주세요."
+      message: `등록 처리 중 오류가 발생했습니다. 원인: ${raw}`
     };
   }
 }
