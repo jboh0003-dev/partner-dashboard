@@ -60,8 +60,12 @@ body:not(.bokdesk-home-mode) #bokdesk-entry{display:none!important}
       <div class="bokdesk-entry-foot"><span>⌂ BokDesk</span><span>선택한 화면만 표시</span></div>
     </div>
   </div>
-</section><div class="shell"><aside class="side"><div class="brand">Work Hub<small>MY WORKSPACE</small></div><nav class="nav"><button class="active" data-view="dashboard">▦ <span>일계표</span></button><button data-view="planner">✓ <span>업무계획</span></button><button data-view="report">▤ <span>주간보고</span></button></nav></aside><main class="main"><header><div><div id="pageTitle" class="title">일계표</div><div id="clock" class="subclock"></div></div><div class="headtools"><button id="theme" class="btn">☾ 다크</button><button id="addGlobal" class="btn primary">+ 할 일 추가</button></div></header><div id="root" class="wrap"></div></main></div><div id="modalRoot"></div><script id="workhub-seed-restore" src="/work-hub/seed-state.js?v=2"></script><script>
-const K='dayflow_v4_state',UI='workhub_ui_v2',PARTNER='workhub_partner_v2';const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];const esc=s=>String(s??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));const STATUS={todo:['○','예정'],doing:['△','진행'],done:['✓','완료'],blocked:['!','이슈'],failed:['×','못함']};let view='dashboard',plannerTab='weekly',plannerDate=today(),liveTab='market',expanded=false,market=null,sports=null;let ui=JSON.parse(localStorage.getItem(UI)||'{}');let partner=JSON.parse(localStorage.getItem(PARTNER)||'{"contracted":"","consulting":"","applications":""}');let S=loadState();
+</section><div class="shell"><aside class="side"><div class="brand">Work Hub<small>MY WORKSPACE</small></div><nav class="nav"><button class="active" data-view="dashboard">▦ <span>일계표</span></button><button data-view="planner">✓ <span>업무계획</span></button><button data-view="report">▤ <span>주간보고</span></button></nav></aside><main class="main"><header><div><div id="pageTitle" class="title">일계표</div><div id="clock" class="subclock"></div></div><div class="headtools"><button id="theme" class="btn">☾ 다크</button><button id="addGlobal" class="btn primary">+ 할 일 추가</button></div></header><div id="root" class="wrap"></div></main></div><div id="modalRoot"></div><script>
+const ACCOUNT_UID=new URLSearchParams(location.search).get('uid')||'guest';
+const LEGACY_OWNER_UID='6b290f26-391a-432f-bec9-a72c3cc8335c';
+const ACCOUNT_SUFFIX=ACCOUNT_UID.replace(/[^a-zA-Z0-9_-]/g,'');
+const K='dayflow_v4_state_'+ACCOUNT_SUFFIX,UI='workhub_ui_v2_'+ACCOUNT_SUFFIX,PARTNER='workhub_partner_v2_'+ACCOUNT_SUFFIX;
+const RECOVERY_KEY='workhub_recovered_from_'+ACCOUNT_SUFFIX, SNAPSHOT_PREFIX='workhub_snapshot_'+ACCOUNT_SUFFIX+'_';const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];const esc=s=>String(s??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));const STATUS={todo:['○','예정'],doing:['△','진행'],done:['✓','완료'],blocked:['!','이슈'],failed:['×','못함']};let view='dashboard',plannerTab='weekly',plannerDate=today(),liveTab='market',expanded=false,market=null,sports=null;let ui=JSON.parse(localStorage.getItem(UI)||'{}');let partner=JSON.parse(localStorage.getItem(PARTNER)||'{"contracted":"","consulting":"","applications":""}');let S=loadState();
 function today(){let d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}function dt(s){return new Date(s+'T12:00:00')}function add(s,n){let d=dt(s);d.setDate(d.getDate()+n);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}function mon(s){let d=dt(s),x=(d.getDay()+6)%7;d.setDate(d.getDate()-x);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}function mkey(s){return s.slice(0,7)}function fmt(s){let d=dt(s);return `${d.getMonth()+1}/${d.getDate()}`}function uid(){return crypto.randomUUID?crypto.randomUUID():Date.now()+''+Math.random()}function normalizeState(x){
   x=x&&typeof x==='object'?x:{};
   const workItems=Array.isArray(x.workItems)?x.workItems:(Array.isArray(x.tasks)?x.tasks.map(t=>({
@@ -76,71 +80,69 @@ function today(){let d=new Date();return `${d.getFullYear()}-${String(d.getMonth
 function stateScore(x){return (x.workItems?.length||0)*100000+(x.history?.length||0)*100+(x.legacyArchive?.length||0)}
 function loadState(){
   const candidates=[];
-  const keys=[K,'dayflow_v3_state','dayflow_v2_state','dayflow_v1_state','dayflow_state','workhub_state','workhub_v1_state'];
   const seen=new Set();
-  for(const key of keys){
-    try{const raw=localStorage.getItem(key);if(!raw)continue;const s=normalizeState(JSON.parse(raw));candidates.push({key,state:s,score:stateScore(s)});seen.add(key)}catch{}
-  }
-  try{
-    for(let i=0;i<localStorage.length;i++){
-      const key=localStorage.key(i); if(!key||seen.has(key)||key.startsWith('workhub_snapshot_'))continue;
-      const raw=localStorage.getItem(key); if(!raw||raw.length<20)continue;
-      const obj=JSON.parse(raw);
-      if(obj&&(Array.isArray(obj.workItems)||Array.isArray(obj.tasks)||Array.isArray(obj.history))){
-        const s=normalizeState(obj); candidates.push({key,state:s,score:stateScore(s)});
+  const addCandidate=(key,isLegacy=false)=>{
+    try{
+      const raw=localStorage.getItem(key);if(!raw)return;
+      const s=normalizeState(JSON.parse(raw));
+      candidates.push({key,state:s,score:stateScore(s),isLegacy});
+      seen.add(key);
+    }catch{}
+  };
+  addCandidate(K,false);
+
+  // One-time migration path for the original owner's pre-account local data.
+  // Other accounts never scan or import another user's legacy keys.
+  if(ACCOUNT_UID===LEGACY_OWNER_UID){
+    ['dayflow_v4_state','dayflow_v3_state','dayflow_v2_state','dayflow_v1_state','dayflow_state','workhub_state','workhub_v1_state'].forEach(k=>addCandidate(k,true));
+    try{
+      for(let i=0;i<localStorage.length;i++){
+        const key=localStorage.key(i);
+        if(!key||seen.has(key)||!key.startsWith('workhub_snapshot_')||key.startsWith(SNAPSHOT_PREFIX))continue;
+        addCandidate(key,true);
       }
-    }
-  }catch{}
+    }catch{}
+  }
+
   try{
-    const snaps=[];
     for(let i=0;i<localStorage.length;i++){
-      const key=localStorage.key(i); if(!key?.startsWith('workhub_snapshot_'))continue;
-      const raw=localStorage.getItem(key); if(!raw)continue;
-      const s=normalizeState(JSON.parse(raw)); snaps.push({key,state:s,score:stateScore(s)});
+      const key=localStorage.key(i);
+      if(!key||seen.has(key)||!key.startsWith(SNAPSHOT_PREFIX))continue;
+      addCandidate(key,false);
     }
-    candidates.push(...snaps);
   }catch{}
+
   candidates.sort((a,b)=>b.score-a.score);
   const best=candidates[0];
-  const current=candidates.find(c=>c.key===K);
-  if(best&&best.score>(current?.score||0)){
-    try{localStorage.setItem(K,JSON.stringify(best.state));localStorage.setItem('workhub_recovered_from',best.key)}catch{}
+  if(best){
+    try{
+      localStorage.setItem(K,JSON.stringify(best.state));
+      if(best.key!==K){
+        localStorage.setItem(RECOVERY_KEY,best.key);
+        if(best.isLegacy)localStorage.setItem('workhub_migrated_from_legacy_'+ACCOUNT_UID,'1');
+      }
+    }catch{}
     return best.state;
   }
-  if(current?.state && stateScore(current.state)>0) return current.state;
-  const fallback = normalizeState({
-    workItems:[
-      {id:'recover-viola',title:'비올라 조달 자료 준비 (차주 월)',category:'기타',scope:'weekly',target:'2026-09-14',status:'doing',note:'',createdAt:'2026-09-14',updatedAt:'2026-09-16',completedAt:null},
-      {id:'recover-ai-ppt',title:'AI 발표 ppt 준비(수)',category:'기타',scope:'weekly',target:'2026-09-14',status:'doing',note:'',createdAt:'2026-09-14',updatedAt:'2026-09-16',completedAt:null},
-      {id:'recover-partner-report',title:'파트너 계약, 교육 현황 보고(수)',category:'기타',scope:'weekly',target:'2026-09-14',status:'done',note:'',createdAt:'2026-09-14',updatedAt:'2026-09-16',completedAt:'2026-09-16'},
-      {id:'recover-maesa',title:'매사 행사준비',category:'기타',scope:'weekly',target:'2026-09-14',status:'doing',note:'',createdAt:'2026-09-14',updatedAt:'2026-09-16',completedAt:null},
-      {id:'recover-veeam',title:'veeam 파트너 계약',category:'기타',scope:'weekly',target:'2026-09-14',status:'todo',note:'',createdAt:'2026-09-14',updatedAt:'2026-09-16',completedAt:null},
-      {id:'recover-procurement',title:'조달 수의상담(수) 10:00',category:'기타',scope:'weekly',target:'2026-09-14',status:'done',note:'',createdAt:'2026-09-14',updatedAt:'2026-09-16',completedAt:'2026-09-16'},
-      {id:'recover-acl',title:'ACL행사',category:'기타',scope:'weekly',target:'2026-09-14',status:'doing',note:'',createdAt:'2026-09-14',updatedAt:'2026-09-16',completedAt:null},
-      {id:'recover-training',title:'파트너교육(화,수)',category:'기타',scope:'weekly',target:'2026-09-14',status:'done',note:'',createdAt:'2026-09-14',updatedAt:'2026-09-16',completedAt:'2026-09-16'},
-      {id:'recover-contract3',title:'파트너계약(3개사)',category:'기타',scope:'weekly',target:'2026-09-14',status:'done',note:'',createdAt:'2026-09-14',updatedAt:'2026-09-16',completedAt:'2026-09-16'}
-    ]
-  });
-  try{
-    localStorage.setItem(K,JSON.stringify(fallback));
-    localStorage.setItem('workhub_recovered_from','화면 복구 스냅샷 · 2026-09-16');
-  }catch{}
-  return fallback;
+
+  const empty=normalizeState({workItems:[],history:[],legacyArchive:[],plans:[],settings:{}});
+  try{localStorage.setItem(K,JSON.stringify(empty));}catch{}
+  return empty;
 }
 function snapshotState(){
   try{
     if(!S||!(S.workItems?.length||S.history?.length||S.legacyArchive?.length))return;
     const stamp=new Date().toISOString().replace(/[:.]/g,'-');
-    localStorage.setItem('workhub_snapshot_'+stamp,JSON.stringify(S));
+    localStorage.setItem(SNAPSHOT_PREFIX+stamp,JSON.stringify(S));
     const keys=[];
-    for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k?.startsWith('workhub_snapshot_'))keys.push(k)}
+    for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k?.startsWith(SNAPSHOT_PREFIX))keys.push(k)}
     keys.sort().reverse().slice(8).forEach(k=>localStorage.removeItem(k));
   }catch{}
 }
 function save(msg){snapshotState();localStorage.setItem(K,JSON.stringify(S));if(msg)toast(msg)}function savePartner(){localStorage.setItem(PARTNER,JSON.stringify(partner))}function toast(t){let x=document.createElement('div');x.textContent=t;x.style='position:fixed;right:18px;bottom:18px;background:#111827;color:white;padding:11px 14px;border-radius:10px;font-size:11px;z-index:150';document.body.appendChild(x);setTimeout(()=>x.remove(),1500)}function weekEnd(w){return add(w,6)}function inWeek(i,w){return i.scope==='weekly'?i.target===w:i.scope==='daily'?i.target>=w&&i.target<=weekEnd(w):i.scope==='monthly'?mkey(w)===i.target:false}function doneInWeek(i,w){return i.status==='done'&&i.completedAt&&i.completedAt>=w&&i.completedAt<=weekEnd(w)}function stateClass(s){return s==='done'?'done':s==='failed'?'failed':s==='blocked'?'blocked':''}function setStatus(id,status){let t=S.workItems.find(x=>x.id===id);if(!t)return;t.status=status;t.updatedAt=today();t.completedAt=['done','failed'].includes(status)?(t.completedAt||today()):null;save();render()}function addItem(o){S.workItems.push({id:uid(),title:o.title,category:o.category||'기타',scope:o.scope||'weekly',target:o.target||mon(today()),status:o.status||'todo',note:o.note||'',createdAt:today(),updatedAt:today(),completedAt:null});save();render()}function del(id){let t=S.workItems.find(x=>x.id===id);if(t&&confirm(`“${t.title}” 업무를 삭제할까요?`)){S.workItems=S.workItems.filter(x=>x.id!==id);save('삭제했습니다.');render()}}
 function task(t,compact=false){return `<div class="task ${stateClass(t.status)}"><div class="tasktop"><button class="check" data-act="toggleDone" data-id="${t.id}">${t.status==='done'?'✓':t.status==='failed'?'×':'✓'}</button><div class="tasktitle">${esc(t.title)}</div><div class="taskactions"><button class="icon" data-act="edit" data-id="${t.id}">수정</button><button class="icon" data-act="delete" data-id="${t.id}">삭제</button></div></div><div class="meta"><span class="chip cat">${esc(t.category||'기타')}</span><span class="chip">${t.scope==='daily'?'일간':t.scope==='weekly'?'주간':'월간'}</span><span class="chip">${esc(t.target||'')}</span></div><div class="statusbar">${Object.entries(STATUS).map(([k,v])=>`<button class="status ${k} ${t.status===k?'active':''}" data-act="status" data-id="${t.id}" data-status="${k}">${v[0]} ${v[1]}</button>`).join('')}</div></div>`}
 function lane(title,sub,items,focus,target){return `<section class="lane ${focus?'focus':''}"><div class="lanehead"><div><h3>${title}</h3><p>${sub}</p></div><span class="count">${items.length}</span></div>${target?`<form class="quick" data-target="${target}"><input name="title" placeholder="빠르게 할 일 추가"><button class="btn primary">+</button></form>`:''}<div class="tasks">${items.length?items.map(x=>task(x)).join(''):'<div class="empty">등록된 업무 없음</div>'}</div></section>`}
-function dashboard(){let recovered=localStorage.getItem('workhub_recovered_from');let recoveryBanner=recovered?'<div style="margin-bottom:12px;padding:12px 14px;border:1px solid #9dd8bf;background:#edf9f4;color:#166b4e;border-radius:12px;font-size:13px;font-weight:800">✓ 기존 업무 데이터를 자동 복구했습니다. ('+esc(recovered)+')</div>':'';let w=mon(today()),last=add(w,-7),next=add(w,7),weekAll=S.workItems.filter(x=>inWeek(x,w)),active=weekAll.filter(x=>!['done','failed'].includes(x.status)),done=weekAll.filter(x=>x.status==='done'),failed=weekAll.filter(x=>x.status==='failed'),doing=weekAll.filter(x=>x.status==='doing'),blocked=weekAll.filter(x=>x.status==='blocked'),lastDone=S.workItems.filter(x=>doneInWeek(x,last)),nextAll=S.workItems.filter(x=>inWeek(x,next));let rate=weekAll.length?Math.round((done.length/weekAll.length)*100):0;return `${recoveryBanner}<div class="metrics"><div class="metric"><span>이번주 남은 업무</span><strong>${active.length} / ${weekAll.length}</strong><div class="progress"><i style="width:${rate}%"></i></div></div><div class="metric"><span>이번주 완료</span><strong>${done.length}</strong></div><div class="metric"><span>진행 중</span><strong>${doing.length}</strong></div><div class="metric"><span>이슈·대기</span><strong>${blocked.length}</strong></div><div class="metric"><span>다음주 계획</span><strong>${nextAll.length}</strong></div></div><div class="dashboard"><div class="workarea"><div class="board">${lane('지난주 한 일',`${fmt(last)} ~ ${fmt(weekEnd(last))}`,lastDone,false)}${lane('이번주 할 일',`${fmt(w)} ~ ${fmt(weekEnd(w))}`,weekAll,true,w)}${lane('다음주 할 일',`${fmt(next)} ~ ${fmt(weekEnd(next))}`,nextAll,false,next)}</div></div></div>`}
+function dashboard(){let recovered=localStorage.getItem(RECOVERY_KEY);let recoveryBanner=recovered?'<div style="margin-bottom:12px;padding:12px 14px;border:1px solid #9dd8bf;background:#edf9f4;color:#166b4e;border-radius:12px;font-size:13px;font-weight:800">✓ 기존 업무 데이터를 자동 복구했습니다. ('+esc(recovered)+')</div>':'';let w=mon(today()),last=add(w,-7),next=add(w,7),weekAll=S.workItems.filter(x=>inWeek(x,w)),active=weekAll.filter(x=>!['done','failed'].includes(x.status)),done=weekAll.filter(x=>x.status==='done'),failed=weekAll.filter(x=>x.status==='failed'),doing=weekAll.filter(x=>x.status==='doing'),blocked=weekAll.filter(x=>x.status==='blocked'),lastDone=S.workItems.filter(x=>doneInWeek(x,last)),nextAll=S.workItems.filter(x=>inWeek(x,next));let rate=weekAll.length?Math.round((done.length/weekAll.length)*100):0;return `${recoveryBanner}<div class="metrics"><div class="metric"><span>이번주 남은 업무</span><strong>${active.length} / ${weekAll.length}</strong><div class="progress"><i style="width:${rate}%"></i></div></div><div class="metric"><span>이번주 완료</span><strong>${done.length}</strong></div><div class="metric"><span>진행 중</span><strong>${doing.length}</strong></div><div class="metric"><span>이슈·대기</span><strong>${blocked.length}</strong></div><div class="metric"><span>다음주 계획</span><strong>${nextAll.length}</strong></div></div><div class="dashboard"><div class="workarea"><div class="board">${lane('지난주 한 일',`${fmt(last)} ~ ${fmt(weekEnd(last))}`,lastDone,false)}${lane('이번주 할 일',`${fmt(w)} ~ ${fmt(weekEnd(w))}`,weekAll,true,w)}${lane('다음주 할 일',`${fmt(next)} ~ ${fmt(weekEnd(next))}`,nextAll,false,next)}</div></div></div>`}
 function liveCenter(){return `<aside id="live" class="live ${expanded?'expanded':''}"><div class="livehead"><div><b>LIVE CENTER</b><span id="liveUpdated">시장·스포츠 실시간 보드</span></div><div class="livetools"><button data-act="refreshLive" title="새로고침">↻</button><button data-act="expandLive" title="확대">${expanded?'✕':'⤢'}</button></div></div><div class="livetabs"><button class="${liveTab==='market'?'active':''}" data-act="liveTab" data-tab="market">MARKET</button><button class="${liveTab==='kbo'?'active':''}" data-act="liveTab" data-tab="kbo">⚾ KBO</button><button class="${liveTab==='football'?'active':''}" data-act="liveTab" data-tab="football">⚽ FOOTBALL</button></div><div id="liveBody" class="livebody">${liveContent()}</div></aside>`}
 function pct(v){let n=Number(v);return Number.isFinite(n)?`${n>0?'+':''}${n.toFixed(2)}%`:'-'}function num(v,d=0){let n=Number(v);return Number.isFinite(n)?n.toLocaleString('ko-KR',{minimumFractionDigits:d,maximumFractionDigits:d}):'-'}function cls(v){let n=Number(v);return n>0?'up':n<0?'down':'flat'}function liveContent(){if(liveTab==='market'){if(!market?.ok)return `<div class="empty">시세 불러오는 중…</div>`;let h=market.hyundai||market.stocks?.find(x=>x.name==='현대차');return `<div class="indices"><div class="index"><span>KOSPI</span><strong>${num(market.kospi?.price,2)}</strong><em class="${cls(market.kospi?.changePct)}">${pct(market.kospi?.changePct)}</em></div><div class="index"><span>USD / KRW</span><strong>₩${num(market.usdkrw?.price,2)}</strong><em class="${cls(market.usdkrw?.changePct)}">${pct(market.usdkrw?.changePct)}</em></div></div>${h?`<div class="hyundai"><div><small>FEATURED · HYUNDAI</small><b>현대차</b></div><strong>${num(h.price)}</strong><em class="${cls(h.changePct)}">${pct(h.changePct)}</em></div>`:''}<div class="market-title"><b>KOSPI 시총 TOP 10</b><span>60초 갱신</span></div><div class="market-list">${(market.stocks||[]).map((s,i)=>`<div class="stock ${s.name==='현대차'?'focus':''}"><span class="rank">${s.rank||i+1}</span><b>${esc(s.name)}</b><span class="price">${num(s.price)}</span><em class="${cls(s.changePct)}">${pct(s.changePct)}</em></div>`).join('')}</div><div class="note">NAVER Finance 실데이터 · 제공처 정책에 따라 지연될 수 있음</div>`}if(liveTab==='kbo'){let games=sports?.kbo||[];return `<div class="section-title"><b>오늘 KBO</b><span>${games.length}경기</span></div><div class="score-list">${games.length?games.map(kboGame).join(''):'<div class="empty">오늘 등록된 KBO 경기가 없거나 데이터를 불러오는 중입니다.</div>'}</div><div class="note">NAVER Sports 스코어 데이터 · 경기 중 60초 자동 갱신</div>`}let e=sports?.soccer?.epl||[],k=sports?.soccer?.korean||[];return `<div class="section-title"><b>EPL · 최근/예정</b><span>${e.length}경기</span></div><div class="score-list">${e.slice(0,10).map(soccerGame).join('')||'<div class="empty">EPL 경기 없음</div>'}</div><div class="section-title"><b>KOREAN PLAYER WATCH</b><span>해외파 주요팀</span></div><div class="score-list">${k.slice(0,10).map(soccerGame).join('')||'<div class="empty">조회 기간 내 해외파 소속팀 경기 없음</div>'}</div><div class="note">EPL + 손흥민·김민재·이강인·황희찬·황인범 소속팀 기준 · ESPN Scoreboard</div>`}
 function kboGame(g){let live=g.status==='live',final=g.status==='final',st=live?(g.statusInfo||'LIVE'):final?'종료':g.status==='scheduled'?g.time:g.status;return `<div class="scoregame ${live?'livegame':''}"><div class="scoretop"><span>${esc(g.stadium||'KBO')}</span><span>${esc(st)}</span></div><div class="teams"><div class="team">${esc(g.away)}</div><div class="score">${g.awayScore??'-'}</div><div class="team">${esc(g.home)}</div><div class="score">${g.homeScore??'-'}</div></div></div>`}function soccerGame(g){let time=new Date(g.date).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}),st=g.state==='in'?(g.detail||'LIVE'):g.state==='post'?'종료':time;return `<div class="scoregame ${g.state==='in'?'livegame':''}"><div class="scoretop"><span>${esc(g.leagueName)}</span><span>${esc(st)}</span></div><div class="teams"><div class="team">${g.away.logo?`<img src="${g.away.logo}" alt="">`:''}${esc(g.away.name)}</div><div class="score">${g.away.score??'-'}</div><div class="team">${g.home.logo?`<img src="${g.home.logo}" alt="">`:''}${esc(g.home.name)}</div><div class="score">${g.home.score??'-'}</div></div>${g.koreanPlayers?.length?`<span class="watchtag">🇰🇷 ${g.koreanPlayers.join(' · ')}</span>`:''}</div>`}
