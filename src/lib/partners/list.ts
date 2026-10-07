@@ -3,6 +3,7 @@ import {
   getDisplayPartnerGradeLabel
 } from "@/lib/partners/grade";
 import { formatPartnerNo } from "@/lib/partners/partner-no";
+import { inferPartnerAddressLocation } from "@/lib/partners/address-location";
 import type { Partner, PartnerContact } from "@/types/partner";
 
 export type PartnerListRow = {
@@ -41,8 +42,16 @@ export function buildPartnerListRows(
   return partners.map((partner) => {
     const partnerContacts = contactsByPartner.get(partner.id) ?? [];
     const contact = resolvePartnerContact(partnerContacts);
+    const inferredLocation = inferPartnerAddressLocation(partner.address);
+    const normalizedPartner: Partner = {
+      ...partner,
+      region_group: partner.region_group?.trim() || inferredLocation.regionGroup || null,
+      region: partner.region?.trim() || inferredLocation.region || null,
+      city: partner.city?.trim() || inferredLocation.city || null
+    };
+
     return {
-      partner,
+      partner: normalizedPartner,
       contactName: contact?.name ?? null,
       contactPosition: contact?.position ?? null,
       contactPhone: contact?.phone ?? null,

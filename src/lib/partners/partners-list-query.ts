@@ -17,7 +17,7 @@ import type { Partner, PartnerContact } from "@/types/partner";
 export const PARTNERS_LIST_MAX = 5000;
 
 export const PARTNER_LIST_SELECT =
-  "id, company_name, external_no, grade, grade_override, grade_change_raw, grade_original, contract_start_date, region_group, status, is_active, deleted_at, memo, ceo_name, business_number, main_phone, sales_owner, okestro_owner, contract_contact_name, contract_contact_phone, contract_contact_email, created_at, updated_at";
+  "id, company_name, external_no, grade, grade_override, grade_change_raw, grade_original, contract_start_date, region_group, region, city, address, status, is_active, deleted_at, memo, ceo_name, business_number, main_phone, sales_owner, okestro_owner, contract_contact_name, contract_contact_phone, contract_contact_email, created_at, updated_at";
 
 export type PartnersListSearchParams = {
   q?: string;
@@ -166,6 +166,9 @@ export async function fetchPartnersList(
             partner.okestro_owner,
             partner.main_phone,
             partner.business_number,
+            partner.region_group,
+            partner.region,
+            partner.city,
             partner.contract_contact_name,
             partner.contract_contact_email,
             partner.contract_contact_phone,
