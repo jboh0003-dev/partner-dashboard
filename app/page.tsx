@@ -292,7 +292,7 @@ export default function Home() {
       key={user.id}
       ref={frameRef}
       onLoad={patchAssets}
-      src={`/work-hub/index.html?v=34&uid=${encodeURIComponent(user.id)}`}
+      src={`/work-hub/index.html?v=35&uid=${encodeURIComponent(user.id)}`}
       title="BokDesk"
       className="workhub-frame"
     />
