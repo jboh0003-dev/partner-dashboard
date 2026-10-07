@@ -67,18 +67,7 @@
       .guestbook-list{display:grid;gap:8px}.guestbook-entry{border:1px solid var(--line);border-radius:14px;padding:11px 12px;background:var(--card)}.guestbook-entry-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:7px}.guestbook-entry-who{display:flex;align-items:center;gap:7px}.guestbook-entry-who .mini-avatar{width:28px;height:28px;border-radius:9px;background:#fff4a6;display:grid;place-items:center;font-size:15px;border:1px solid #ead66b}.guestbook-entry-who b{font-size:10px}.guestbook-entry-head span{font-size:8px;color:var(--muted)}.guestbook-entry-body{white-space:pre-wrap;word-break:break-word;font-size:11px;line-height:1.55}.guestbook-entry-actions{margin-top:8px;display:flex;justify-content:flex-end}.guestbook-entry-actions button{border:1px solid var(--line);background:transparent;color:var(--muted);border-radius:8px;padding:5px 7px;font-size:8px;font-weight:850;cursor:pointer}
       .guestbook-modal{width:min(760px,100%);max-height:calc(100vh - 40px);overflow:auto;background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:22px;padding:22px;box-shadow:0 28px 70px rgba(0,0,0,.28)}
       .friend-home-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
-      .friend-home.theme-blue .friend-home-cover{background:linear-gradient(120deg,#dbeafe,#60a5fa 58%,#2563eb);border-color:#3b82f6}.friend-home.theme-blue .friend-home-head p,.friend-home.theme-blue .friend-home-profile span{color:#163d73}
-      .friend-home.theme-mint .friend-home-cover{background:linear-gradient(120deg,#d8fff1,#66e0bb 58%,#22a879);border-color:#39bd91}.friend-home.theme-mint .friend-home-head p,.friend-home.theme-mint .friend-home-profile span{color:#155c49}
-      .friend-home.theme-pink .friend-home-cover{background:linear-gradient(120deg,#ffe5ef,#ff9fc0 58%,#f05f94);border-color:#ef83aa}.friend-home.theme-pink .friend-home-head p,.friend-home.theme-pink .friend-home-profile span{color:#7a2748}
-      .friend-home.theme-night .friend-home-cover{background:radial-gradient(circle at 82% 18%,#f9e879 0 3%,transparent 4%),radial-gradient(circle at 72% 35%,#fff 0 1%,transparent 2%),linear-gradient(120deg,#18213c,#303d72 58%,#141a31);border-color:#303d72;color:#fff}.friend-home.theme-night .friend-home-head p,.friend-home.theme-night .friend-home-profile span{color:#d8def8}.friend-home.theme-night .friends-avatar{background:#e8e8ff;border-color:#b9b9de}
-      .friend-home.theme-violet .friend-home-cover{background:linear-gradient(120deg,#eee3ff,#b28cff 58%,#714ad7);border-color:#9c79e7}.friend-home.theme-violet .friend-home-head p,.friend-home.theme-violet .friend-home-profile span{color:#43277a}
-      .mini-home-tools{display:flex;gap:6px;flex-wrap:wrap;margin-left:auto}.mini-home-tools button{border:1px solid rgba(25,25,25,.16);background:rgba(255,255,255,.64);color:#191919;border-radius:9px;padding:7px 9px;font-size:9px;font-weight:900;cursor:pointer}
-      .home-now{margin-top:12px;border:1px solid var(--line);border-radius:15px;background:var(--card);overflow:hidden}.home-now h3{margin:0;padding:12px 14px;border-bottom:1px solid var(--line);font-size:12px}.home-now-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;padding:10px}.home-now-item{border:1px solid var(--line);border-radius:11px;padding:10px;background:color-mix(in srgb,var(--card) 95%,#f5f1dd)}.home-now-item em{font-style:normal;font-size:8px;font-weight:900}.home-now-item b{display:block;margin-top:5px;font-size:10px;line-height:1.4}.home-now-item small{display:block;margin-top:4px;color:var(--muted);font-size:8px}
-      .post-compose{border:1px solid var(--line);border-radius:15px;background:var(--card);padding:12px;margin-bottom:10px}.post-compose-head{display:flex;gap:7px;align-items:center;margin-bottom:8px}.post-compose select,.post-compose textarea,.comment-form input{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:10px;font:inherit}.post-compose select{padding:8px}.post-compose textarea{width:100%;min-height:92px;resize:vertical;padding:10px 11px;font-size:11px;line-height:1.55}.post-compose-actions{display:flex;justify-content:flex-end;margin-top:7px}.post-compose-actions button,.comment-form button,.post-action{border:0;border-radius:9px;background:#191919;color:#fff;padding:7px 10px;font-size:9px;font-weight:900;cursor:pointer}
-      .post-list{display:grid;gap:10px}.post-card{border:1px solid var(--line);border-radius:15px;background:var(--card);padding:13px}.post-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}.post-author{display:flex;gap:8px;align-items:center}.post-author .mini-avatar{width:34px;height:34px;border-radius:11px;background:#fff2a0;border:1px solid #e3cf5c;display:grid;place-items:center;font-size:18px}.post-author b{font-size:10px}.post-author small{display:block;margin-top:2px;color:var(--muted);font-size:8px}.post-mood{font-size:18px}.post-body{margin-top:11px;white-space:pre-wrap;word-break:break-word;font-size:11px;line-height:1.65}.post-actions{display:flex;gap:6px;align-items:center;margin-top:11px;padding-top:9px;border-top:1px solid var(--line)}.post-action{background:#f4f4f4;color:#555;border:1px solid var(--line)}.post-action.active{background:#fff2f5;color:#c13e61;border-color:#f1b4c5}.post-action.danger{margin-left:auto;color:#a14343;background:transparent}
-      .comments{display:grid;gap:6px;margin-top:9px}.comment{display:grid;grid-template-columns:auto 1fr auto;gap:7px;align-items:start;padding:8px;border-radius:10px;background:color-mix(in srgb,var(--card) 92%,#f2f2f2)}.comment .mini-avatar{width:24px;height:24px;border-radius:8px;background:#eee;display:grid;place-items:center;font-size:13px}.comment b{font-size:8px}.comment p{margin:2px 0 0;font-size:9px;line-height:1.45;word-break:break-word}.comment button{border:0;background:transparent;color:var(--muted);font-size:8px;cursor:pointer}.comment-form{display:grid;grid-template-columns:1fr auto;gap:6px;margin-top:8px}.comment-form input{padding:8px 9px;font-size:9px}
-      .customizer-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.customizer-box{border:1px solid var(--line);border-radius:14px;padding:13px}.customizer-box h3{margin:0 0 9px;font-size:12px}.avatar-preset,.theme-preset{display:flex;gap:6px;flex-wrap:wrap}.avatar-preset button{width:39px;height:39px;border:1px solid var(--line);border-radius:11px;background:var(--card);font-size:20px;cursor:pointer}.avatar-preset button.active{outline:2px solid #191919}.theme-preset button{border:1px solid var(--line);border-radius:999px;padding:7px 10px;background:var(--card);color:var(--ink);font-size:9px;font-weight:900;cursor:pointer}.theme-preset button.active{background:#191919;color:#fff}.customizer-box input{width:100%;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);padding:10px;font:inherit;font-size:11px}
-      @media(max-width:800px){.account-nav{left:8px;right:8px;bottom:12px}.account-grid,.friend-home-grid,.game-sections,.customizer-grid,.home-now-grid{grid-template-columns:1fr}.friend-card-main{grid-template-columns:auto 1fr}.friend-actions{grid-column:1/-1;justify-content:flex-start}.profile-edit-grid{grid-template-columns:1fr}.profile-edit-grid .status-field{grid-column:auto}.friends-self{grid-template-columns:auto 1fr}.friends-self-side{grid-column:1/-1;justify-items:start}.friends-self .friend-code{grid-column:auto}.friend-search{grid-template-columns:1fr}.friend-search button{min-height:42px}}
+      @media(max-width:800px){.account-nav{left:8px;right:8px;bottom:12px}.account-grid,.friend-home-grid,.game-sections{grid-template-columns:1fr}.friend-card-main{grid-template-columns:auto 1fr}.friend-actions{grid-column:1/-1;justify-content:flex-start}.profile-edit-grid{grid-template-columns:1fr}.profile-edit-grid .status-field{grid-column:auto}.friends-self{grid-template-columns:auto 1fr}.friends-self-side{grid-column:1/-1;justify-items:start}.friends-self .friend-code{grid-column:auto}.friend-search{grid-template-columns:1fr}.friend-search button{min-height:42px}}
     `;
     document.head.appendChild(style);
 
@@ -164,10 +153,8 @@
         wrap.className='account-nav';
         side.appendChild(wrap);
       }
-      wrap.innerHTML='<button type="button" id="myMiniHomeBtn">🏡 내 미니홈</button><button type="button" id="friendsManageBtn">🏠 친구꺼 보기</button><button type="button" id="miniHomeCustomizeBtn">🎨 미니홈 꾸미기</button><button type="button" id="accountManageBtn">⚙ 계정관리</button>';
-      document.getElementById('myMiniHomeBtn').onclick=openMyMiniHome;
+      wrap.innerHTML='<button type="button" id="friendsManageBtn">🏠 친구꺼 보기</button><button type="button" id="accountManageBtn">⚙ 계정관리</button>';
       document.getElementById('friendsManageBtn').onclick=openFriends;
-      document.getElementById('miniHomeCustomizeBtn').onclick=openHomeCustomizer;
       document.getElementById('accountManageBtn').onclick=openAccountManager;
     }
 
@@ -197,21 +184,16 @@
 
     async function saveProfile(values){
       if(!session?.user?.id) return;
-      const allowedThemes=['yellow','blue','mint','pink','night','violet'];
-      const requestedTheme=String(values.home_theme??profile?.home_theme??'yellow');
       const next={
-        display_name:String(values.display_name??profile?.display_name??'친구').trim().slice(0,30)||'친구',
-        avatar_emoji:String(values.avatar_emoji??profile?.avatar_emoji??'🙂').trim().slice(0,16)||'🙂',
-        status_message:String(values.status_message??profile?.status_message??'').trim().slice(0,120),
-        home_title:String(values.home_title??profile?.home_title??'BokDesk 미니홈').trim().slice(0,40)||'BokDesk 미니홈',
-        home_theme:allowedThemes.includes(requestedTheme)?requestedTheme:'yellow',
+        display_name:String(values.display_name||'').trim().slice(0,30)||'친구',
+        avatar_emoji:String(values.avatar_emoji||'🙂').trim().slice(0,16)||'🙂',
+        status_message:String(values.status_message||'').trim().slice(0,120),
         updated_at:new Date().toISOString()
       };
       const {data,error}=await sb.from('workhub_profiles').update(next).eq('user_id',session.user.id).select('*').single();
       if(error) throw error;
       profile=data;
       socialCache=null;
-      return data;
     }
 
     async function readRemote(){
@@ -295,44 +277,6 @@
     }
 
     function closeOverlay(id){document.getElementById(id)?.remove();}
-
-    function themeLabel(theme){return ({yellow:'옐로',blue:'블루',mint:'민트',pink:'핑크',night:'밤하늘',violet:'바이올렛'})[theme]||'옐로';}
-    async function openHomeCustomizer(){
-      if(!session?.user)return;
-      closeOverlay('accountManager');closeOverlay('friendsManager');closeOverlay('friendHome');closeOverlay('homeCustomizer');
-      try{await ensureProfile();}catch(e){console.error(e);}
-      let pickedEmoji=profile?.avatar_emoji||'🙂';
-      let pickedTheme=profile?.home_theme||'yellow';
-      const root=document.createElement('div');
-      root.id='homeCustomizer';root.className='cloud-auth';
-      const emojis=['🧑‍💼','😎','🤖','🐯','🐰','🐻','🐶','🐱','🦊','🐸','👾','🧙','🕶️','🔥','⭐','🍪'];
-      const themes=['yellow','blue','mint','pink','night','violet'];
-      root.innerHTML='<div class="account-modal"><div class="account-head"><div><h2>🎨 미니홈 꾸미기</h2><p>프로필 아이콘, 홈 제목, 상태메시지와 커버 테마를 바꿀 수 있습니다.</p></div><button type="button" class="account-close" data-close>×</button></div>'
-        +'<div class="customizer-grid"><section class="customizer-box"><h3>프로필 아이콘</h3><div class="avatar-preset">'+emojis.map(e=>'<button type="button" data-emoji="'+safe(e)+'" class="'+(e===pickedEmoji?'active':'')+'">'+safe(e)+'</button>').join('')+'</div></section>'
-        +'<section class="customizer-box"><h3>커버 테마</h3><div class="theme-preset">'+themes.map(t=>'<button type="button" data-theme="'+t+'" class="'+(t===pickedTheme?'active':'')+'">'+themeLabel(t)+'</button>').join('')+'</div></section>'
-        +'<section class="customizer-box"><h3>미니홈 제목</h3><input id="customHomeTitle" maxlength="40" value="'+safe(profile?.home_title||'BokDesk 미니홈')+'"></section>'
-        +'<section class="customizer-box"><h3>상태메시지</h3><input id="customStatus" maxlength="120" value="'+safe(profile?.status_message||'')+'"></section></div>'
-        +'<div class="account-actions" style="margin-top:14px"><button type="button" class="btn primary" id="customSave">꾸미기 저장</button><button type="button" class="btn" id="customPreview">내 미니홈 보기</button></div></div>';
-      document.body.appendChild(root);
-      const close=()=>root.remove();root.querySelector('[data-close]').onclick=close;root.onclick=e=>{if(e.target===root)close();};
-      root.querySelectorAll('[data-emoji]').forEach(btn=>btn.onclick=()=>{pickedEmoji=btn.dataset.emoji;root.querySelectorAll('[data-emoji]').forEach(x=>x.classList.toggle('active',x===btn));});
-      root.querySelectorAll('[data-theme]').forEach(btn=>btn.onclick=()=>{pickedTheme=btn.dataset.theme;root.querySelectorAll('[data-theme]').forEach(x=>x.classList.toggle('active',x===btn));});
-      document.getElementById('customSave').onclick=async()=>{
-        const btn=document.getElementById('customSave');btn.disabled=true;
-        try{
-          await saveProfile({avatar_emoji:pickedEmoji,home_theme:pickedTheme,home_title:document.getElementById('customHomeTitle').value,status_message:document.getElementById('customStatus').value});
-          toast('미니홈 꾸미기를 저장했습니다.');
-        }catch(e){console.error(e);toast('꾸미기 저장에 실패했습니다.');}
-        finally{btn.disabled=false;}
-      };
-      document.getElementById('customPreview').onclick=async()=>{close();await openMyMiniHome();};
-    }
-
-    async function openMyMiniHome(){
-      if(!session?.user)return;
-      try{await ensureProfile();await pushCloud(false);}catch(e){console.error(e);}
-      openFriendHome(session.user.id,profile,{can_view_work:true,can_view_notes:true,can_view_game:true},true);
-    }
 
     async function openAccountManager(){
       if(!session?.user) return;
@@ -564,45 +508,6 @@
       await draw();
     }
 
-    async function loadPosts(authorId){
-      const {data:posts,error}=await sb.from('workhub_posts').select('id,author_id,mood,body,created_at').eq('author_id',authorId).order('created_at',{ascending:false}).limit(30);
-      if(error)throw error;
-      const rows=posts||[];
-      const ids=rows.map(x=>x.id);
-      let comments=[],reactions=[];
-      if(ids.length){
-        const [cRes,rRes]=await Promise.all([
-          sb.from('workhub_post_comments').select('id,post_id,author_id,body,created_at').in('post_id',ids).order('created_at',{ascending:true}),
-          sb.from('workhub_post_reactions').select('post_id,user_id,emoji,created_at').in('post_id',ids)
-        ]);
-        if(cRes.error)throw cRes.error;if(rRes.error)throw rRes.error;
-        comments=cRes.data||[];reactions=rRes.data||[];
-      }
-      const userIds=[...new Set([authorId,...comments.map(x=>x.author_id)])];
-      let profiles=[];
-      if(userIds.length){
-        const pRes=await sb.from('workhub_profiles').select('user_id,display_name,avatar_emoji').in('user_id',userIds);
-        if(pRes.error)throw pRes.error;profiles=pRes.data||[];
-      }
-      const byUser=new Map(profiles.map(p=>[p.user_id,p]));
-      return rows.map(post=>({
-        ...post,
-        author:byUser.get(post.author_id)||{display_name:'친구',avatar_emoji:'🙂'},
-        comments:comments.filter(x=>x.post_id===post.id).map(x=>({...x,author:byUser.get(x.author_id)||{display_name:'친구',avatar_emoji:'🙂'}})),
-        reactions:reactions.filter(x=>x.post_id===post.id)
-      }));
-    }
-    function postDate(value){try{return new Date(value).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});}catch{return '';}}
-    function postCardHtml(post,isSelf){
-      const mine=post.author_id===session?.user?.id;
-      const reacted=post.reactions.some(r=>r.user_id===session?.user?.id);
-      const comments=post.comments.map(cm=>{
-        const canDelete=isSelf||cm.author_id===session?.user?.id;
-        return '<div class="comment"><div class="mini-avatar">'+safe(cm.author?.avatar_emoji||'🙂')+'</div><div><b>'+safe(cm.author?.display_name||'친구')+'</b><p>'+safe(cm.body||'')+'</p></div>'+(canDelete?'<button type="button" data-comment-delete="'+safe(cm.id)+'">삭제</button>':'<span></span>')+'</div>';
-      }).join('');
-      return '<article class="post-card" data-post="'+safe(post.id)+'"><div class="post-head"><div class="post-author"><div class="mini-avatar">'+safe(post.author?.avatar_emoji||'🙂')+'</div><div><b>'+safe(post.author?.display_name||'친구')+'</b><small>'+safe(postDate(post.created_at))+'</small></div></div><span class="post-mood">'+safe(post.mood||'💬')+'</span></div><div class="post-body">'+safe(post.body||'')+'</div><div class="post-actions"><button type="button" class="post-action '+(reacted?'active':'')+'" data-react="'+safe(post.id)+'">♥ 공감 '+post.reactions.length+'</button><span style="font-size:8px;color:var(--muted)">댓글 '+post.comments.length+'</span>'+(mine?'<button type="button" class="post-action danger" data-post-delete="'+safe(post.id)+'">게시글 삭제</button>':'')+'</div><div class="comments">'+comments+'</div><form class="comment-form" data-comment-form="'+safe(post.id)+'"><input maxlength="300" placeholder="댓글 남기기"><button type="submit">댓글</button></form></article>';
-    }
-
     function statusText(s){return s==='done'?'완료':s==='doing'?'진행':s==='blocked'?'이슈':s==='failed'?'못함':'예정';}
     function guestbookDate(value){
       try{return new Date(value).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});}
@@ -666,26 +571,17 @@
       await draw();
     }
 
-    async function openFriendHome(friendId,friendProfile,share,isSelf=false){
-      closeOverlay('friendsManager');closeOverlay('homeCustomizer');
-      const theme=['yellow','blue','mint','pink','night','violet'].includes(friendProfile?.home_theme)?friendProfile.home_theme:'yellow';
+    async function openFriendHome(friendId,friendProfile,share){
+      closeOverlay('friendsManager');
       const root=document.createElement('div');root.id='friendHome';root.className='cloud-auth';
-      const backLabel=isSelf?'← 닫기':'← 친구목록';
-      root.innerHTML='<div class="friend-home theme-'+theme+'"><div class="friend-home-cover"><div class="friend-home-head"><div><h2>'+safe(friendProfile?.home_title||'BokDesk 미니홈')+'</h2><p>'+(isSelf?'내 업무·메모·게임과 게시글을 한 곳에서 보는 개인 미니홈입니다.':'친구가 공개한 업무·메모·게임은 읽기 전용이며, 게시글과 방명록으로 소통할 수 있습니다.')+'</p></div><div class="mini-home-tools">'+(isSelf?'<button type="button" data-customize>🎨 꾸미기</button>':'')+'<button type="button" class="account-close" data-close>×</button></div></div><div class="friend-home-profile"><div class="friends-avatar">'+safe(friendProfile?.avatar_emoji||'🙂')+'</div><div><b>'+safe(friendProfile?.display_name||'친구')+'</b><span>'+safe(friendProfile?.status_message||'')}</span></div></div></div><nav class="friend-home-nav"><button data-tab="home" class="active">🏠 홈</button><button data-tab="posts">📌 게시글</button><button data-tab="work">📋 업무</button><button data-tab="notes">📝 메모</button><button data-tab="game">🎮 게임</button><button data-tab="guestbook">📮 방명록</button><button data-back>'+backLabel+'</button></nav><div class="friend-home-body" id="friendHomeBody"><div class="friends-empty">미니홈을 불러오는 중…</div></div></div>';
+      root.innerHTML='<div class="friend-home"><div class="friend-home-cover"><div class="friend-home-head"><div><h2>BokDesk · Friend Space</h2><p>친구가 허용한 일·메모·게임은 읽기 전용으로 보고, 방명록에만 글을 남길 수 있습니다.</p></div><button type="button" class="account-close" data-close>×</button></div><div class="friend-home-profile"><div class="friends-avatar">'+safe(friendProfile?.avatar_emoji||'🙂')+'</div><div><b>'+safe(friendProfile?.display_name||'친구')+'</b><span>'+safe(friendProfile?.status_message||'')+'</span></div></div></div><nav class="friend-home-nav"><button data-tab="home" class="active">🏠 홈</button><button data-tab="work">📋 일</button><button data-tab="notes">📝 메모</button><button data-tab="game">🎮 게임</button><button data-tab="guestbook">📮 방명록</button><button data-back>← 친구목록</button></nav><div class="friend-home-body" id="friendHomeBody"><div class="friends-empty">친구 공간을 불러오는 중…</div></div></div>';
       document.body.appendChild(root);
-      const close=()=>root.remove();
-      root.querySelector('[data-close]').onclick=close;
-      root.onclick=e=>{if(e.target===root)close();};
-      root.querySelector('[data-back]').onclick=()=>{close();if(!isSelf)openFriends();};
-      const customize=root.querySelector('[data-customize]');
-      if(customize)customize.onclick=()=>{close();openHomeCustomizer();};
+      const close=()=>root.remove();root.querySelector('[data-close]').onclick=close;root.onclick=e=>{if(e.target===root)close();};
+      root.querySelector('[data-back]').onclick=()=>{close();openFriends();};
 
-      let work=null,notes=null,game=null,guestbook=[],posts=[];
+      let work=null,notes=null,game=null,guestbook=[];
       try{
-        const queries=[
-          loadGuestbook(friendId).then(rows=>{guestbook=rows;}),
-          loadPosts(friendId).then(rows=>{posts=rows;})
-        ];
+        const queries=[loadGuestbook(friendId).then(rows=>{guestbook=rows;})];
         if(share?.can_view_work)queries.push(sb.from('workhub_shared_work').select('payload,updated_at').eq('user_id',friendId).maybeSingle().then(r=>{if(r.error)throw r.error;work=r.data;}));
         if(share?.can_view_notes)queries.push(sb.from('workhub_shared_notes').select('payload,updated_at').eq('user_id',friendId).maybeSingle().then(r=>{if(r.error)throw r.error;notes=r.data;}));
         if(share?.can_view_game)queries.push(sb.from('workhub_shared_game').select('payload,updated_at').eq('user_id',friendId).maybeSingle().then(r=>{if(r.error)throw r.error;game=r.data;}));
@@ -693,56 +589,32 @@
       }catch(e){console.error(e);}
 
       const refreshGuestbook=async()=>{guestbook=await loadGuestbook(friendId);};
-      const refreshPosts=async()=>{posts=await loadPosts(friendId);};
-
-      const workItems=()=>Array.isArray(work?.payload?.workItems)?work.payload.workItems:[];
-      const currentWork=()=>{
-        const items=workItems();
-        const rank={doing:0,blocked:1,todo:2,done:3,failed:4};
-        return [...items]
-          .filter(x=>!['done','failed'].includes(x.status))
-          .sort((a,b)=>(rank[a.status]??9)-(rank[b.status]??9)||String(b.updatedAt||b.createdAt||'').localeCompare(String(a.updatedAt||a.createdAt||'')))
-          .slice(0,3);
-      };
 
       const renderHome=()=>{
-        const items=workItems();
+        const items=Array.isArray(work?.payload?.workItems)?work.payload.workItems:[];
         const open=items.filter(x=>!['done','failed'].includes(x.status)).length;
-        const doing=items.filter(x=>x.status==='doing').length;
         const done=items.filter(x=>x.status==='done').length;
-        const now=share?.can_view_work?currentWork():[];
-        const recentPosts=posts.slice(0,2);
+        const memoCount=Array.isArray(notes?.payload)?notes.payload.length:0;
         const br=game?.payload?.bokRunV1||{},kart=game?.payload?.kartCrossing||{};
         const gameLabel=share?.can_view_game?('BokRun R'+(Number(br.unlockedRound)||1)+' · Kart '+(Number(kart.bestDistance)||0)+'m'):'비공개';
-
-        return '<div class="friend-home-grid"><div class="friend-stat"><span>진행 중 업무</span><strong>'+(share?.can_view_work?doing:'🔒')+'</strong></div><div class="friend-stat"><span>남은 업무</span><strong>'+(share?.can_view_work?open:'🔒')+'</strong></div><div class="friend-stat"><span>게시글</span><strong>'+posts.length+'</strong></div><div class="friend-stat"><span>방명록</span><strong>'+guestbook.length+'</strong></div></div>'
-          +(share?.can_view_work?'<section class="home-now"><h3>💼 지금 뭐 하는지</h3><div class="home-now-grid">'+(now.length?now.map(x=>'<div class="home-now-item"><em>'+safe(statusText(x.status))+'</em><b>'+safe(x.title||'업무')+'</b><small>'+safe(x.category||'기타')+(x.dueDate?' · '+safe(x.dueDate):'')+'</small></div>').join(''):'<div class="friends-empty" style="grid-column:1/-1">현재 진행 중인 업무가 없습니다.</div>')+'</div></section>':'<div class="friend-lock" style="margin-top:12px"><b>🔒 업무는 비공개입니다.</b>친구가 업무 공개를 켜면 현재 하는 일을 볼 수 있습니다.</div>')
-          +(recentPosts.length?'<div class="friend-panel"><h3>📌 최근 게시글</h3><div class="friend-items">'+recentPosts.map(p=>'<div class="friend-item"><em>'+safe(p.mood||'💬')+'</em><div><b>'+safe(String(p.body||'').replace(/\s+/g,' ').slice(0,120))+'</b><small>공감 '+p.reactions.length+' · 댓글 '+p.comments.length+'</small></div><span>'+safe(postDate(p.created_at))+'</span></div>').join('')+'</div></div>':'')
-          +'<div class="friend-panel"><h3>🎮 게임 한눈에 보기</h3><div class="friend-items"><div class="friend-item"><em>GAME</em><div><b>'+safe(gameLabel)+'</b><small>게임은 진행도와 컬렉션만 확인할 수 있고 친구가 대신 플레이하거나 강화할 수 없습니다.</small></div><span>읽기 전용</span></div></div></div>';
-      };
-
-      const renderPosts=()=>{
-        const composer=isSelf?'<form class="post-compose" id="postComposeForm"><div class="post-compose-head"><select id="postMood" aria-label="게시글 기분"><option>💬</option><option>🔥</option><option>😎</option><option>😂</option><option>🥲</option><option>💼</option><option>🎮</option><option>⭐</option></select><b style="font-size:11px">내 미니홈에 게시글 쓰기</b></div><textarea id="postBody" maxlength="500" placeholder="오늘 한 일, 잡담, 게임 자랑 등 자유롭게 남겨보세요."></textarea><div class="post-compose-actions"><button type="submit">게시하기</button></div></form>':'';
-        return composer+'<div class="post-list">'+(posts.length?posts.map(p=>postCardHtml(p,isSelf)).join(''):'<div class="friends-empty">아직 게시글이 없습니다.</div>')+'</div>';
+        const recent=share?.can_view_work?[...items].sort((a,b)=>String(b.updatedAt||b.createdAt||'').localeCompare(String(a.updatedAt||a.createdAt||''))).slice(0,5):[];
+        return '<div class="friend-home-grid"><div class="friend-stat"><span>진행/예정 업무</span><strong>'+(share?.can_view_work?open:'🔒')+'</strong></div><div class="friend-stat"><span>완료 업무</span><strong>'+(share?.can_view_work?done:'🔒')+'</strong></div><div class="friend-stat"><span>메모</span><strong>'+(share?.can_view_notes?memoCount:'🔒')+'</strong></div><div class="friend-stat"><span>방명록</span><strong>'+guestbook.length+'</strong></div></div>'
+          +(recent.length?'<div class="friend-panel"><h3>🕒 최근 활동</h3><div class="friend-items">'+recent.map(x=>'<div class="friend-item"><em>'+safe(statusText(x.status))+'</em><div><b>'+safe(x.title||'업무')+'</b><small>'+safe(x.category||'기타')+'</small></div><span>'+safe(x.updatedAt||x.createdAt||'')+'</span></div>').join('')+'</div></div>':'')
+          +'<div class="friend-panel"><h3>🎮 게임 한눈에 보기</h3><div class="friend-items"><div class="friend-item"><em>GAME</em><div><b>'+safe(gameLabel)+'</b><small>친구의 진행도만 확인할 수 있으며 플레이/강화는 불가능합니다.</small></div><span>읽기 전용</span></div></div></div>';
       };
 
       const renderWork=()=>{
-        if(!share?.can_view_work)return '<div class="friend-lock"><b>🔒 업무는 비공개입니다.</b>친구가 업무 공개를 켜면 여기서 볼 수 있습니다.</div>';
-        const items=workItems();
-        const groups=[
-          ['진행 중',items.filter(x=>x.status==='doing')],
-          ['이슈/대기',items.filter(x=>x.status==='blocked')],
-          ['예정',items.filter(x=>x.status==='todo')],
-          ['완료',items.filter(x=>x.status==='done')]
-        ];
-        return groups.map(([label,arr])=>'<div class="friend-panel" style="margin-top:'+(label==='진행 중'?'0':'12px')+'"><h3>📋 '+safe(label)+' · '+arr.length+'</h3><div class="friend-items">'+(arr.length?[...arr].sort((a,b)=>String(b.updatedAt||b.createdAt||'').localeCompare(String(a.updatedAt||a.createdAt||''))).slice(0,30).map(x=>'<div class="friend-item"><em>'+safe(statusText(x.status))+'</em><div><b>'+safe(x.title||'업무')+'</b><small>'+safe(x.category||'기타')+(x.note?' · '+safe(x.note):'')+'</small></div><span>'+safe(x.dueDate||x.target||'')+'</span></div>').join(''):'<div class="friends-empty">해당 업무가 없습니다.</div>')+'</div></div>').join('');
+        if(!share?.can_view_work)return '<div class="friend-lock"><b>🔒 일은 비공개입니다.</b>친구가 일 공개를 켜면 여기서 볼 수 있습니다.</div>';
+        const items=Array.isArray(work?.payload?.workItems)?work.payload.workItems:[];
+        const sorted=[...items].sort((a,b)=>String(b.updatedAt||b.createdAt||'').localeCompare(String(a.updatedAt||a.createdAt||''))).slice(0,40);
+        return '<div class="friend-panel" style="margin-top:0"><h3>📋 친구의 일 · 읽기 전용</h3><div class="friend-items">'+(sorted.length?sorted.map(x=>'<div class="friend-item"><em>'+safe(statusText(x.status))+'</em><div><b>'+safe(x.title||'업무')+'</b><small>'+safe(x.category||'기타')+(x.note?' · '+safe(x.note):'')+'</small></div><span>'+safe(x.dueDate||x.target||'')+'</span></div>').join(''):'<div class="friends-empty">등록된 업무가 없습니다.</div>')+'</div></div>';
       };
 
       const renderNotes=()=>{
         if(!share?.can_view_notes)return '<div class="friend-lock"><b>🔒 메모는 비공개입니다.</b>친구가 메모 공개를 켜면 여기서 볼 수 있습니다.</div>';
         const arr=Array.isArray(notes?.payload)?notes.payload:[];
         const sorted=[...arr].sort((a,b)=>String(b.updatedAt||b.createdAt||'').localeCompare(String(a.updatedAt||a.createdAt||''))).slice(0,40);
-        return '<div class="friend-panel" style="margin-top:0"><h3>📝 메모장 · 읽기 전용</h3><div class="friend-items">'+(sorted.length?sorted.map(n=>'<div class="friend-item"><em>'+(n.status==='done'?'완료':'메모')+'</em><div><b>'+safe(String(n.body||'').replace(/\s+/g,' ').slice(0,240))+'</b><small>'+(n.scheduledDate?'예정 '+safe(n.scheduledDate):'날짜 미정')+'</small></div><span>읽기</span></div>').join(''):'<div class="friends-empty">공유된 메모가 없습니다.</div>')+'</div></div>';
+        return '<div class="friend-panel" style="margin-top:0"><h3>📝 친구의 메모장 · 읽기 전용</h3><div class="friend-items">'+(sorted.length?sorted.map(n=>'<div class="friend-item"><em>'+(n.status==='done'?'완료':'메모')+'</em><div><b>'+safe(String(n.body||'').replace(/\s+/g,' ').slice(0,240))+'</b><small>'+(n.scheduledDate?'예정 '+safe(n.scheduledDate):'날짜 미정')+'</small></div><span>읽기</span></div>').join(''):'<div class="friends-empty">공유된 메모가 없습니다.</div>')+'</div></div>';
       };
 
       const renderGame=()=>{
@@ -755,54 +627,7 @@
       };
 
       const renderGuestbook=()=>{
-        const form=isSelf?'':'<form class="guestbook-compose" id="guestbookForm"><textarea id="guestbookBody" maxlength="200" placeholder="'+safe(friendProfile?.display_name||'친구')+'님 미니홈에 한마디 남겨보세요. (최대 200자)"></textarea><button type="submit">남기기</button></form>';
-        return form+guestbookEntriesHtml(guestbook,isSelf);
-      };
-
-      const bindPosts=()=>{
-        const composer=root.querySelector('#postComposeForm');
-        if(composer)composer.onsubmit=async(e)=>{
-          e.preventDefault();
-          const body=String(root.querySelector('#postBody')?.value||'').trim();
-          const mood=String(root.querySelector('#postMood')?.value||'💬');
-          if(!body){toast('게시글 내용을 입력해주세요.');return;}
-          const btn=composer.querySelector('button');btn.disabled=true;
-          const {error}=await sb.from('workhub_posts').insert({author_id:session.user.id,mood,body});
-          btn.disabled=false;
-          if(error){console.error(error);toast('게시글 등록에 실패했습니다.');return;}
-          toast('게시글을 올렸습니다.');
-          await refreshPosts();renderTab('posts');
-        };
-        root.querySelectorAll('[data-post-delete]').forEach(btn=>btn.onclick=async()=>{
-          if(!confirm('이 게시글을 삭제할까요?'))return;
-          const {error}=await sb.from('workhub_posts').delete().eq('id',btn.dataset.postDelete);
-          if(error){console.error(error);toast('게시글 삭제에 실패했습니다.');return;}
-          await refreshPosts();renderTab('posts');
-        });
-        root.querySelectorAll('[data-react]').forEach(btn=>btn.onclick=async()=>{
-          const postId=btn.dataset.react;
-          const post=posts.find(p=>p.id===postId);
-          const reacted=post?.reactions?.some(r=>r.user_id===session.user.id);
-          const result=reacted
-            ?await sb.from('workhub_post_reactions').delete().eq('post_id',postId).eq('user_id',session.user.id)
-            :await sb.from('workhub_post_reactions').upsert({post_id:postId,user_id:session.user.id,emoji:'❤️'},{onConflict:'post_id,user_id'});
-          if(result.error){console.error(result.error);toast('공감 처리에 실패했습니다.');return;}
-          await refreshPosts();renderTab('posts');
-        });
-        root.querySelectorAll('[data-comment-form]').forEach(form=>form.onsubmit=async(e)=>{
-          e.preventDefault();
-          const input=form.querySelector('input'),body=String(input?.value||'').trim();
-          if(!body)return;
-          const postId=form.dataset.commentForm;
-          const {error}=await sb.from('workhub_post_comments').insert({post_id:postId,author_id:session.user.id,body});
-          if(error){console.error(error);toast('댓글 등록에 실패했습니다.');return;}
-          await refreshPosts();renderTab('posts');
-        });
-        root.querySelectorAll('[data-comment-delete]').forEach(btn=>btn.onclick=async()=>{
-          const {error}=await sb.from('workhub_post_comments').delete().eq('id',btn.dataset.commentDelete);
-          if(error){console.error(error);toast('댓글 삭제에 실패했습니다.');return;}
-          await refreshPosts();renderTab('posts');
-        });
+        return '<form class="guestbook-compose" id="guestbookForm"><textarea id="guestbookBody" maxlength="200" placeholder="'+safe(friendProfile?.display_name||'친구')+'님 미니홈에 한마디 남겨보세요. (최대 200자)"></textarea><button type="submit">남기기</button></form>'+guestbookEntriesHtml(guestbook,false);
       };
 
       const bindGuestbook=()=>{
@@ -817,21 +642,22 @@
           button.disabled=false;
           if(error){console.error(error);toast('방명록을 남기지 못했습니다.');return;}
           toast('방명록을 남겼습니다.');
-          await refreshGuestbook();renderTab('guestbook');
+          await refreshGuestbook();
+          renderTab('guestbook');
         };
         root.querySelectorAll('[data-guestbook-delete]').forEach(btn=>btn.onclick=async()=>{
-          if(!confirm('이 방명록 글을 삭제할까요?'))return;
+          if(!confirm('내가 남긴 방명록 글을 삭제할까요?'))return;
           const {error}=await sb.from('workhub_guestbook').delete().eq('id',btn.dataset.guestbookDelete);
           if(error){console.error(error);toast('방명록 삭제에 실패했습니다.');return;}
-          await refreshGuestbook();renderTab('guestbook');
+          await refreshGuestbook();
+          renderTab('guestbook');
         });
       };
 
       const renderTab=(tab)=>{
         root.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));
-        const body=root.querySelector('#friendHomeBody');if(!body)return;
-        body.innerHTML=tab==='posts'?renderPosts():tab==='work'?renderWork():tab==='notes'?renderNotes():tab==='game'?renderGame():tab==='guestbook'?renderGuestbook():renderHome();
-        if(tab==='posts')bindPosts();
+        const body=document.getElementById('friendHomeBody');if(!body)return;
+        body.innerHTML=tab==='work'?renderWork():tab==='notes'?renderNotes():tab==='game'?renderGame():tab==='guestbook'?renderGuestbook():renderHome();
         if(tab==='guestbook')bindGuestbook();
       };
       root.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>renderTab(b.dataset.tab));
