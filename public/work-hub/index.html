@@ -78,6 +78,16 @@ function today(){let d=new Date();return `${d.getFullYear()}-${String(d.getMonth
   return {schemaVersion:4,workItems,history:Array.isArray(x.history)?x.history:[],legacyArchive:Array.isArray(x.legacyArchive)?x.legacyArchive:[],plans:Array.isArray(x.plans)?x.plans:[],settings:x.settings||{}};
 }
 function stateScore(x){return (x.workItems?.length||0)*100000+(x.history?.length||0)*100+(x.legacyArchive?.length||0)}
+function stateFreshness(x){
+  const values=[];
+  const push=v=>{if(!v)return;const t=Date.parse(String(v).length===10?String(v)+'T23:59:59':String(v));if(Number.isFinite(t))values.push(t)};
+  (x?.workItems||[]).forEach(v=>{push(v.updatedAt);push(v.createdAt);push(v.completedAt)});
+  (x?.history||[]).forEach(v=>{push(v.updatedAt);push(v.createdAt);push(v.completedAt);push(v.date)});
+  (x?.settings?.workNotes||[]).forEach(v=>{push(v.updatedAt);push(v.createdAt);push(v.scheduledDate)});
+  push(x?.settings?.bokRunV1?.updatedAt);
+  push(x?.settings?.kartCrossing?.updatedAt);
+  return values.length?Math.max(...values):0;
+}
 function loadState(){
   const candidates=[];
   const seen=new Set();
@@ -112,7 +122,18 @@ function loadState(){
     }
   }catch{}
 
-  candidates.sort((a,b)=>b.score-a.score);
+  candidates.forEach(c=>{c.freshness=stateFreshness(c.state)});
+  candidates.sort((a,b)=>{
+    // During the original owner's one-time migration, preserve the freshest
+    // legacy browser state before considering item count. This prevents a
+    // stale cloud-derived namespaced copy from hiding same-day work.
+    if(ACCOUNT_UID===LEGACY_OWNER_UID && a.isLegacy!==b.isLegacy){
+      const legacy=a.isLegacy?a:b, current=a.isLegacy?b:a;
+      if(legacy.freshness>current.freshness) return a.isLegacy?-1:1;
+    }
+    if(b.freshness!==a.freshness)return b.freshness-a.freshness;
+    return b.score-a.score;
+  });
   const best=candidates[0];
   if(best){
     try{
