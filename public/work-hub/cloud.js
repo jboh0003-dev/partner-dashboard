@@ -666,17 +666,26 @@
       await draw();
     }
 
-    async function openFriendHome(friendId,friendProfile,share){
-      closeOverlay('friendsManager');
+    async function openFriendHome(friendId,friendProfile,share,isSelf=false){
+      closeOverlay('friendsManager');closeOverlay('homeCustomizer');
+      const theme=['yellow','blue','mint','pink','night','violet'].includes(friendProfile?.home_theme)?friendProfile.home_theme:'yellow';
       const root=document.createElement('div');root.id='friendHome';root.className='cloud-auth';
-      root.innerHTML='<div class="friend-home"><div class="friend-home-cover"><div class="friend-home-head"><div><h2>BokDesk · Friend Space</h2><p>친구가 허용한 일·메모·게임은 읽기 전용으로 보고, 방명록에만 글을 남길 수 있습니다.</p></div><button type="button" class="account-close" data-close>×</button></div><div class="friend-home-profile"><div class="friends-avatar">'+safe(friendProfile?.avatar_emoji||'🙂')+'</div><div><b>'+safe(friendProfile?.display_name||'친구')+'</b><span>'+safe(friendProfile?.status_message||'')+'</span></div></div></div><nav class="friend-home-nav"><button data-tab="home" class="active">🏠 홈</button><button data-tab="work">📋 일</button><button data-tab="notes">📝 메모</button><button data-tab="game">🎮 게임</button><button data-tab="guestbook">📮 방명록</button><button data-back>← 친구목록</button></nav><div class="friend-home-body" id="friendHomeBody"><div class="friends-empty">친구 공간을 불러오는 중…</div></div></div>';
+      const backLabel=isSelf?'← 닫기':'← 친구목록';
+      root.innerHTML='<div class="friend-home theme-'+theme+'"><div class="friend-home-cover"><div class="friend-home-head"><div><h2>'+safe(friendProfile?.home_title||'BokDesk 미니홈')+'</h2><p>'+(isSelf?'내 업무·메모·게임과 게시글을 한 곳에서 보는 개인 미니홈입니다.':'친구가 공개한 업무·메모·게임은 읽기 전용이며, 게시글과 방명록으로 소통할 수 있습니다.')+'</p></div><div class="mini-home-tools">'+(isSelf?'<button type="button" data-customize>🎨 꾸미기</button>':'')+'<button type="button" class="account-close" data-close>×</button></div></div><div class="friend-home-profile"><div class="friends-avatar">'+safe(friendProfile?.avatar_emoji||'🙂')+'</div><div><b>'+safe(friendProfile?.display_name||'친구')+'</b><span>'+safe(friendProfile?.status_message||'')}</span></div></div></div><nav class="friend-home-nav"><button data-tab="home" class="active">🏠 홈</button><button data-tab="posts">📌 게시글</button><button data-tab="work">📋 업무</button><button data-tab="notes">📝 메모</button><button data-tab="game">🎮 게임</button><button data-tab="guestbook">📮 방명록</button><button data-back>'+backLabel+'</button></nav><div class="friend-home-body" id="friendHomeBody"><div class="friends-empty">미니홈을 불러오는 중…</div></div></div>';
       document.body.appendChild(root);
-      const close=()=>root.remove();root.querySelector('[data-close]').onclick=close;root.onclick=e=>{if(e.target===root)close();};
-      root.querySelector('[data-back]').onclick=()=>{close();openFriends();};
+      const close=()=>root.remove();
+      root.querySelector('[data-close]').onclick=close;
+      root.onclick=e=>{if(e.target===root)close();};
+      root.querySelector('[data-back]').onclick=()=>{close();if(!isSelf)openFriends();};
+      const customize=root.querySelector('[data-customize]');
+      if(customize)customize.onclick=()=>{close();openHomeCustomizer();};
 
-      let work=null,notes=null,game=null,guestbook=[];
+      let work=null,notes=null,game=null,guestbook=[],posts=[];
       try{
-        const queries=[loadGuestbook(friendId).then(rows=>{guestbook=rows;})];
+        const queries=[
+          loadGuestbook(friendId).then(rows=>{guestbook=rows;}),
+          loadPosts(friendId).then(rows=>{posts=rows;})
+        ];
         if(share?.can_view_work)queries.push(sb.from('workhub_shared_work').select('payload,updated_at').eq('user_id',friendId).maybeSingle().then(r=>{if(r.error)throw r.error;work=r.data;}));
         if(share?.can_view_notes)queries.push(sb.from('workhub_shared_notes').select('payload,updated_at').eq('user_id',friendId).maybeSingle().then(r=>{if(r.error)throw r.error;notes=r.data;}));
         if(share?.can_view_game)queries.push(sb.from('workhub_shared_game').select('payload,updated_at').eq('user_id',friendId).maybeSingle().then(r=>{if(r.error)throw r.error;game=r.data;}));
@@ -684,32 +693,56 @@
       }catch(e){console.error(e);}
 
       const refreshGuestbook=async()=>{guestbook=await loadGuestbook(friendId);};
+      const refreshPosts=async()=>{posts=await loadPosts(friendId);};
+
+      const workItems=()=>Array.isArray(work?.payload?.workItems)?work.payload.workItems:[];
+      const currentWork=()=>{
+        const items=workItems();
+        const rank={doing:0,blocked:1,todo:2,done:3,failed:4};
+        return [...items]
+          .filter(x=>!['done','failed'].includes(x.status))
+          .sort((a,b)=>(rank[a.status]??9)-(rank[b.status]??9)||String(b.updatedAt||b.createdAt||'').localeCompare(String(a.updatedAt||a.createdAt||'')))
+          .slice(0,3);
+      };
 
       const renderHome=()=>{
-        const items=Array.isArray(work?.payload?.workItems)?work.payload.workItems:[];
+        const items=workItems();
         const open=items.filter(x=>!['done','failed'].includes(x.status)).length;
+        const doing=items.filter(x=>x.status==='doing').length;
         const done=items.filter(x=>x.status==='done').length;
-        const memoCount=Array.isArray(notes?.payload)?notes.payload.length:0;
+        const now=share?.can_view_work?currentWork():[];
+        const recentPosts=posts.slice(0,2);
         const br=game?.payload?.bokRunV1||{},kart=game?.payload?.kartCrossing||{};
         const gameLabel=share?.can_view_game?('BokRun R'+(Number(br.unlockedRound)||1)+' · Kart '+(Number(kart.bestDistance)||0)+'m'):'비공개';
-        const recent=share?.can_view_work?[...items].sort((a,b)=>String(b.updatedAt||b.createdAt||'').localeCompare(String(a.updatedAt||a.createdAt||''))).slice(0,5):[];
-        return '<div class="friend-home-grid"><div class="friend-stat"><span>진행/예정 업무</span><strong>'+(share?.can_view_work?open:'🔒')+'</strong></div><div class="friend-stat"><span>완료 업무</span><strong>'+(share?.can_view_work?done:'🔒')+'</strong></div><div class="friend-stat"><span>메모</span><strong>'+(share?.can_view_notes?memoCount:'🔒')+'</strong></div><div class="friend-stat"><span>방명록</span><strong>'+guestbook.length+'</strong></div></div>'
-          +(recent.length?'<div class="friend-panel"><h3>🕒 최근 활동</h3><div class="friend-items">'+recent.map(x=>'<div class="friend-item"><em>'+safe(statusText(x.status))+'</em><div><b>'+safe(x.title||'업무')+'</b><small>'+safe(x.category||'기타')+'</small></div><span>'+safe(x.updatedAt||x.createdAt||'')+'</span></div>').join('')+'</div></div>':'')
-          +'<div class="friend-panel"><h3>🎮 게임 한눈에 보기</h3><div class="friend-items"><div class="friend-item"><em>GAME</em><div><b>'+safe(gameLabel)+'</b><small>친구의 진행도만 확인할 수 있으며 플레이/강화는 불가능합니다.</small></div><span>읽기 전용</span></div></div></div>';
+
+        return '<div class="friend-home-grid"><div class="friend-stat"><span>진행 중 업무</span><strong>'+(share?.can_view_work?doing:'🔒')+'</strong></div><div class="friend-stat"><span>남은 업무</span><strong>'+(share?.can_view_work?open:'🔒')+'</strong></div><div class="friend-stat"><span>게시글</span><strong>'+posts.length+'</strong></div><div class="friend-stat"><span>방명록</span><strong>'+guestbook.length+'</strong></div></div>'
+          +(share?.can_view_work?'<section class="home-now"><h3>💼 지금 뭐 하는지</h3><div class="home-now-grid">'+(now.length?now.map(x=>'<div class="home-now-item"><em>'+safe(statusText(x.status))+'</em><b>'+safe(x.title||'업무')+'</b><small>'+safe(x.category||'기타')+(x.dueDate?' · '+safe(x.dueDate):'')+'</small></div>').join(''):'<div class="friends-empty" style="grid-column:1/-1">현재 진행 중인 업무가 없습니다.</div>')+'</div></section>':'<div class="friend-lock" style="margin-top:12px"><b>🔒 업무는 비공개입니다.</b>친구가 업무 공개를 켜면 현재 하는 일을 볼 수 있습니다.</div>')
+          +(recentPosts.length?'<div class="friend-panel"><h3>📌 최근 게시글</h3><div class="friend-items">'+recentPosts.map(p=>'<div class="friend-item"><em>'+safe(p.mood||'💬')+'</em><div><b>'+safe(String(p.body||'').replace(/\s+/g,' ').slice(0,120))+'</b><small>공감 '+p.reactions.length+' · 댓글 '+p.comments.length+'</small></div><span>'+safe(postDate(p.created_at))+'</span></div>').join('')+'</div></div>':'')
+          +'<div class="friend-panel"><h3>🎮 게임 한눈에 보기</h3><div class="friend-items"><div class="friend-item"><em>GAME</em><div><b>'+safe(gameLabel)+'</b><small>게임은 진행도와 컬렉션만 확인할 수 있고 친구가 대신 플레이하거나 강화할 수 없습니다.</small></div><span>읽기 전용</span></div></div></div>';
+      };
+
+      const renderPosts=()=>{
+        const composer=isSelf?'<form class="post-compose" id="postComposeForm"><div class="post-compose-head"><select id="postMood" aria-label="게시글 기분"><option>💬</option><option>🔥</option><option>😎</option><option>😂</option><option>🥲</option><option>💼</option><option>🎮</option><option>⭐</option></select><b style="font-size:11px">내 미니홈에 게시글 쓰기</b></div><textarea id="postBody" maxlength="500" placeholder="오늘 한 일, 잡담, 게임 자랑 등 자유롭게 남겨보세요."></textarea><div class="post-compose-actions"><button type="submit">게시하기</button></div></form>':'';
+        return composer+'<div class="post-list">'+(posts.length?posts.map(p=>postCardHtml(p,isSelf)).join(''):'<div class="friends-empty">아직 게시글이 없습니다.</div>')+'</div>';
       };
 
       const renderWork=()=>{
-        if(!share?.can_view_work)return '<div class="friend-lock"><b>🔒 일은 비공개입니다.</b>친구가 일 공개를 켜면 여기서 볼 수 있습니다.</div>';
-        const items=Array.isArray(work?.payload?.workItems)?work.payload.workItems:[];
-        const sorted=[...items].sort((a,b)=>String(b.updatedAt||b.createdAt||'').localeCompare(String(a.updatedAt||a.createdAt||''))).slice(0,40);
-        return '<div class="friend-panel" style="margin-top:0"><h3>📋 친구의 일 · 읽기 전용</h3><div class="friend-items">'+(sorted.length?sorted.map(x=>'<div class="friend-item"><em>'+safe(statusText(x.status))+'</em><div><b>'+safe(x.title||'업무')+'</b><small>'+safe(x.category||'기타')+(x.note?' · '+safe(x.note):'')+'</small></div><span>'+safe(x.dueDate||x.target||'')+'</span></div>').join(''):'<div class="friends-empty">등록된 업무가 없습니다.</div>')+'</div></div>';
+        if(!share?.can_view_work)return '<div class="friend-lock"><b>🔒 업무는 비공개입니다.</b>친구가 업무 공개를 켜면 여기서 볼 수 있습니다.</div>';
+        const items=workItems();
+        const groups=[
+          ['진행 중',items.filter(x=>x.status==='doing')],
+          ['이슈/대기',items.filter(x=>x.status==='blocked')],
+          ['예정',items.filter(x=>x.status==='todo')],
+          ['완료',items.filter(x=>x.status==='done')]
+        ];
+        return groups.map(([label,arr])=>'<div class="friend-panel" style="margin-top:'+(label==='진행 중'?'0':'12px')+'"><h3>📋 '+safe(label)+' · '+arr.length+'</h3><div class="friend-items">'+(arr.length?[...arr].sort((a,b)=>String(b.updatedAt||b.createdAt||'').localeCompare(String(a.updatedAt||a.createdAt||''))).slice(0,30).map(x=>'<div class="friend-item"><em>'+safe(statusText(x.status))+'</em><div><b>'+safe(x.title||'업무')+'</b><small>'+safe(x.category||'기타')+(x.note?' · '+safe(x.note):'')+'</small></div><span>'+safe(x.dueDate||x.target||'')+'</span></div>').join(''):'<div class="friends-empty">해당 업무가 없습니다.</div>')+'</div></div>').join('');
       };
 
       const renderNotes=()=>{
         if(!share?.can_view_notes)return '<div class="friend-lock"><b>🔒 메모는 비공개입니다.</b>친구가 메모 공개를 켜면 여기서 볼 수 있습니다.</div>';
         const arr=Array.isArray(notes?.payload)?notes.payload:[];
         const sorted=[...arr].sort((a,b)=>String(b.updatedAt||b.createdAt||'').localeCompare(String(a.updatedAt||a.createdAt||''))).slice(0,40);
-        return '<div class="friend-panel" style="margin-top:0"><h3>📝 친구의 메모장 · 읽기 전용</h3><div class="friend-items">'+(sorted.length?sorted.map(n=>'<div class="friend-item"><em>'+(n.status==='done'?'완료':'메모')+'</em><div><b>'+safe(String(n.body||'').replace(/\s+/g,' ').slice(0,240))+'</b><small>'+(n.scheduledDate?'예정 '+safe(n.scheduledDate):'날짜 미정')+'</small></div><span>읽기</span></div>').join(''):'<div class="friends-empty">공유된 메모가 없습니다.</div>')+'</div></div>';
+        return '<div class="friend-panel" style="margin-top:0"><h3>📝 메모장 · 읽기 전용</h3><div class="friend-items">'+(sorted.length?sorted.map(n=>'<div class="friend-item"><em>'+(n.status==='done'?'완료':'메모')+'</em><div><b>'+safe(String(n.body||'').replace(/\s+/g,' ').slice(0,240))+'</b><small>'+(n.scheduledDate?'예정 '+safe(n.scheduledDate):'날짜 미정')+'</small></div><span>읽기</span></div>').join(''):'<div class="friends-empty">공유된 메모가 없습니다.</div>')+'</div></div>';
       };
 
       const renderGame=()=>{
@@ -722,7 +755,54 @@
       };
 
       const renderGuestbook=()=>{
-        return '<form class="guestbook-compose" id="guestbookForm"><textarea id="guestbookBody" maxlength="200" placeholder="'+safe(friendProfile?.display_name||'친구')+'님 미니홈에 한마디 남겨보세요. (최대 200자)"></textarea><button type="submit">남기기</button></form>'+guestbookEntriesHtml(guestbook,false);
+        const form=isSelf?'':'<form class="guestbook-compose" id="guestbookForm"><textarea id="guestbookBody" maxlength="200" placeholder="'+safe(friendProfile?.display_name||'친구')+'님 미니홈에 한마디 남겨보세요. (최대 200자)"></textarea><button type="submit">남기기</button></form>';
+        return form+guestbookEntriesHtml(guestbook,isSelf);
+      };
+
+      const bindPosts=()=>{
+        const composer=root.querySelector('#postComposeForm');
+        if(composer)composer.onsubmit=async(e)=>{
+          e.preventDefault();
+          const body=String(root.querySelector('#postBody')?.value||'').trim();
+          const mood=String(root.querySelector('#postMood')?.value||'💬');
+          if(!body){toast('게시글 내용을 입력해주세요.');return;}
+          const btn=composer.querySelector('button');btn.disabled=true;
+          const {error}=await sb.from('workhub_posts').insert({author_id:session.user.id,mood,body});
+          btn.disabled=false;
+          if(error){console.error(error);toast('게시글 등록에 실패했습니다.');return;}
+          toast('게시글을 올렸습니다.');
+          await refreshPosts();renderTab('posts');
+        };
+        root.querySelectorAll('[data-post-delete]').forEach(btn=>btn.onclick=async()=>{
+          if(!confirm('이 게시글을 삭제할까요?'))return;
+          const {error}=await sb.from('workhub_posts').delete().eq('id',btn.dataset.postDelete);
+          if(error){console.error(error);toast('게시글 삭제에 실패했습니다.');return;}
+          await refreshPosts();renderTab('posts');
+        });
+        root.querySelectorAll('[data-react]').forEach(btn=>btn.onclick=async()=>{
+          const postId=btn.dataset.react;
+          const post=posts.find(p=>p.id===postId);
+          const reacted=post?.reactions?.some(r=>r.user_id===session.user.id);
+          const result=reacted
+            ?await sb.from('workhub_post_reactions').delete().eq('post_id',postId).eq('user_id',session.user.id)
+            :await sb.from('workhub_post_reactions').upsert({post_id:postId,user_id:session.user.id,emoji:'❤️'},{onConflict:'post_id,user_id'});
+          if(result.error){console.error(result.error);toast('공감 처리에 실패했습니다.');return;}
+          await refreshPosts();renderTab('posts');
+        });
+        root.querySelectorAll('[data-comment-form]').forEach(form=>form.onsubmit=async(e)=>{
+          e.preventDefault();
+          const input=form.querySelector('input'),body=String(input?.value||'').trim();
+          if(!body)return;
+          const postId=form.dataset.commentForm;
+          const {error}=await sb.from('workhub_post_comments').insert({post_id:postId,author_id:session.user.id,body});
+          if(error){console.error(error);toast('댓글 등록에 실패했습니다.');return;}
+          await refreshPosts();renderTab('posts');
+        });
+        root.querySelectorAll('[data-comment-delete]').forEach(btn=>btn.onclick=async()=>{
+          const {error}=await sb.from('workhub_post_comments').delete().eq('id',btn.dataset.commentDelete);
+          if(error){console.error(error);toast('댓글 삭제에 실패했습니다.');return;}
+          await refreshPosts();renderTab('posts');
+        });
       };
 
       const bindGuestbook=()=>{
@@ -737,22 +817,21 @@
           button.disabled=false;
           if(error){console.error(error);toast('방명록을 남기지 못했습니다.');return;}
           toast('방명록을 남겼습니다.');
-          await refreshGuestbook();
-          renderTab('guestbook');
+          await refreshGuestbook();renderTab('guestbook');
         };
         root.querySelectorAll('[data-guestbook-delete]').forEach(btn=>btn.onclick=async()=>{
-          if(!confirm('내가 남긴 방명록 글을 삭제할까요?'))return;
+          if(!confirm('이 방명록 글을 삭제할까요?'))return;
           const {error}=await sb.from('workhub_guestbook').delete().eq('id',btn.dataset.guestbookDelete);
           if(error){console.error(error);toast('방명록 삭제에 실패했습니다.');return;}
-          await refreshGuestbook();
-          renderTab('guestbook');
+          await refreshGuestbook();renderTab('guestbook');
         });
       };
 
       const renderTab=(tab)=>{
         root.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));
-        const body=document.getElementById('friendHomeBody');if(!body)return;
-        body.innerHTML=tab==='work'?renderWork():tab==='notes'?renderNotes():tab==='game'?renderGame():tab==='guestbook'?renderGuestbook():renderHome();
+        const body=root.querySelector('#friendHomeBody');if(!body)return;
+        body.innerHTML=tab==='posts'?renderPosts():tab==='work'?renderWork():tab==='notes'?renderNotes():tab==='game'?renderGame():tab==='guestbook'?renderGuestbook():renderHome();
+        if(tab==='posts')bindPosts();
         if(tab==='guestbook')bindGuestbook();
       };
       root.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>renderTab(b.dataset.tab));
