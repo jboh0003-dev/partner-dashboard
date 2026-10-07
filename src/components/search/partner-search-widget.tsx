@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { Sparkles } from "lucide-react";
-import { OkePanelShell } from "@/components/search/oke-panel-shell";
+import { LazyOkePanel } from "@/components/search/lazy-oke-panel";
 import { useOkeDockedPanel, useOkePanel } from "@/components/search/oke-panel-context";
 import { OKE_MENU_LABEL, OKE_NAME } from "@/lib/search/oke-branding";
 
@@ -47,7 +47,7 @@ export function PartnerSearchWidget() {
             onClick={closePanel}
           />
           <div className="fixed inset-0 z-50">
-            <OkePanelShell className="h-full shadow-2xl" />
+            <LazyOkePanel className="h-full shadow-2xl" />
           </div>
         </>
       ) : null}
@@ -66,7 +66,7 @@ export function PartnerSearchWidget() {
             aria-label={`${OKE_NAME} AI 검색`}
             className="fixed inset-y-0 right-0 z-50 w-full max-w-[min(100vw,420px)] md:hidden"
           >
-            <OkePanelShell className="h-full shadow-2xl" />
+            <LazyOkePanel className="h-full shadow-2xl" />
           </div>
         </>
       ) : null}
