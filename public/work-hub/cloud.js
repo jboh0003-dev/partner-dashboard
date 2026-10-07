@@ -62,7 +62,12 @@
       .friend-panel{margin-top:12px;border:1px solid var(--line);border-radius:15px;background:var(--card);overflow:hidden}.friend-panel h3{margin:0;padding:12px 14px;border-bottom:1px solid var(--line);font-size:12px}.friend-items{padding:7px 11px 12px}.friend-item{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:8px;align-items:start;padding:9px 3px;border-bottom:1px solid color-mix(in srgb,var(--line) 70%,transparent)}.friend-item:last-child{border-bottom:0}.friend-item em{font-style:normal;font-size:9px;border-radius:999px;padding:4px 6px;background:#f0f0f0;color:#777}.friend-item b{font-size:10px;line-height:1.45}.friend-item small{display:block;color:var(--muted);font-size:8px;margin-top:3px}.friend-item>span{font-size:9px;color:var(--muted);white-space:nowrap}
       .friend-lock{padding:28px;text-align:center;border:1px dashed var(--line);border-radius:14px;color:var(--muted);background:var(--card)}.friend-lock b{display:block;font-size:14px;color:var(--ink);margin-bottom:5px}
       .game-sections{display:grid;grid-template-columns:1fr 1fr;gap:10px}.game-card{border:1px solid var(--line);border-radius:15px;padding:14px;background:var(--card)}.game-card h3{margin:0 0 10px;font-size:13px}.game-metrics{display:grid;grid-template-columns:1fr 1fr;gap:6px}.game-metric{padding:9px;border-radius:10px;background:#f7f7f7}.dark .game-metric{background:#232323}.game-metric span{display:block;font-size:8px;color:var(--muted)}.game-metric strong{display:block;margin-top:3px;font-size:14px}
-      @media(max-width:800px){.account-nav{left:8px;right:8px;bottom:12px}.account-grid,.friend-home-grid,.game-sections{grid-template-columns:1fr}.friend-card-main{grid-template-columns:auto 1fr}.friend-actions{grid-column:1/-1;justify-content:flex-start}.profile-edit-grid{grid-template-columns:1fr}.profile-edit-grid .status-field{grid-column:auto}.friends-self{grid-template-columns:auto 1fr}.friends-self .friend-code{grid-column:1/-1}.friend-search{grid-template-columns:1fr}.friend-search button{min-height:42px}}
+      .friends-self-side{display:grid;gap:6px;justify-items:end}.friends-self-side button{border:1px solid #ddc600;border-radius:9px;padding:7px 9px;background:#fee500;color:#191919;font-size:9px;font-weight:900;cursor:pointer}
+      .guestbook-compose{display:grid;grid-template-columns:1fr auto;gap:8px;margin-bottom:12px}.guestbook-compose textarea{min-height:78px;resize:vertical;border:1px solid var(--line);border-radius:12px;padding:11px 12px;background:var(--card);color:var(--ink);font:inherit;font-size:11px;line-height:1.55}.guestbook-compose button{align-self:stretch;border:0;border-radius:12px;background:#191919;color:#fff;font-weight:900;padding:0 15px;cursor:pointer}
+      .guestbook-list{display:grid;gap:8px}.guestbook-entry{border:1px solid var(--line);border-radius:14px;padding:11px 12px;background:var(--card)}.guestbook-entry-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:7px}.guestbook-entry-who{display:flex;align-items:center;gap:7px}.guestbook-entry-who .mini-avatar{width:28px;height:28px;border-radius:9px;background:#fff4a6;display:grid;place-items:center;font-size:15px;border:1px solid #ead66b}.guestbook-entry-who b{font-size:10px}.guestbook-entry-head span{font-size:8px;color:var(--muted)}.guestbook-entry-body{white-space:pre-wrap;word-break:break-word;font-size:11px;line-height:1.55}.guestbook-entry-actions{margin-top:8px;display:flex;justify-content:flex-end}.guestbook-entry-actions button{border:1px solid var(--line);background:transparent;color:var(--muted);border-radius:8px;padding:5px 7px;font-size:8px;font-weight:850;cursor:pointer}
+      .guestbook-modal{width:min(760px,100%);max-height:calc(100vh - 40px);overflow:auto;background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:22px;padding:22px;box-shadow:0 28px 70px rgba(0,0,0,.28)}
+      .friend-home-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
+      @media(max-width:800px){.account-nav{left:8px;right:8px;bottom:12px}.account-grid,.friend-home-grid,.game-sections{grid-template-columns:1fr}.friend-card-main{grid-template-columns:auto 1fr}.friend-actions{grid-column:1/-1;justify-content:flex-start}.profile-edit-grid{grid-template-columns:1fr}.profile-edit-grid .status-field{grid-column:auto}.friends-self{grid-template-columns:auto 1fr}.friends-self-side{grid-column:1/-1;justify-items:start}.friends-self .friend-code{grid-column:auto}.friend-search{grid-template-columns:1fr}.friend-search button{min-height:42px}}
     `;
     document.head.appendChild(style);
 
@@ -404,7 +409,7 @@
             <div class="friends-self">
               <div class="friends-avatar">${safe(profile?.avatar_emoji||'🙂')}</div>
               <div><b>${safe(profile?.display_name||'친구')}</b><small>${safe(profile?.status_message||'상태메시지를 설정해보세요.')}</small></div>
-              <strong class="friend-code">${safe(profile?.friend_code||'-')}</strong>
+              <div class="friends-self-side"><strong class="friend-code">${safe(profile?.friend_code||'-')}</strong><button type="button" id="myGuestbookBtn">📮 내 방명록</button></div>
             </div>
             <form class="friend-search" id="friendSearchForm">
               <input id="friendCodeInput" maxlength="10" placeholder="친구 코드 입력 (예: 6B290F2639)" autocomplete="off">
@@ -430,6 +435,9 @@
                   </article>`;}).join(''):'<div class="friends-empty">아직 친구가 없습니다. 친구 코드를 받아 요청해보세요.</div>'}
               </div>
             </section>`;
+
+          const myGuestbookBtn=document.getElementById('myGuestbookBtn');
+          if(myGuestbookBtn)myGuestbookBtn.onclick=()=>{close();openMyGuestbook();};
 
           const form=document.getElementById('friendSearchForm');
           form.onsubmit=async(e)=>{
@@ -501,23 +509,86 @@
     }
 
     function statusText(s){return s==='done'?'완료':s==='doing'?'진행':s==='blocked'?'이슈':s==='failed'?'못함':'예정';}
+    function guestbookDate(value){
+      try{return new Date(value).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});}
+      catch{return '';}
+    }
+
+    async function loadGuestbook(ownerId){
+      const {data,error}=await sb.from('workhub_guestbook')
+        .select('id,owner_id,author_id,body,created_at')
+        .eq('owner_id',ownerId)
+        .order('created_at',{ascending:false})
+        .limit(50);
+      if(error)throw error;
+      const rows=data||[];
+      const ids=[...new Set(rows.map(x=>x.author_id).filter(Boolean))];
+      let profiles=[];
+      if(ids.length){
+        const result=await sb.from('workhub_profiles').select('user_id,display_name,avatar_emoji').in('user_id',ids);
+        if(result.error)throw result.error;
+        profiles=result.data||[];
+      }
+      const byId=new Map(profiles.map(p=>[p.user_id,p]));
+      return rows.map(row=>({...row,author:byId.get(row.author_id)||{display_name:'친구',avatar_emoji:'🙂'}}));
+    }
+
+    function guestbookEntriesHtml(entries,canDeleteAll=false){
+      if(!entries.length)return '<div class="friends-empty">아직 남겨진 방명록이 없습니다.</div>';
+      return '<div class="guestbook-list">'+entries.map(entry=>{
+        const mine=entry.author_id===session?.user?.id;
+        const canDelete=canDeleteAll||mine;
+        return '<article class="guestbook-entry"><div class="guestbook-entry-head"><div class="guestbook-entry-who"><div class="mini-avatar">'+safe(entry.author?.avatar_emoji||'🙂')+'</div><div><b>'+safe(entry.author?.display_name||'친구')+'</b><span style="display:block;margin-top:2px">'+safe(guestbookDate(entry.created_at))+'</span></div></div><span>No. '+safe(String(entry.id||'').slice(0,4).toUpperCase())+'</span></div><div class="guestbook-entry-body">'+safe(entry.body||'')+'</div>'+(canDelete?'<div class="guestbook-entry-actions"><button type="button" data-guestbook-delete="'+safe(entry.id)+'">삭제</button></div>':'')+'</article>';
+      }).join('')+'</div>';
+    }
+
+    async function openMyGuestbook(){
+      if(!session?.user)return;
+      closeOverlay('friendsManager');
+      const root=document.createElement('div');
+      root.id='myGuestbook';
+      root.className='cloud-auth';
+      root.innerHTML='<div class="guestbook-modal"><div class="friends-head"><div><h2>📮 내 방명록</h2><p>친구들이 내 미니홈에 남긴 글입니다. 글 수정은 없고, 내 방명록에서는 필요할 때 삭제만 할 수 있습니다.</p></div><button type="button" class="account-close" data-close>×</button></div><div id="myGuestbookBody"><div class="friends-empty">방명록을 불러오는 중…</div></div></div>';
+      document.body.appendChild(root);
+      const close=()=>root.remove();
+      root.querySelector('[data-close]').onclick=close;
+      root.onclick=e=>{if(e.target===root)close();};
+
+      const draw=async()=>{
+        const body=root.querySelector('#myGuestbookBody');
+        try{
+          const entries=await loadGuestbook(session.user.id);
+          body.innerHTML=guestbookEntriesHtml(entries,true);
+          body.querySelectorAll('[data-guestbook-delete]').forEach(btn=>btn.onclick=async()=>{
+            if(!confirm('이 방명록 글을 삭제할까요?'))return;
+            const {error}=await sb.from('workhub_guestbook').delete().eq('id',btn.dataset.guestbookDelete);
+            if(error){console.error(error);toast('방명록 삭제에 실패했습니다.');return;}
+            toast('방명록 글을 삭제했습니다.');
+            await draw();
+          });
+        }catch(e){console.error(e);body.innerHTML='<div class="friends-empty">방명록을 불러오지 못했습니다.</div>';}
+      };
+      await draw();
+    }
 
     async function openFriendHome(friendId,friendProfile,share){
       closeOverlay('friendsManager');
       const root=document.createElement('div');root.id='friendHome';root.className='cloud-auth';
-      root.innerHTML='<div class="friend-home"><div class="friend-home-cover"><div class="friend-home-head"><div><h2>BokDesk · Friend Space</h2><p>친구가 허용한 내용만 보이는 읽기 전용 미니홈입니다.</p></div><button type="button" class="account-close" data-close>×</button></div><div class="friend-home-profile"><div class="friends-avatar">'+safe(friendProfile?.avatar_emoji||'🙂')+'</div><div><b>'+safe(friendProfile?.display_name||'친구')+'</b><span>'+safe(friendProfile?.status_message||'')+'</span></div></div></div><nav class="friend-home-nav"><button data-tab="home" class="active">🏠 홈</button><button data-tab="work">📋 일</button><button data-tab="notes">📝 메모</button><button data-tab="game">🎮 게임</button><button data-back>← 친구목록</button></nav><div class="friend-home-body" id="friendHomeBody"><div class="friends-empty">친구 공간을 불러오는 중…</div></div></div>';
+      root.innerHTML='<div class="friend-home"><div class="friend-home-cover"><div class="friend-home-head"><div><h2>BokDesk · Friend Space</h2><p>친구가 허용한 일·메모·게임은 읽기 전용으로 보고, 방명록에만 글을 남길 수 있습니다.</p></div><button type="button" class="account-close" data-close>×</button></div><div class="friend-home-profile"><div class="friends-avatar">'+safe(friendProfile?.avatar_emoji||'🙂')+'</div><div><b>'+safe(friendProfile?.display_name||'친구')+'</b><span>'+safe(friendProfile?.status_message||'')+'</span></div></div></div><nav class="friend-home-nav"><button data-tab="home" class="active">🏠 홈</button><button data-tab="work">📋 일</button><button data-tab="notes">📝 메모</button><button data-tab="game">🎮 게임</button><button data-tab="guestbook">📮 방명록</button><button data-back>← 친구목록</button></nav><div class="friend-home-body" id="friendHomeBody"><div class="friends-empty">친구 공간을 불러오는 중…</div></div></div>';
       document.body.appendChild(root);
       const close=()=>root.remove();root.querySelector('[data-close]').onclick=close;root.onclick=e=>{if(e.target===root)close();};
       root.querySelector('[data-back]').onclick=()=>{close();openFriends();};
 
-      let work=null,notes=null,game=null;
+      let work=null,notes=null,game=null,guestbook=[];
       try{
-        const queries=[];
+        const queries=[loadGuestbook(friendId).then(rows=>{guestbook=rows;})];
         if(share?.can_view_work)queries.push(sb.from('workhub_shared_work').select('payload,updated_at').eq('user_id',friendId).maybeSingle().then(r=>{if(r.error)throw r.error;work=r.data;}));
         if(share?.can_view_notes)queries.push(sb.from('workhub_shared_notes').select('payload,updated_at').eq('user_id',friendId).maybeSingle().then(r=>{if(r.error)throw r.error;notes=r.data;}));
         if(share?.can_view_game)queries.push(sb.from('workhub_shared_game').select('payload,updated_at').eq('user_id',friendId).maybeSingle().then(r=>{if(r.error)throw r.error;game=r.data;}));
         await Promise.all(queries);
       }catch(e){console.error(e);}
+
+      const refreshGuestbook=async()=>{guestbook=await loadGuestbook(friendId);};
 
       const renderHome=()=>{
         const items=Array.isArray(work?.payload?.workItems)?work.payload.workItems:[];
@@ -526,33 +597,68 @@
         const memoCount=Array.isArray(notes?.payload)?notes.payload.length:0;
         const br=game?.payload?.bokRunV1||{},kart=game?.payload?.kartCrossing||{};
         const gameLabel=share?.can_view_game?('BokRun R'+(Number(br.unlockedRound)||1)+' · Kart '+(Number(kart.bestDistance)||0)+'m'):'비공개';
-        return '<div class="friend-home-grid"><div class="friend-stat"><span>진행/예정 업무</span><strong>'+(share?.can_view_work?open:'🔒')+'</strong></div><div class="friend-stat"><span>완료 업무</span><strong>'+(share?.can_view_work?done:'🔒')+'</strong></div><div class="friend-stat"><span>메모</span><strong>'+(share?.can_view_notes?memoCount:'🔒')+'</strong></div></div><div class="friend-panel"><h3>🎮 게임 한눈에 보기</h3><div class="friend-items"><div class="friend-item"><em>GAME</em><div><b>'+safe(gameLabel)+'</b><small>친구의 진행도만 확인할 수 있으며 플레이/강화는 불가능합니다.</small></div><span>읽기 전용</span></div></div></div>';
+        const recent=share?.can_view_work?[...items].sort((a,b)=>String(b.updatedAt||b.createdAt||'').localeCompare(String(a.updatedAt||a.createdAt||''))).slice(0,5):[];
+        return '<div class="friend-home-grid"><div class="friend-stat"><span>진행/예정 업무</span><strong>'+(share?.can_view_work?open:'🔒')+'</strong></div><div class="friend-stat"><span>완료 업무</span><strong>'+(share?.can_view_work?done:'🔒')+'</strong></div><div class="friend-stat"><span>메모</span><strong>'+(share?.can_view_notes?memoCount:'🔒')+'</strong></div><div class="friend-stat"><span>방명록</span><strong>'+guestbook.length+'</strong></div></div>'
+          +(recent.length?'<div class="friend-panel"><h3>🕒 최근 활동</h3><div class="friend-items">'+recent.map(x=>'<div class="friend-item"><em>'+safe(statusText(x.status))+'</em><div><b>'+safe(x.title||'업무')+'</b><small>'+safe(x.category||'기타')+'</small></div><span>'+safe(x.updatedAt||x.createdAt||'')+'</span></div>').join('')+'</div></div>':'')
+          +'<div class="friend-panel"><h3>🎮 게임 한눈에 보기</h3><div class="friend-items"><div class="friend-item"><em>GAME</em><div><b>'+safe(gameLabel)+'</b><small>친구의 진행도만 확인할 수 있으며 플레이/강화는 불가능합니다.</small></div><span>읽기 전용</span></div></div></div>';
       };
+
       const renderWork=()=>{
         if(!share?.can_view_work)return '<div class="friend-lock"><b>🔒 일은 비공개입니다.</b>친구가 일 공개를 켜면 여기서 볼 수 있습니다.</div>';
         const items=Array.isArray(work?.payload?.workItems)?work.payload.workItems:[];
-        const sorted=[...items].sort((a,b)=>String(b.updatedAt||b.createdAt||'').localeCompare(String(a.updatedAt||a.createdAt||''))).slice(0,30);
-        return '<div class="friend-panel" style="margin-top:0"><h3>📋 친구의 일</h3><div class="friend-items">'+(sorted.length?sorted.map(x=>'<div class="friend-item"><em>'+safe(statusText(x.status))+'</em><div><b>'+safe(x.title||'업무')+'</b><small>'+safe(x.category||'기타')+(x.note?' · '+safe(x.note):'')+'</small></div><span>'+safe(x.dueDate||x.target||'')+'</span></div>').join(''):'<div class="friends-empty">등록된 업무가 없습니다.</div>')+'</div></div>';
+        const sorted=[...items].sort((a,b)=>String(b.updatedAt||b.createdAt||'').localeCompare(String(a.updatedAt||a.createdAt||''))).slice(0,40);
+        return '<div class="friend-panel" style="margin-top:0"><h3>📋 친구의 일 · 읽기 전용</h3><div class="friend-items">'+(sorted.length?sorted.map(x=>'<div class="friend-item"><em>'+safe(statusText(x.status))+'</em><div><b>'+safe(x.title||'업무')+'</b><small>'+safe(x.category||'기타')+(x.note?' · '+safe(x.note):'')+'</small></div><span>'+safe(x.dueDate||x.target||'')+'</span></div>').join(''):'<div class="friends-empty">등록된 업무가 없습니다.</div>')+'</div></div>';
       };
+
       const renderNotes=()=>{
         if(!share?.can_view_notes)return '<div class="friend-lock"><b>🔒 메모는 비공개입니다.</b>친구가 메모 공개를 켜면 여기서 볼 수 있습니다.</div>';
         const arr=Array.isArray(notes?.payload)?notes.payload:[];
-        const sorted=[...arr].sort((a,b)=>String(b.updatedAt||b.createdAt||'').localeCompare(String(a.updatedAt||a.createdAt||''))).slice(0,30);
-        return '<div class="friend-panel" style="margin-top:0"><h3>📝 친구의 메모장</h3><div class="friend-items">'+(sorted.length?sorted.map(n=>'<div class="friend-item"><em>'+(n.status==='done'?'완료':'메모')+'</em><div><b>'+safe(String(n.body||'').replace(/\s+/g,' ').slice(0,160))+'</b><small>'+(n.scheduledDate?'예정 '+safe(n.scheduledDate):'날짜 미정')+'</small></div><span>읽기</span></div>').join(''):'<div class="friends-empty">공유된 메모가 없습니다.</div>')+'</div></div>';
+        const sorted=[...arr].sort((a,b)=>String(b.updatedAt||b.createdAt||'').localeCompare(String(a.updatedAt||a.createdAt||''))).slice(0,40);
+        return '<div class="friend-panel" style="margin-top:0"><h3>📝 친구의 메모장 · 읽기 전용</h3><div class="friend-items">'+(sorted.length?sorted.map(n=>'<div class="friend-item"><em>'+(n.status==='done'?'완료':'메모')+'</em><div><b>'+safe(String(n.body||'').replace(/\s+/g,' ').slice(0,240))+'</b><small>'+(n.scheduledDate?'예정 '+safe(n.scheduledDate):'날짜 미정')+'</small></div><span>읽기</span></div>').join(''):'<div class="friends-empty">공유된 메모가 없습니다.</div>')+'</div></div>';
       };
+
       const renderGame=()=>{
         if(!share?.can_view_game)return '<div class="friend-lock"><b>🔒 게임은 비공개입니다.</b>친구가 게임 공개를 켜면 여기서 볼 수 있습니다.</div>';
         const br=game?.payload?.bokRunV1||{},kart=game?.payload?.kartCrossing||{};
         const brChars=Object.keys(br.ownedCharacters||{}).length,brRelics=Object.keys(br.ownedRelics||{}).length;
         const brRuns=Number(br.lifetime?.runs)||0,brClears=Number(br.lifetime?.clears)||0;
         const kartOwned=Object.keys(kart.owned||{}).length,kartRuns=Number(kart.totalRuns)||0;
-        return '<div class="game-sections"><section class="game-card"><h3>🏃 BokRun</h3><div class="game-metrics"><div class="game-metric"><span>해금 라운드</span><strong>'+Math.max(1,Number(br.unlockedRound)||1)+'</strong></div><div class="game-metric"><span>클리어</span><strong>'+brClears+'</strong></div><div class="game-metric"><span>보유 캐릭터</span><strong>'+brChars+'</strong></div><div class="game-metric"><span>보유 유물</span><strong>'+brRelics+'</strong></div><div class="game-metric"><span>총 플레이</span><strong>'+brRuns+'</strong></div><div class="game-metric"><span>대표 캐릭터</span><strong style="font-size:10px">'+safe(br.selectedCharacter||'-')+'</strong></div></div></section><section class="game-card"><h3>🚗 Kart Crossing</h3><div class="game-metrics"><div class="game-metric"><span>최고 거리</span><strong>'+(Number(kart.bestDistance)||0)+'m</strong></div><div class="game-metric"><span>총 플레이</span><strong>'+kartRuns+'</strong></div><div class="game-metric"><span>보유 캐릭터</span><strong>'+kartOwned+'</strong></div><div class="game-metric"><span>총 뽑기</span><strong>'+(Number(kart.pulls)||0)+'</strong></div><div class="game-metric"><span>장착 캐릭터</span><strong style="font-size:10px">'+safe(kart.equipped||'-')+'</strong></div><div class="game-metric"><span>볼트</span><strong>'+(Number(kart.bolts)||0).toLocaleString()+'</strong></div></div></section></div>';
+        return '<div class="game-sections"><section class="game-card"><h3>🏃 BokRun · 읽기 전용</h3><div class="game-metrics"><div class="game-metric"><span>해금 라운드</span><strong>'+Math.max(1,Number(br.unlockedRound)||1)+'</strong></div><div class="game-metric"><span>클리어</span><strong>'+brClears+'</strong></div><div class="game-metric"><span>보유 캐릭터</span><strong>'+brChars+'</strong></div><div class="game-metric"><span>보유 유물</span><strong>'+brRelics+'</strong></div><div class="game-metric"><span>총 플레이</span><strong>'+brRuns+'</strong></div><div class="game-metric"><span>대표 캐릭터</span><strong style="font-size:10px">'+safe(br.selectedCharacter||'-')+'</strong></div></div></section><section class="game-card"><h3>🚗 Kart Crossing · 읽기 전용</h3><div class="game-metrics"><div class="game-metric"><span>최고 거리</span><strong>'+(Number(kart.bestDistance)||0)+'m</strong></div><div class="game-metric"><span>총 플레이</span><strong>'+kartRuns+'</strong></div><div class="game-metric"><span>보유 캐릭터</span><strong>'+kartOwned+'</strong></div><div class="game-metric"><span>총 뽑기</span><strong>'+(Number(kart.pulls)||0)+'</strong></div><div class="game-metric"><span>장착 캐릭터</span><strong style="font-size:10px">'+safe(kart.equipped||'-')+'</strong></div><div class="game-metric"><span>볼트</span><strong>'+(Number(kart.bolts)||0).toLocaleString()+'</strong></div></div></section></div>';
+      };
+
+      const renderGuestbook=()=>{
+        return '<form class="guestbook-compose" id="guestbookForm"><textarea id="guestbookBody" maxlength="200" placeholder="'+safe(friendProfile?.display_name||'친구')+'님 미니홈에 한마디 남겨보세요. (최대 200자)"></textarea><button type="submit">남기기</button></form>'+guestbookEntriesHtml(guestbook,false);
+      };
+
+      const bindGuestbook=()=>{
+        const form=root.querySelector('#guestbookForm');
+        if(form)form.onsubmit=async(e)=>{
+          e.preventDefault();
+          const input=root.querySelector('#guestbookBody');
+          const body=String(input?.value||'').trim();
+          if(!body){toast('방명록 내용을 입력해주세요.');return;}
+          const button=form.querySelector('button');button.disabled=true;
+          const {error}=await sb.from('workhub_guestbook').insert({owner_id:friendId,author_id:session.user.id,body});
+          button.disabled=false;
+          if(error){console.error(error);toast('방명록을 남기지 못했습니다.');return;}
+          toast('방명록을 남겼습니다.');
+          await refreshGuestbook();
+          renderTab('guestbook');
+        };
+        root.querySelectorAll('[data-guestbook-delete]').forEach(btn=>btn.onclick=async()=>{
+          if(!confirm('내가 남긴 방명록 글을 삭제할까요?'))return;
+          const {error}=await sb.from('workhub_guestbook').delete().eq('id',btn.dataset.guestbookDelete);
+          if(error){console.error(error);toast('방명록 삭제에 실패했습니다.');return;}
+          await refreshGuestbook();
+          renderTab('guestbook');
+        });
       };
 
       const renderTab=(tab)=>{
         root.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));
         const body=document.getElementById('friendHomeBody');if(!body)return;
-        body.innerHTML=tab==='work'?renderWork():tab==='notes'?renderNotes():tab==='game'?renderGame():renderHome();
+        body.innerHTML=tab==='work'?renderWork():tab==='notes'?renderNotes():tab==='game'?renderGame():tab==='guestbook'?renderGuestbook():renderHome();
+        if(tab==='guestbook')bindGuestbook();
       };
       root.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>renderTab(b.dataset.tab));
       renderTab('home');
