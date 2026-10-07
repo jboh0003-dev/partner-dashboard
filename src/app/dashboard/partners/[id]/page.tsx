@@ -44,8 +44,8 @@ export default async function PartnerDetailPage({
         <SummaryCard label="파트너번호" value={formatPartnerNo(p)} index={0} />
         <SummaryCard label="등급" value={getDisplayPartnerGradeLabel(p)} index={1} />
         <SummaryCard
-          label="계약일자"
-          value={p.contract_start_date ? formatDate(p.contract_start_date) : "-"}
+          label="광역권 / 지역"
+          value={[p.region_group, p.region].filter(Boolean).join(" / ") || "-"}
           index={2}
         />
         <SummaryCard label={fourthCardLabel} value={fourthCardValue} index={3} />
