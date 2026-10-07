@@ -19,8 +19,16 @@
     section.setAttribute('aria-label','BokRun Relic Rush');
     document.querySelector('.main').appendChild(section);
 
-    const PROFILE_KEY='bokrun_profile_v1';
-    const RECORD_KEY='bokrun_records_v1';
+    const ACCOUNT_UID=new URLSearchParams(location.search).get('uid')||'guest';
+    const ACCOUNT_SUFFIX=ACCOUNT_UID.replace(/[^a-zA-Z0-9_-]/g,'');
+    const PROFILE_KEY='bokrun_profile_v1_'+ACCOUNT_SUFFIX;
+    const RECORD_KEY='bokrun_records_v1_'+ACCOUNT_SUFFIX;
+    if(ACCOUNT_UID==='6b290f26-391a-432f-bec9-a72c3cc8335c'){
+      try{
+        if(!localStorage.getItem(PROFILE_KEY)&&localStorage.getItem('bokrun_profile_v1'))localStorage.setItem(PROFILE_KEY,localStorage.getItem('bokrun_profile_v1'));
+        if(!localStorage.getItem(RECORD_KEY)&&localStorage.getItem('bokrun_records_v1'))localStorage.setItem(RECORD_KEY,localStorage.getItem('bokrun_records_v1'));
+      }catch{}
+    }
     const DEFAULT_PROFILE={
       version:2,economyVersion:2,gold:2200,gems:1200,
       ownedCharacters:{momo:{level:1,shards:0}},
