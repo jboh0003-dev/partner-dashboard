@@ -3,7 +3,7 @@
   if (document.getElementById('workhub-runner')) return;
 
   const script=document.createElement('script');
-  script.src='/work-hub/runner-engine.js?v=9';
+  script.src='/work-hub/runner-engine.js?v=12';
   script.onload=mount;
   script.onerror=()=>console.error('BokRun 엔진을 불러오지 못했습니다.');
   document.body.appendChild(script);
@@ -15,7 +15,7 @@
     const section=document.createElement('section');
     section.id='workhub-runner';
     section.className='runner bokrun';
-    section.dataset.version='9';
+    section.dataset.version='12';
     section.setAttribute('aria-label','BokRun Relic Rush');
     document.querySelector('.main').appendChild(section);
 
