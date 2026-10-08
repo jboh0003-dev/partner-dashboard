@@ -15,6 +15,7 @@ import {
   resolveUploadStoragePath
 } from "@/lib/documents/storage-path";
 import { isMultiDocumentAllowed } from "@/lib/documents/duplicate-detection";
+import { buildAutoDisplayName } from "@/lib/documents/display";
 import { resolveSaveAction } from "@/lib/imports/partner-documents";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { rejectUnlessAdmin } from "@/lib/auth/require-admin";
@@ -166,6 +167,41 @@ export async function POST(request: Request) {
 
       if (existingDocument?.file_hash === fileHash) {
         skippedCount += 1;
+        continue;
+      }
+
+      const { data: sameContentRows, error: sameContentError } = await supabase
+        .from("partner_documents")
+        .select("id, document_type, original_filename")
+        .eq("partner_id", partnerId)
+        .eq("file_hash", fileHash)
+        .eq("is_active", true)
+        .is("deleted_at", null);
+
+      if (sameContentError) {
+        skippedCount += 1;
+        failedCount += 1;
+        failures.push({
+          row_number: row.row_number,
+          filename: row.original_filename,
+          message: `동일 파일 중복 확인 실패: ${sameContentError.message}`
+        });
+        continue;
+      }
+
+      const crossTypeDuplicate = (sameContentRows ?? []).find(
+        (doc) => doc.document_type && doc.document_type !== row.document_type
+      );
+      if (crossTypeDuplicate) {
+        skippedCount += 1;
+        failedCount += 1;
+        failures.push({
+          row_number: row.row_number,
+          filename: row.original_filename,
+          message:
+            `동일한 파일 내용이 이미 다른 문서 구분(${String(crossTypeDuplicate.document_type)})으로 등록되어 있습니다. ` +
+            "중복 생성하지 않았습니다. 기존 문서 구분을 확인해 주세요."
+        });
         continue;
       }
 
@@ -485,7 +521,11 @@ function buildDocumentPayload(
   batchName: string,
   fileHash: string
 ) {
-  const displayName = row.display_name.trim() || row.original_filename;
+  const displayName = buildAutoDisplayName({
+    document_type: row.document_type,
+    original_filename: row.original_filename,
+    display_name: row.display_name
+  });
   const reviewStatus: DocumentReviewStatus =
     row.match_status === "matched" ? "auto_matched" : row.review_status === "skipped" ? "auto_matched" : "needs_review";
 
