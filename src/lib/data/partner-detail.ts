@@ -137,7 +137,9 @@ export async function fetchPartnerDetailBundle(
       .from("partner_documents")
       .select("*")
       .eq("partner_id", partnerId)
+      .eq("is_active", true)
       .is("deleted_at", null)
+      .or("document_status.is.null,document_status.neq.archived")
       .order("is_primary", { ascending: false })
       .order("created_at", { ascending: false }),
     supabase

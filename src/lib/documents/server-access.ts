@@ -12,6 +12,8 @@ export type PartnerDocumentRecord = DocumentDisplaySource & {
   storage_path: string | null;
   file_path: string | null;
   deleted_at: string | null;
+  is_active: boolean | null;
+  document_status: string | null;
 };
 
 export async function fetchPartnerDocumentRecord(
@@ -21,13 +23,19 @@ export async function fetchPartnerDocumentRecord(
   const { data, error } = await supabase
     .from("partner_documents")
     .select(
-      "id, storage_path, file_path, original_filename, file_name, display_name, file_ext, document_type, deleted_at"
+      "id, storage_path, file_path, original_filename, file_name, display_name, file_ext, document_type, deleted_at, is_active, document_status"
     )
     .eq("id", id)
     .single();
 
-  if (error || !data || data.deleted_at) {
-    return { document: null, error: "문서를 찾을 수 없습니다." };
+  if (
+    error ||
+    !data ||
+    data.deleted_at ||
+    data.is_active === false ||
+    data.document_status === "archived"
+  ) {
+    return { document: null, error: "현재 사용할 수 없는 문서입니다." };
   }
 
   return { document: data as PartnerDocumentRecord };

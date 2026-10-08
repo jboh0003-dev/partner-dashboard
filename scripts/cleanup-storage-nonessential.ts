@@ -324,6 +324,7 @@ async function archivePartnerDocument(supabase: SupabaseClient, storagePath: str
       .from("partner_documents")
       .update({
         document_status: "archived",
+        is_active: false,
         archived_at: now,
         archived_reason: ARCHIVE_REASON
       })
