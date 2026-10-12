@@ -121,12 +121,14 @@
       if (!payload) return;
       const work = payload.work || payload;
       S = typeof normalizeState === 'function' ? normalizeState(work) : work;
+      const rolled = typeof rolloverUnfinishedWeekly === 'function' ? rolloverUnfinishedWeekly() : 0;
       localStorage.setItem(K, JSON.stringify(S));
       if (payload.partner && typeof partner !== 'undefined') {
         partner = {...partner, ...payload.partner};
         localStorage.setItem(PARTNER, JSON.stringify(partner));
       }
       render();
+      if (rolled && typeof schedulePush === 'function') schedulePush();
     }
 
     function setBadge(text, cls=''){
