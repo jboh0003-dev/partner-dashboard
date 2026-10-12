@@ -144,18 +144,42 @@
     }
 
     function ensureAccountNav(){
-      const side=document.querySelector('.side');
-      if(!side) return;
-      let wrap=document.getElementById('accountNav');
-      if(!wrap){
-        wrap=document.createElement('div');
-        wrap.id='accountNav';
-        wrap.className='account-nav';
-        side.appendChild(wrap);
+      const nav=document.querySelector('.nav');
+      if(nav){
+        let friendBtn=document.getElementById('friendsManageBtn');
+        if(!friendBtn){
+          friendBtn=document.createElement('button');
+          friendBtn.type='button';
+          friendBtn.id='friendsManageBtn';
+          friendBtn.innerHTML='👥 <span>친구꺼 보기</span>';
+          nav.appendChild(friendBtn);
+        }
+        friendBtn.onclick=openFriends;
+
+        let accountBtn=document.getElementById('accountManageBtn');
+        if(!accountBtn){
+          accountBtn=document.createElement('button');
+          accountBtn.type='button';
+          accountBtn.id='accountManageBtn';
+          accountBtn.innerHTML='⚙ <span>계정관리</span>';
+          nav.appendChild(accountBtn);
+        }
+        accountBtn.onclick=openAccountManager;
       }
-      wrap.innerHTML='<button type="button" id="friendsManageBtn">🏠 친구꺼 보기</button><button type="button" id="accountManageBtn">⚙ 계정관리</button>';
-      document.getElementById('friendsManageBtn').onclick=openFriends;
-      document.getElementById('accountManageBtn').onclick=openAccountManager;
+
+      const tools=document.querySelector('.headtools');
+      if(tools){
+        let quick=document.getElementById('friendsQuickBtn');
+        if(!quick){
+          quick=document.createElement('button');
+          quick.type='button';
+          quick.id='friendsQuickBtn';
+          quick.className='btn';
+          quick.textContent='👥 친구';
+          tools.insertBefore(quick,tools.firstChild);
+        }
+        quick.onclick=openFriends;
+      }
     }
 
     function formatSyncTime(){
