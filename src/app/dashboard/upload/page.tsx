@@ -34,6 +34,7 @@ import {
 } from "@/lib/excel/parse-training-attendance-detail";
 import { PartnerDocumentsUploadSection } from "@/components/upload/partner-documents-upload-section";
 import { PartnerApplicationUploadSection } from "@/components/upload/partner-application-upload-section";
+import { PartnerOnboardingPackageUploadSection } from "@/components/upload/partner-onboarding-package-upload-section";
 import { PartnerDuplicatesPanel } from "@/components/upload/partner-duplicates-panel";
 import { ImportJobsPanel } from "@/components/upload/import-jobs-panel";
 import { PARTNER_MASTER_ACTION_LABEL } from "@/lib/imports/partner-master";
@@ -49,6 +50,7 @@ type UploadType =
   | "training_attendance_detail"
   | "partner_equipment"
   | "partner_documents"
+  | "partner_onboarding_package"
   | "partner_application";
 
 type UploadTypeMeta = {
@@ -300,6 +302,16 @@ const UPLOAD_TYPES: UploadTypeMeta[] = [
     workDescription: "파트너 보유 장비를 노드 단위로 반영합니다.",
     sourceFile: "3. 기술파트너교육_ 교육생 관리대장(장비스펙).xlsx",
     order: 5,
+    mode: "active"
+  },
+  {
+    key: "partner_onboarding_package",
+    menuTitle: "파트너 신규등록",
+    menuHint: "메일 ZIP 한 번 업로드",
+    workTitle: "파트너 등록 패키지",
+    workDescription: "신청 ZIP을 한 번 올리면 회사·인력·첨부문서를 분석하고 파트너를 등록합니다.",
+    sourceFile: "메일 첨부 ZIP",
+    order: 6,
     mode: "active"
   },
   {
@@ -1175,7 +1187,11 @@ export default function UploadPage() {
           </div>
         ) : null}
 
-        {selectedType === "partner_documents" ? (
+        {selectedType === "partner_onboarding_package" ? (
+          <div className="mt-5">
+            <PartnerOnboardingPackageUploadSection />
+          </div>
+        ) : selectedType === "partner_documents" ? (
           <div className="mt-5">
             <PartnerDocumentsUploadSection />
           </div>
