@@ -157,6 +157,19 @@ export function ContactsAdminTable({
             ) : null}
           </span>
         )
+      },
+      {
+        key: "position",
+        label: "직급",
+        kind: "text",
+        className: "min-w-[6.5rem] max-w-[9rem]",
+        value: (row) => row.position,
+        render: (row) => (
+          <TableText
+            value={row.position}
+            className="block max-w-[9rem] truncate whitespace-nowrap text-[13px] text-slate-700"
+          />
+        )
       }
     ];
 
@@ -186,19 +199,6 @@ export function ContactsAdminTable({
         className: "min-w-[7rem] max-w-[10rem]",
         value: (row) => row.display_role_labels.join(", "),
         render: (row) => <ContactRoleBadges labels={row.role_labels} maxVisible={2} />
-      },
-      {
-        key: "department",
-        label: "부서/직급",
-        kind: "text",
-        className: "min-w-[8rem] max-w-[12rem]",
-        value: (row) => [row.department, row.position].filter(Boolean).join(" / "),
-        render: (row) => (
-          <TableText
-            value={[row.department, row.position].filter(Boolean).join(" / ")}
-            className="block max-w-[12rem] truncate whitespace-nowrap text-[13px] text-slate-700"
-          />
-        )
       },
       {
         key: "phone",
@@ -439,7 +439,7 @@ export function ContactsAdminTable({
           columns={columns}
           defaultSortKey="partner_no"
           defaultDir="asc"
-          minWidth="1100px"
+          minWidth="1040px"
           rowKey={(row) => row.id}
           compareRows={compareRows}
           selectable={isAdmin}
