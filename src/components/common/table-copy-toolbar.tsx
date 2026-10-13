@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, Copy, X } from "lucide-react";
+import { ChevronDown, Copy, Mail, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { CsvDownloadButton } from "@/components/common/csv-download-button";
 import { CopyToast } from "@/components/common/copy-toast";
@@ -146,6 +146,17 @@ export function TableCopyToolbar({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          {selectedCount > 0 ? (
+            <button
+              type="button"
+              onClick={() => void copy("emails")}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-800 transition hover:border-blue-300 hover:bg-blue-100"
+              data-no-drag-scroll
+            >
+              <Mail size={14} />
+              선택 이메일 복사
+            </button>
+          ) : null}
           <div className="relative" ref={menuRef}>
             <button
               type="button"
