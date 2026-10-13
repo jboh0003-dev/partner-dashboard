@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, Search, X } from "lucide-react";
+import { ListFilter, Search, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { sortRows, type SortDir, type SortKind } from "@/lib/table-sort";
 
@@ -542,7 +542,7 @@ export function ClientSortableTable<T>({
                             setFilterSearch("");
                           }}
                           className={[
-                            "inline-flex h-6 w-6 items-center justify-center rounded-md border transition",
+                            "relative inline-flex h-6 w-6 items-center justify-center rounded-md border transition",
                             filterActive
                               ? "border-blue-200 bg-blue-100 text-blue-700"
                               : "border-transparent text-slate-500 hover:border-slate-200 hover:bg-white hover:text-slate-800"
@@ -551,11 +551,10 @@ export function ClientSortableTable<T>({
                           aria-label={`${column.label} 필터`}
                           data-no-drag-scroll
                         >
-                          <ChevronDown
-                            size={14}
-                            strokeWidth={2.2}
-                            className={openFilterKey === column.key ? "rotate-180 transition-transform" : "transition-transform"}
-                          />
+                          <ListFilter size={14} strokeWidth={2.2} />
+                          {filterActive ? (
+                            <span className="absolute right-0 top-0 h-1.5 w-1.5 rounded-full bg-blue-600" />
+                          ) : null}
                         </button>
                       ) : null}
 
