@@ -56,6 +56,7 @@ const SINGLE_REPRESENTATIVE_TYPES = new Set<string>([
   "business_registration",
   "bank_account",
   "company_profile",
+  "business_plan",
   "credit_rating"
 ]);
 
@@ -308,6 +309,7 @@ export function groupDocumentsForPartnerTab(documents: DocumentDuplicateRow[]): 
     const order = [
       "partner_application",
       "company_profile",
+      "business_plan",
       "business_registration",
       "bank_account",
       "credit_rating",
