@@ -236,7 +236,16 @@ function BasicInfoTab({
     ["영업담당자", partner.sales_owner ?? "-"],
     ["사업자번호", partner.business_number ?? "-"],
     ["대표이사", partner.ceo_name ?? "-"],
+    ["설립일자", partner.founded_date ? formatDate(partner.founded_date) : "-"],
+    ["신용등급", partner.credit_rating ?? "-"],
+    ["매출액", partner.revenue_2023 ?? "-"],
+    ["전체 임직원", formatPeopleCount(partner.employee_count)],
+    ["전체 엔지니어", formatPeopleCount(partner.engineer_count)],
+    ["전담 영업", formatPeopleCount(partner.dedicated_sales_count)],
+    ["전담 기술", formatPeopleCount(partner.dedicated_engineer_count)],
     ["대표전화", partner.main_phone ?? "-"],
+    ["광역권", partner.region_group ?? "-"],
+    ["지역", [partner.region, partner.city].filter(Boolean).join(" / ") || "-"],
     ["주소", partner.address ?? "-"],
     ["웹사이트", partner.website ?? "-"],
     ["계약 시작일", partner.contract_start_date ? formatDate(partner.contract_start_date) : "-"],
@@ -968,3 +977,10 @@ function formatPeriod(start: string | null, end: string | null): string {
 }
 
 
+
+
+function formatPeopleCount(value: string | null | undefined): string {
+  const text = value?.trim();
+  if (!text || text === "-") return "-";
+  return /^[\d,]+$/.test(text) ? `${text}명` : text;
+}

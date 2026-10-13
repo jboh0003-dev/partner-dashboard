@@ -26,6 +26,13 @@ type FormState = {
   region_group: string;
   sales_owner: string;
   business_number: string;
+  founded_date: string;
+  credit_rating: string;
+  revenue_2023: string;
+  employee_count: string;
+  engineer_count: string;
+  dedicated_sales_count: string;
+  dedicated_engineer_count: string;
   website: string;
   address: string;
   main_phone: string;
@@ -42,6 +49,13 @@ function toFormState(partner: Partner): FormState {
     region_group: partner.region_group ?? "",
     sales_owner: partner.sales_owner ?? "",
     business_number: partner.business_number ?? "",
+    founded_date: partner.founded_date ?? "",
+    credit_rating: partner.credit_rating ?? "",
+    revenue_2023: partner.revenue_2023 ?? "",
+    employee_count: partner.employee_count ?? "",
+    engineer_count: partner.engineer_count ?? "",
+    dedicated_sales_count: partner.dedicated_sales_count ?? "",
+    dedicated_engineer_count: partner.dedicated_engineer_count ?? "",
     website: partner.website ?? "",
     address: partner.address ?? "",
     main_phone: partner.main_phone ?? "",
@@ -91,6 +105,13 @@ export function PartnerBasicInfoEditModal({
         region_group: form.region_group || null,
         sales_owner: form.sales_owner || null,
         business_number: form.business_number || null,
+        founded_date: form.founded_date || null,
+        credit_rating: form.credit_rating || null,
+        revenue_2023: form.revenue_2023 || null,
+        employee_count: form.employee_count || null,
+        engineer_count: form.engineer_count || null,
+        dedicated_sales_count: form.dedicated_sales_count || null,
+        dedicated_engineer_count: form.dedicated_engineer_count || null,
         website: form.website || null,
         address: form.address || null,
         main_phone: form.main_phone || null,
@@ -213,6 +234,57 @@ export function PartnerBasicInfoEditModal({
                 <input
                   value={form.main_phone}
                   onChange={(event) => setForm((prev) => ({ ...prev, main_phone: event.target.value }))}
+                  className="ui-input w-full"
+                />
+              </Field>
+              <Field label="설립일자">
+                <input
+                  type="date"
+                  value={form.founded_date}
+                  onChange={(event) => setForm((prev) => ({ ...prev, founded_date: event.target.value }))}
+                  className="ui-input w-full"
+                />
+              </Field>
+              <Field label="신용등급">
+                <input
+                  value={form.credit_rating}
+                  onChange={(event) => setForm((prev) => ({ ...prev, credit_rating: event.target.value }))}
+                  className="ui-input w-full"
+                />
+              </Field>
+              <Field label="매출액">
+                <input
+                  value={form.revenue_2023}
+                  onChange={(event) => setForm((prev) => ({ ...prev, revenue_2023: event.target.value }))}
+                  className="ui-input w-full"
+                  placeholder="신청서 원문 기준"
+                />
+              </Field>
+              <Field label="전체 임직원">
+                <input
+                  value={form.employee_count}
+                  onChange={(event) => setForm((prev) => ({ ...prev, employee_count: event.target.value }))}
+                  className="ui-input w-full"
+                />
+              </Field>
+              <Field label="전체 엔지니어">
+                <input
+                  value={form.engineer_count}
+                  onChange={(event) => setForm((prev) => ({ ...prev, engineer_count: event.target.value }))}
+                  className="ui-input w-full"
+                />
+              </Field>
+              <Field label="전담 영업">
+                <input
+                  value={form.dedicated_sales_count}
+                  onChange={(event) => setForm((prev) => ({ ...prev, dedicated_sales_count: event.target.value }))}
+                  className="ui-input w-full"
+                />
+              </Field>
+              <Field label="전담 기술">
+                <input
+                  value={form.dedicated_engineer_count}
+                  onChange={(event) => setForm((prev) => ({ ...prev, dedicated_engineer_count: event.target.value }))}
                   className="ui-input w-full"
                 />
               </Field>

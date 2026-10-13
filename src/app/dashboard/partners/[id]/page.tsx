@@ -40,7 +40,7 @@ export default async function PartnerDetailPage({
         />
       </AnimatedSection>
 
-      <section className="ui-stagger mb-6 grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-4">
+      <section className="ui-stagger mb-4 grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-4">
         <SummaryCard label="파트너번호" value={formatPartnerNo(p)} index={0} />
         <SummaryCard label="등급" value={getDisplayPartnerGradeLabel(p)} index={1} />
         <SummaryCard
@@ -49,6 +49,15 @@ export default async function PartnerDetailPage({
           index={2}
         />
         <SummaryCard label={fourthCardLabel} value={fourthCardValue} index={3} />
+      </section>
+
+      <section className="ui-stagger mb-6 grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-3">
+        <MetricCard label="매출액" value={formatRawMetric(p.revenue_2023)} index={4} />
+        <MetricCard label="임직원" value={formatPeopleMetric(p.employee_count)} index={5} />
+        <MetricCard label="엔지니어" value={formatPeopleMetric(p.engineer_count)} index={6} />
+        <MetricCard label="전담 영업" value={formatPeopleMetric(p.dedicated_sales_count)} index={7} />
+        <MetricCard label="전담 기술" value={formatPeopleMetric(p.dedicated_engineer_count)} index={8} />
+        <MetricCard label="신용등급" value={formatRawMetric(p.credit_rating)} index={9} />
       </section>
 
       <AnimatedSection delayMs={120}>
@@ -83,4 +92,39 @@ function SummaryCard({
       </div>
     </div>
   );
+}
+
+
+function MetricCard({
+  label,
+  value,
+  index
+}: {
+  label: string;
+  value: React.ReactNode;
+  index: number;
+}) {
+  return (
+    <div
+      className="ui-enter-item rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-3"
+      style={{ ["--enter-index" as string]: index }}
+    >
+      <div className="text-[11px] font-semibold text-slate-500">{label}</div>
+      <div className="mt-1 truncate text-base font-semibold tabular-nums text-slate-950">
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function formatPeopleMetric(value: string | null | undefined): string {
+  const text = value?.trim();
+  if (!text || text === "-") return "-";
+  if (/^[\d,]+$/.test(text)) return `${text}명`;
+  return text;
+}
+
+function formatRawMetric(value: string | null | undefined): string {
+  const text = value?.trim();
+  return text || "-";
 }
