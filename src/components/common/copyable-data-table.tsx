@@ -28,6 +28,7 @@ type CopyableDataTableProps<T> = {
   csvLabel?: string;
   scrollable?: boolean;
   scrollMaxHeight?: string;
+  excelFilters?: boolean;
 };
 
 export function CopyableDataTable<T>({
@@ -43,7 +44,8 @@ export function CopyableDataTable<T>({
   csvFilenamePrefix,
   csvLabel,
   scrollable = false,
-  scrollMaxHeight = "calc(100vh - 320px)"
+  scrollMaxHeight = "calc(100vh - 320px)",
+  excelFilters = false
 }: CopyableDataTableProps<T>) {
   const getRowId = useMemo(() => rowKey, [rowKey]);
   const selection = useTableSelection(rows, getRowId);
@@ -87,6 +89,7 @@ export function CopyableDataTable<T>({
         }
         scrollable={scrollable}
         scrollMaxHeight={scrollMaxHeight}
+        excelFilters={excelFilters}
       />
     </>
   );
