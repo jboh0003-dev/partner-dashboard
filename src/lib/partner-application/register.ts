@@ -498,7 +498,9 @@ export async function registerPartnerApplication(
         address: companyPayload.address,
         revenue_2023: companyPayload.revenue_2023,
         employee_count: companyPayload.employee_count,
-        engineer_count: companyPayload.engineer_count
+        engineer_count: companyPayload.engineer_count,
+        dedicated_sales_count: companyPayload.dedicated_sales_count,
+        dedicated_engineer_count: companyPayload.dedicated_engineer_count
       };
       for (const [key, value] of Object.entries(fieldMap)) {
         if (allowed.has(key) && value != null && String(value).trim() !== "") {
