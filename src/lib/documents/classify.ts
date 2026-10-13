@@ -25,7 +25,11 @@ const RULES: ClassifyRule[] = [
   { type: "bank_account", pattern: /통장\s*사본|통장사본|bank\s*account|통장|계좌|은행/i },
   {
     type: "company_profile",
-    pattern: /company\s*profile|회사\s*소개서|회사소개서|회사소개|소개서/i
+    pattern: /company\s*profile|회사\s*소개서|회사소개서|회사소개|소개서|브로슈어|brochure/i
+  },
+  {
+    type: "business_plan",
+    pattern: /사업\s*계획서|사업계획서|사업\s*계획|business\s*plan/i
   },
   {
     type: "credit_rating",
