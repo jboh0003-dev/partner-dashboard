@@ -25,6 +25,7 @@ const DOCUMENT_TYPE_ALIASES: Record<string, string> = {
   partner_application: "partner_application",
   business_registration: "business_registration",
   company_profile: "company_profile",
+  business_plan: "business_plan",
   bank_account: "bank_account",
   credit_rating: "credit_rating",
   security_commitment: "security_commitment",
@@ -52,6 +53,8 @@ const DOCUMENT_TYPE_ALIASES: Record<string, string> = {
   "사업자 등록증": "business_registration",
   회사소개서: "company_profile",
   "회사 소개서": "company_profile",
+  사업계획서: "business_plan",
+  "사업 계획서": "business_plan",
   "통장/은행계좌": "bank_account",
   "통장사본": "bank_account",
   "은행계좌": "bank_account",
@@ -167,6 +170,7 @@ export function normalizeDocumentTypeKey(documentType: string | null | undefined
   if (trimmed.includes("사업자")) return "business_registration";
   if (trimmed.includes("통장") || trimmed.includes("계좌")) return "bank_account";
   if (trimmed.includes("신용")) return "credit_rating";
+  if (trimmed.includes("사업") && trimmed.includes("계획")) return "business_plan";
   if (trimmed.includes("소개")) return "company_profile";
 
   return trimmed;
