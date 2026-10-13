@@ -19,7 +19,7 @@ export function contactRowToCopyable(row: ContactTableRow): CopyableRow {
       role_type: row.role_type,
       is_contract_contact: row.is_contract_contact
     }),
-    position: [row.department, row.position].filter(Boolean).join(" / ") || null,
+    position: row.position ?? null,
     phone: row.phone,
     email: row.email
   };
