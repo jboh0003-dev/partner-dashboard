@@ -134,6 +134,32 @@ export function ContactsAdminTable({
         )
       },
       {
+        key: "region_group",
+        label: "광역권",
+        kind: "text",
+        className: "min-w-[6rem] whitespace-nowrap",
+        value: (row) => row.region_group,
+        render: (row) => (
+          <TableText
+            value={row.region_group}
+            className="block min-w-[6rem] max-w-[8rem] truncate whitespace-nowrap text-[13px] text-slate-700"
+          />
+        )
+      },
+      {
+        key: "region",
+        label: "지역",
+        kind: "text",
+        className: "min-w-[5rem] whitespace-nowrap",
+        value: (row) => row.region,
+        render: (row) => (
+          <TableText
+            value={row.region}
+            className="block min-w-[5rem] max-w-[7rem] truncate whitespace-nowrap text-[13px] text-slate-700"
+          />
+        )
+      },
+      {
         key: "name",
         label: "이름",
         kind: "text",
