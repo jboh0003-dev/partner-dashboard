@@ -1,6 +1,6 @@
 "use client";
 
-import { ListFilter, Search, X } from "lucide-react";
+import { ChevronDown, Search, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { sortRows, type SortDir, type SortKind } from "@/lib/table-sort";
 
@@ -443,7 +443,7 @@ export function ClientSortableTable<T>({
         <table className="w-full divide-y divide-slate-100" style={{ minWidth }}>
           <thead
             className={[
-              "ui-table-head sticky top-0 z-20 select-none shadow-[0_1px_0_0_rgba(226,232,240,0.9)]",
+              "ui-table-head select-none shadow-[0_1px_0_0_rgba(226,232,240,0.9)]",
               headCellClass
             ]
               .filter(Boolean)
@@ -453,7 +453,7 @@ export function ClientSortableTable<T>({
               {selectable ? (
                 <th
                   className={[
-                    "w-10 px-3 py-3 text-left select-none",
+                    "sticky top-0 z-40 w-10 bg-slate-50 px-3 py-3 text-left select-none",
                     compact ? "py-2" : "",
                     stickyLeftKeys.length > 0 ? "ui-table-sticky-left-head" : ""
                   ]
@@ -497,6 +497,7 @@ export function ClientSortableTable<T>({
                   <th
                     key={column.key}
                     className={[
+                      "sticky top-0 z-30 bg-slate-50",
                       compact ? "px-3 py-2" : "px-5 py-3",
                       column.align === "right"
                         ? "text-right"
@@ -541,16 +542,20 @@ export function ClientSortableTable<T>({
                             setFilterSearch("");
                           }}
                           className={[
-                            "inline-flex h-5 w-5 items-center justify-center rounded transition",
+                            "inline-flex h-6 w-6 items-center justify-center rounded-md border transition",
                             filterActive
-                              ? "bg-blue-100 text-blue-700"
-                              : "text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                              ? "border-blue-200 bg-blue-100 text-blue-700"
+                              : "border-transparent text-slate-500 hover:border-slate-200 hover:bg-white hover:text-slate-800"
                           ].join(" ")}
-                          title={`${column.label} 값 필터`}
-                          aria-label={`${column.label} 값 필터`}
+                          title={`${column.label} 필터`}
+                          aria-label={`${column.label} 필터`}
                           data-no-drag-scroll
                         >
-                          <ListFilter size={13} />
+                          <ChevronDown
+                            size={14}
+                            strokeWidth={2.2}
+                            className={openFilterKey === column.key ? "rotate-180 transition-transform" : "transition-transform"}
+                          />
                         </button>
                       ) : null}
 
