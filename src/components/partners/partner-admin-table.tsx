@@ -349,6 +349,7 @@ export function PartnerAdminTable({ rows, csvRows, isAdmin = false }: PartnerAdm
         scrollable
         scrollMaxHeight="calc(100vh - 320px)"
         getRowClassName={getRowClassName}
+        excelFilters
       />
 
       {editPartner ? (
