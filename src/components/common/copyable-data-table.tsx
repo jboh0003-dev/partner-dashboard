@@ -76,6 +76,7 @@ export function CopyableDataTable<T>({
         selectable
         selectedIds={selection.selectedIds}
         onToggleRow={selection.toggleRow}
+        onReplaceSelection={selection.replaceSelection}
         onToggleAll={selection.toggleAll}
         allSelected={selection.allSelected}
         someSelected={selection.someSelected}
