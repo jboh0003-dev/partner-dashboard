@@ -28,6 +28,32 @@ export function useTableSelection<T>(
     });
   }, []);
 
+  const replaceSelection = useCallback(
+    (ids: Iterable<string>) => {
+      const next = new Set<string>();
+      for (const id of ids) {
+        if (rowIdSet.has(id)) next.add(id);
+      }
+      setSelectedIds(next);
+    },
+    [rowIdSet]
+  );
+
+  const setRowsSelected = useCallback(
+    (ids: Iterable<string>, selected: boolean) => {
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        for (const id of ids) {
+          if (!rowIdSet.has(id)) continue;
+          if (selected) next.add(id);
+          else next.delete(id);
+        }
+        return next;
+      });
+    },
+    [rowIdSet]
+  );
+
   const toggleAll = useCallback(() => {
     setSelectedIds((prev) => {
       if (rowIds.length > 0 && prev.size === rowIds.length) {
@@ -48,6 +74,8 @@ export function useTableSelection<T>(
     selectedIds,
     selectedCount: selectedIds.size,
     toggleRow,
+    replaceSelection,
+    setRowsSelected,
     toggleAll,
     clearSelection,
     allSelected,
