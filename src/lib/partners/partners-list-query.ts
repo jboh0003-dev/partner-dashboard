@@ -21,10 +21,19 @@ export const PARTNER_LIST_SELECT =
 
 export type PartnersListSearchParams = {
   q?: string;
+  partnerId?: string;
   grade?: string;
+  regionGroup?: string;
+  region?: string;
   contractYear?: string;
   contractMonth?: string;
   includeExcluded?: string;
+};
+
+export type PartnerListFilterOptions = {
+  partners: Array<{ id: string; company_name: string; external_no: string | null }>;
+  regionGroups: string[];
+  regions: string[];
 };
 
 function parseContractDate(value: string | null | undefined): Date | null {
@@ -58,6 +67,16 @@ function matchesContractFilters(
   return true;
 }
 
+function cleanFilter(value: string | undefined): string {
+  const trimmed = value?.trim() ?? "";
+  return trimmed === "all" ? "" : trimmed;
+}
+
+function uniqueSorted(values: Array<string | null | undefined>): string[] {
+  return [...new Set(values.map((value) => value?.trim()).filter((value): value is string => Boolean(value)))]
+    .sort((a, b) => a.localeCompare(b, "ko-KR"));
+}
+
 async function findPartnerIdsMatchingContactQuery(
   supabase: SupabaseClient,
   q: string
@@ -89,60 +108,76 @@ export async function fetchPartnersList(
   excludedCount: number;
   error: string | null;
   gradeToken: string | null;
+  filterOptions: PartnerListFilterOptions;
 }> {
   const includeExcluded =
     params.includeExcluded === "1" || params.includeExcluded === "true";
   const gradeToken = parseGradeQueryParam(params.grade);
   const q = (params.q ?? "").trim();
+  const partnerId = cleanFilter(params.partnerId);
+  const regionGroup = cleanFilter(params.regionGroup);
+  const region = cleanFilter(params.region);
+
+  const emptyFilterOptions: PartnerListFilterOptions = {
+    partners: [],
+    regionGroups: [],
+    regions: []
+  };
 
   try {
-    let query = supabase
+    const { data: lightRows, error: lightError } = await supabase
       .from("partners")
-      .select(
-        PARTNER_LIST_SELECT
-      )
+      .select(PARTNER_LIST_SELECT)
       .is("deleted_at", null)
       .order("company_name", { ascending: true })
       .order("id", { ascending: true })
-      .or("is_active.is.null,is_active.eq.true");
+      .or("is_active.is.null,is_active.eq.true")
+      .limit(PARTNERS_LIST_MAX);
 
-    if (params.contractYear && Number.isFinite(Number(params.contractYear))) {
-      const year = Number(params.contractYear);
-      query = query
-        .gte("contract_start_date", `${year}-01-01`)
-        .lte("contract_start_date", `${year}-12-31`);
-    } else if (params.contractMonth) {
-      const match = /^(\d{4})-(\d{1,2})$/.exec(params.contractMonth.trim());
-      if (match) {
-        const year = Number(match[1]);
-        const month = Number(match[2]);
-        const start = `${year}-${String(month).padStart(2, "0")}-01`;
-        const endDate = new Date(year, month, 0);
-        const end = `${year}-${String(month).padStart(2, "0")}-${String(endDate.getDate()).padStart(2, "0")}`;
-        query = query.gte("contract_start_date", start).lte("contract_start_date", end);
-      }
-    }
-
-    const { data: lightRows, error: lightError } = await query.limit(PARTNERS_LIST_MAX);
     if (lightError) throw new Error(lightError.message);
 
-    let candidates = filterSamplePartners(
+    const allPartners = filterSamplePartners(
       (lightRows ?? []) as unknown as Partner[]
     ).filter((partner) => partner.is_active !== false);
 
-    const excludedCount = candidates.filter((partner) =>
+    const filterOptions: PartnerListFilterOptions = {
+      partners: allPartners
+        .map((partner) => ({
+          id: partner.id,
+          company_name: partner.company_name,
+          external_no: partner.external_no ?? null
+        }))
+        .sort((a, b) => a.company_name.localeCompare(b.company_name, "ko-KR")),
+      regionGroups: uniqueSorted(allPartners.map((partner) => partner.region_group)),
+      regions: uniqueSorted(allPartners.map((partner) => partner.region))
+    };
+
+    const excludedCount = allPartners.filter((partner) =>
       isExcludedFromOfficialPartnerStats(partner)
     ).length;
 
-    if (!includeExcluded) {
-      candidates = filterOfficialPartnerStatsPartners(candidates);
-    }
+    let candidates = includeExcluded
+      ? allPartners
+      : filterOfficialPartnerStatsPartners(allPartners);
 
     candidates = candidates.filter((partner) => matchesContractFilters(partner, params));
 
+    if (partnerId) {
+      candidates = candidates.filter((partner) => partner.id === partnerId);
+    }
     if (gradeToken) {
       candidates = candidates.filter(
         (partner) => getDisplayPartnerGrade(partner) === gradeToken
+      );
+    }
+    if (regionGroup) {
+      candidates = candidates.filter(
+        (partner) => partner.region_group?.trim() === regionGroup
+      );
+    }
+    if (region) {
+      candidates = candidates.filter(
+        (partner) => partner.region?.trim() === region
       );
     }
 
@@ -190,26 +225,25 @@ export async function fetchPartnersList(
         includeExcluded,
         excludedCount,
         error: null,
-        gradeToken
+        gradeToken,
+        filterOptions
       };
     }
 
-    // 첫 번째 파트너 조회가 이미 목록에 필요한 전체 필드를 포함하므로
-    // 동일한 파트너 행을 다시 조회하지 않는다. 담당자만 병렬로 보강한다.
     const contactsRes = await supabase
-        .from("partner_contacts")
-        .select(
-          "id, partner_id, name, department, position, email, phone, is_primary, is_contract_contact, is_active, deleted_at"
-        )
-        .in("partner_id", matchedIds)
-        .eq("is_active", true)
-        .is("deleted_at", null)
-        .limit(PARTNERS_LIST_MAX);
+      .from("partner_contacts")
+      .select(
+        "id, partner_id, name, department, position, email, phone, is_primary, is_contract_contact, is_active, deleted_at"
+      )
+      .in("partner_id", matchedIds)
+      .eq("is_active", true)
+      .is("deleted_at", null)
+      .limit(PARTNERS_LIST_MAX);
 
     if (contactsRes.error) throw new Error(contactsRes.error.message);
 
     const partnerMap = new Map(
-      ((lightRows ?? []) as unknown as Partner[]).map((partner) => [partner.id, partner])
+      allPartners.map((partner) => [partner.id, partner])
     );
     const partners = matchedIds
       .map((id) => partnerMap.get(id))
@@ -224,7 +258,8 @@ export async function fetchPartnersList(
       includeExcluded,
       excludedCount,
       error: null,
-      gradeToken
+      gradeToken,
+      filterOptions
     };
   } catch (error) {
     return {
@@ -233,7 +268,8 @@ export async function fetchPartnersList(
       includeExcluded,
       excludedCount: 0,
       error: error instanceof Error ? error.message : "파트너 목록 조회 실패",
-      gradeToken
+      gradeToken,
+      filterOptions: emptyFilterOptions
     };
   }
 }
