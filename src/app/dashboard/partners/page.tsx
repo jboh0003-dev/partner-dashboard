@@ -10,7 +10,10 @@ import { getCachedViewerAuthContext } from "@/lib/auth/require-admin";
 
 type SearchParams = {
   q?: string;
+  partnerId?: string;
   grade?: string;
+  regionGroup?: string;
+  region?: string;
   contractYear?: string;
   contractMonth?: string;
   includeExcluded?: string;
@@ -24,7 +27,6 @@ export default async function PartnersPage({
   const params = await searchParams;
   const supabase = await createClient();
 
-  // 권한 조회와 목록 조회를 직렬로 기다리지 않는다.
   const [auth, result] = await Promise.all([
     getCachedViewerAuthContext(),
     fetchPartnersList(supabase, params)
@@ -36,10 +38,24 @@ export default async function PartnersPage({
     includeExcluded,
     excludedCount,
     error: partnersError,
-    gradeToken
+    gradeToken,
+    filterOptions
   } = result;
 
   const exportRows = partnerListRowsToCsv(rows);
+  const selectedPartner = filterOptions.partners.find(
+    (partner) => partner.id === params.partnerId
+  );
+  const hasFilters = Boolean(
+    params.q ||
+      params.partnerId ||
+      gradeToken ||
+      params.regionGroup ||
+      params.region ||
+      params.contractYear ||
+      params.contractMonth ||
+      includeExcluded
+  );
 
   return (
     <>
@@ -60,68 +76,157 @@ export default async function PartnersPage({
       </AnimatedSection>
 
       <AnimatedSection delayMs={50}>
-        <form className="ui-toolbar mb-5 lg:flex-nowrap">
-          <input
-            name="q"
-            defaultValue={params.q ?? ""}
-            placeholder="회사명, 파트너번호, 등급, 담당자, 이메일, 연락처 검색"
-            className="ui-input min-w-[220px] flex-1"
-          />
-          <select
-            name="grade"
-            defaultValue={params.grade ?? "all"}
-            className="ui-select w-44 shrink-0"
-          >
-            <option value="all">전체 등급</option>
-            <option value="Platinum">Platinum</option>
-            <option value="Service Partner">Service Partner</option>
-            <option value="Gold">Gold</option>
-            <option value="Silver">Silver</option>
-            <option value="strategic">Strategic</option>
-            <option value="none">미분류</option>
-          </select>
-          <label className="flex shrink-0 items-center gap-2 text-xs text-slate-600">
+        <form className="mb-4 rounded-2xl border border-slate-200 bg-white p-4">
+          {params.contractYear ? (
+            <input type="hidden" name="contractYear" value={params.contractYear} />
+          ) : null}
+          {params.contractMonth ? (
+            <input type="hidden" name="contractMonth" value={params.contractMonth} />
+          ) : null}
+
+          <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-6">
             <input
-              type="checkbox"
-              name="includeExcluded"
-              value="1"
-              defaultChecked={includeExcluded}
-              className="rounded border-slate-300"
+              name="q"
+              defaultValue={params.q ?? ""}
+              placeholder="검색"
+              className="ui-input xl:col-span-2"
             />
-            통계 제외 포함
-          </label>
-          <button type="submit" className="ui-btn-accent shrink-0">
-            검색
-          </button>
+
+            <select
+              name="partnerId"
+              defaultValue={params.partnerId ?? ""}
+              className="ui-select"
+            >
+              <option value="">전체 파트너</option>
+              {filterOptions.partners.map((partner) => (
+                <option key={partner.id} value={partner.id}>
+                  {partner.company_name}
+                </option>
+              ))}
+            </select>
+
+            <select
+              name="grade"
+              defaultValue={params.grade ?? "all"}
+              className="ui-select"
+            >
+              <option value="all">전체 등급</option>
+              <option value="Platinum">Platinum</option>
+              <option value="Service Partner">Service Partner</option>
+              <option value="Gold">Gold</option>
+              <option value="Silver">Silver</option>
+              <option value="strategic">Strategic</option>
+              <option value="none">미분류</option>
+            </select>
+
+            <select
+              name="regionGroup"
+              defaultValue={params.regionGroup ?? ""}
+              className="ui-select"
+            >
+              <option value="">전체 광역권</option>
+              {filterOptions.regionGroups.map((value) => (
+                <option key={value} value={value}>
+                  {value}
+                </option>
+              ))}
+            </select>
+
+            <select
+              name="region"
+              defaultValue={params.region ?? ""}
+              className="ui-select"
+            >
+              <option value="">전체 지역</option>
+              {filterOptions.regions.map((value) => (
+                <option key={value} value={value}>
+                  {value}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+            <label className="flex items-center gap-2 text-xs text-slate-600">
+              <input
+                type="checkbox"
+                name="includeExcluded"
+                value="1"
+                defaultChecked={includeExcluded}
+                className="rounded border-slate-300"
+              />
+              통계 제외 포함
+            </label>
+
+            <div className="flex items-center gap-2">
+              {hasFilters ? (
+                <Link
+                  href="/dashboard/partners"
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+                >
+                  필터 초기화
+                </Link>
+              ) : null}
+              <button type="submit" className="ui-btn-accent">
+                필터 적용
+              </button>
+            </div>
+          </div>
         </form>
       </AnimatedSection>
 
-      {(params.contractYear || params.contractMonth || gradeToken || includeExcluded) && (
-        <AnimatedSection delayMs={80} className="mb-3 flex flex-wrap items-center gap-2 text-xs text-slate-600">
+      {hasFilters ? (
+        <AnimatedSection
+          delayMs={80}
+          className="mb-3 flex flex-wrap items-center gap-2 text-xs text-slate-600"
+        >
           <span>필터 적용:</span>
+          {selectedPartner ? (
+            <span className="rounded-full bg-slate-100 px-2 py-0.5 font-semibold">
+              파트너 {selectedPartner.company_name}
+            </span>
+          ) : null}
           {gradeToken ? (
-            <span className="rounded-full bg-slate-100 px-2 py-0.5 font-semibold">등급 {params.grade}</span>
+            <span className="rounded-full bg-slate-100 px-2 py-0.5 font-semibold">
+              등급 {params.grade}
+            </span>
+          ) : null}
+          {params.regionGroup ? (
+            <span className="rounded-full bg-slate-100 px-2 py-0.5 font-semibold">
+              광역권 {params.regionGroup}
+            </span>
+          ) : null}
+          {params.region ? (
+            <span className="rounded-full bg-slate-100 px-2 py-0.5 font-semibold">
+              지역 {params.region}
+            </span>
           ) : null}
           {params.contractYear ? (
-            <span className="rounded-full bg-slate-100 px-2 py-0.5 font-semibold">{params.contractYear}년 신규 계약</span>
+            <span className="rounded-full bg-slate-100 px-2 py-0.5 font-semibold">
+              {params.contractYear}년 신규 계약
+            </span>
           ) : null}
           {params.contractMonth ? (
-            <span className="rounded-full bg-slate-100 px-2 py-0.5 font-semibold">{params.contractMonth} 신규 계약</span>
+            <span className="rounded-full bg-slate-100 px-2 py-0.5 font-semibold">
+              {params.contractMonth} 신규 계약
+            </span>
           ) : null}
           {includeExcluded ? (
             <span className="rounded-full bg-amber-50 px-2 py-0.5 font-semibold text-amber-800">
               통계 제외 포함{excludedCount > 0 ? ` (${excludedCount})` : ""}
             </span>
           ) : null}
-          <Link href="/dashboard/partners" className="font-semibold text-okestro-600 hover:underline">필터 해제</Link>
         </AnimatedSection>
-      )}
+      ) : null}
 
       <AnimatedSection delayMs={100}>
         {partnersError ? (
           <EmptyState title="파트너 목록을 불러오지 못했습니다." description={partnersError} />
         ) : totalCount === 0 ? (
-          <EmptyState title="등록된 파트너사가 없습니다." description="파트너를 직접 등록하거나 업로드 화면에서 데이터를 먼저 반영하세요." />
+          <EmptyState
+            title="조건에 맞는 파트너사가 없습니다."
+            description="필터 조건을 변경하거나 초기화해 주세요."
+          />
         ) : (
           <PartnerAdminTable rows={rows} csvRows={exportRows} isAdmin={isAdmin} />
         )}
