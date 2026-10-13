@@ -80,6 +80,11 @@ export function CopyableDataTable<T>({
         onToggleAll={selection.toggleAll}
         allSelected={selection.allSelected}
         someSelected={selection.someSelected}
+        getRowClassName={(_row, id) =>
+          selection.selectedIds.has(id)
+            ? "bg-blue-50/70 hover:bg-blue-50/80"
+            : undefined
+        }
         scrollable={scrollable}
         scrollMaxHeight={scrollMaxHeight}
       />
