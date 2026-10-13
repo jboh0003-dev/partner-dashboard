@@ -224,6 +224,7 @@ export function ContactsAdminTable({
         kind: "text",
         className: "min-w-[7rem] max-w-[10rem]",
         value: (row) => row.display_role_labels.join(", "),
+        filterValues: (row) => row.display_role_labels,
         render: (row) => <ContactRoleBadges labels={row.role_labels} maxVisible={2} />
       },
       {
@@ -486,6 +487,7 @@ export function ContactsAdminTable({
           dragScroll
           stickyLeftKeys={["partner_no", "company_name", "name"]}
           stickyRightKeys={["actions"]}
+          excelFilters
         />
       )}
 
