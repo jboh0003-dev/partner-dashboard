@@ -445,9 +445,15 @@ export function ContactsAdminTable({
           selectable={isAdmin}
           selectedIds={selection.selectedIds}
           onToggleRow={selection.toggleRow}
+          onReplaceSelection={selection.replaceSelection}
           onToggleAll={selection.toggleAll}
           allSelected={selection.allSelected}
           someSelected={selection.someSelected}
+          getRowClassName={(_row, id) =>
+            selection.selectedIds.has(id)
+              ? "bg-blue-50/70 hover:bg-blue-50/80"
+              : undefined
+          }
           compact
           scrollable
           scrollMaxHeight="calc(100vh - 360px)"
