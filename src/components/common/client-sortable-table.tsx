@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { sortRows, type SortDir, type SortKind } from "@/lib/table-sort";
 
 export type SortableColumn<T> = {
@@ -41,6 +41,7 @@ type ClientSortableTableProps<T> = {
   selectable?: boolean;
   selectedIds?: Set<string>;
   onToggleRow?: (id: string) => void;
+  onReplaceSelection?: (ids: string[]) => void;
   onToggleAll?: () => void;
   allSelected?: boolean;
   someSelected?: boolean;
@@ -77,6 +78,7 @@ export function ClientSortableTable<T>({
   selectable = false,
   selectedIds,
   onToggleRow,
+  onReplaceSelection,
   onToggleAll,
   allSelected = false,
   someSelected = false,
@@ -93,6 +95,13 @@ export function ClientSortableTable<T>({
   const [dir, setDir] = useState<SortDir>(defaultDir);
   const scrollRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{ active: boolean; startX: number; scrollLeft: number } | null>(null);
+  const selectionDragRef = useRef<{
+    active: boolean;
+    startIndex: number;
+    mode: "select" | "deselect";
+    base: Set<string>;
+  } | null>(null);
+  const selectionAnchorRef = useRef<number | null>(null);
   const [isDragging, setIsDragging] = useState(false);
 
   const sortedRows = useMemo(() => {
@@ -112,6 +121,47 @@ export function ClientSortableTable<T>({
     setSortKey(key);
     setDir("asc");
   }
+
+  const replaceSelectionWithRange = useCallback(
+    (
+      startIndex: number,
+      endIndex: number,
+      base: Set<string>,
+      mode: "select" | "deselect"
+    ) => {
+      if (!onReplaceSelection) return;
+
+      const next = new Set(base);
+      const from = Math.max(0, Math.min(startIndex, endIndex));
+      const to = Math.min(sortedRows.length - 1, Math.max(startIndex, endIndex));
+
+      for (let index = from; index <= to; index += 1) {
+        const row = sortedRows[index];
+        if (!row) continue;
+        const id = rowKey(row);
+        if (mode === "select") next.add(id);
+        else next.delete(id);
+      }
+
+      onReplaceSelection([...next]);
+    },
+    [onReplaceSelection, rowKey, sortedRows]
+  );
+
+  useEffect(() => {
+    const stopSelectionDrag = () => {
+      if (selectionDragRef.current) {
+        selectionDragRef.current.active = false;
+      }
+    };
+
+    window.addEventListener("mouseup", stopSelectionDrag);
+    window.addEventListener("blur", stopSelectionDrag);
+    return () => {
+      window.removeEventListener("mouseup", stopSelectionDrag);
+      window.removeEventListener("blur", stopSelectionDrag);
+    };
+  }, []);
 
   const isInteractiveTarget = useCallback((target: EventTarget | null) => {
     if (!(target instanceof HTMLElement)) return false;
@@ -276,7 +326,7 @@ export function ClientSortableTable<T>({
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-50 bg-white select-text">
-            {sortedRows.map((row) => {
+            {sortedRows.map((row, rowIndex) => {
               const id = rowKey(row);
               const extraRowClass = getRowClassName?.(row, id);
               return (
@@ -290,18 +340,65 @@ export function ClientSortableTable<T>({
                       className={[
                         compact ? "px-3 py-2 align-middle" : "px-3 py-3 align-top",
                         "select-none",
+                        onReplaceSelection ? "cursor-pointer" : "",
                         stickyLeftKeys.length > 0 ? "ui-table-sticky-left bg-white" : ""
                       ]
                         .filter(Boolean)
                         .join(" ")}
                       style={checkboxStickyStyle}
+                      onMouseEnter={(event) => {
+                        const state = selectionDragRef.current;
+                        if (!state?.active || !onReplaceSelection) return;
+                        if ((event.buttons & 1) !== 1) return;
+                        replaceSelectionWithRange(
+                          state.startIndex,
+                          rowIndex,
+                          state.base,
+                          state.mode
+                        );
+                      }}
+                      title={
+                        onReplaceSelection
+                          ? "클릭 또는 위/아래로 드래그하여 연속 선택 · Shift+클릭으로 구간 선택"
+                          : undefined
+                      }
                     >
                       <input
                         type="checkbox"
                         checked={selectedIds?.has(id) ?? false}
+                        onMouseDown={(event) => {
+                          if (event.button !== 0 || event.shiftKey || !onReplaceSelection) {
+                            return;
+                          }
+                          selectionAnchorRef.current = rowIndex;
+                          selectionDragRef.current = {
+                            active: true,
+                            startIndex: rowIndex,
+                            mode: selectedIds?.has(id) ? "deselect" : "select",
+                            base: new Set(selectedIds ?? [])
+                          };
+                        }}
+                        onClick={(event) => {
+                          if (
+                            event.shiftKey &&
+                            selectionAnchorRef.current != null &&
+                            onReplaceSelection
+                          ) {
+                            event.preventDefault();
+                            replaceSelectionWithRange(
+                              selectionAnchorRef.current,
+                              rowIndex,
+                              new Set(selectedIds ?? []),
+                              "select"
+                            );
+                            selectionAnchorRef.current = rowIndex;
+                            return;
+                          }
+                          selectionAnchorRef.current = rowIndex;
+                        }}
                         onChange={() => onToggleRow?.(id)}
                         aria-label="행 선택"
-                        className="h-4 w-4 rounded border-slate-300 select-none"
+                        className="h-4 w-4 cursor-pointer rounded border-slate-300 select-none"
                         data-no-drag-scroll
                       />
                     </td>
