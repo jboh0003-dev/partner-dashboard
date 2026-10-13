@@ -334,6 +334,17 @@ export function ClientSortableTable<T>({
                   key={id}
                   className={["ui-table-row", extraRowClass].filter(Boolean).join(" ")}
                   style={{ contentVisibility: "auto", containIntrinsicSize: "0 58px" }}
+                  onMouseEnter={(event) => {
+                    const state = selectionDragRef.current;
+                    if (!state?.active || !onReplaceSelection) return;
+                    if ((event.buttons & 1) !== 1) return;
+                    replaceSelectionWithRange(
+                      state.startIndex,
+                      rowIndex,
+                      state.base,
+                      state.mode
+                    );
+                  }}
                 >
                   {selectable ? (
                     <td
@@ -346,59 +357,52 @@ export function ClientSortableTable<T>({
                         .filter(Boolean)
                         .join(" ")}
                       style={checkboxStickyStyle}
-                      onMouseEnter={(event) => {
-                        const state = selectionDragRef.current;
-                        if (!state?.active || !onReplaceSelection) return;
-                        if ((event.buttons & 1) !== 1) return;
-                        replaceSelectionWithRange(
-                          state.startIndex,
-                          rowIndex,
-                          state.base,
-                          state.mode
-                        );
+                      data-no-drag-scroll
+                      onMouseDown={(event) => {
+                        if (event.button !== 0 || !onReplaceSelection) return;
+                        event.preventDefault();
+
+                        if (event.shiftKey && selectionAnchorRef.current != null) {
+                          replaceSelectionWithRange(
+                            selectionAnchorRef.current,
+                            rowIndex,
+                            new Set(selectedIds ?? []),
+                            "select"
+                          );
+                          selectionAnchorRef.current = rowIndex;
+                          selectionDragRef.current = null;
+                          return;
+                        }
+
+                        const mode = selectedIds?.has(id) ? "deselect" : "select";
+                        const base = new Set(selectedIds ?? []);
+                        selectionAnchorRef.current = rowIndex;
+                        selectionDragRef.current = {
+                          active: true,
+                          startIndex: rowIndex,
+                          mode,
+                          base
+                        };
+                        replaceSelectionWithRange(rowIndex, rowIndex, base, mode);
                       }}
                       title={
                         onReplaceSelection
-                          ? "클릭 또는 위/아래로 드래그하여 연속 선택 · Shift+클릭으로 구간 선택"
+                          ? "누른 채 위/아래로 드래그하여 연속 선택 · Shift+클릭으로 구간 선택"
                           : undefined
                       }
                     >
                       <input
                         type="checkbox"
                         checked={selectedIds?.has(id) ?? false}
-                        onMouseDown={(event) => {
-                          if (event.button !== 0 || event.shiftKey || !onReplaceSelection) {
-                            return;
-                          }
-                          selectionAnchorRef.current = rowIndex;
-                          selectionDragRef.current = {
-                            active: true,
-                            startIndex: rowIndex,
-                            mode: selectedIds?.has(id) ? "deselect" : "select",
-                            base: new Set(selectedIds ?? [])
-                          };
-                        }}
-                        onClick={(event) => {
-                          if (
-                            event.shiftKey &&
-                            selectionAnchorRef.current != null &&
-                            onReplaceSelection
-                          ) {
-                            event.preventDefault();
-                            replaceSelectionWithRange(
-                              selectionAnchorRef.current,
-                              rowIndex,
-                              new Set(selectedIds ?? []),
-                              "select"
-                            );
-                            selectionAnchorRef.current = rowIndex;
-                            return;
-                          }
-                          selectionAnchorRef.current = rowIndex;
-                        }}
-                        onChange={() => onToggleRow?.(id)}
+                        onChange={
+                          onReplaceSelection ? undefined : () => onToggleRow?.(id)
+                        }
+                        readOnly={Boolean(onReplaceSelection)}
                         aria-label="행 선택"
-                        className="h-4 w-4 cursor-pointer rounded border-slate-300 select-none"
+                        className={[
+                          "h-4 w-4 rounded border-slate-300 select-none",
+                          onReplaceSelection ? "pointer-events-none" : "cursor-pointer"
+                        ].join(" ")}
                         data-no-drag-scroll
                       />
                     </td>
