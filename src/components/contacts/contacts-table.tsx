@@ -21,6 +21,8 @@ export type ContactTableRow = {
   partner_no: string | null;
   name: string;
   company_name: string;
+  region_group?: string | null;
+  region?: string | null;
   contract_start_date?: string | null;
   role_type: string | null;
   role_raw?: string | null;
@@ -66,6 +68,22 @@ const columns: SortableColumn<ContactTableRow>[] = [
         {row.company_name}
       </Link>
     )
+  },
+  {
+    key: "region_group",
+    label: "광역권",
+    kind: "text",
+    className: "min-w-[6rem] whitespace-nowrap",
+    value: (row) => row.region_group,
+    render: (row) => <TableText value={row.region_group} className="min-w-[6rem] whitespace-nowrap" />
+  },
+  {
+    key: "region",
+    label: "지역",
+    kind: "text",
+    className: "min-w-[5rem] whitespace-nowrap",
+    value: (row) => row.region,
+    render: (row) => <TableText value={row.region} className="min-w-[5rem] whitespace-nowrap" />
   },
   {
     key: "name",
@@ -170,6 +188,7 @@ export function ContactsTable({
       selectedRowTsv={CONTACT_SELECTED_ROW_TSV}
       csvRows={csvRows}
       csvFilenamePrefix="partner-contacts"
+      excelFilters
     />
   );
 }
