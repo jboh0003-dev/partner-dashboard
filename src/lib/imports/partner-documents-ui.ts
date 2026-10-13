@@ -124,6 +124,7 @@ export const UPLOAD_DOCUMENT_TYPES = [
   "business_registration",
   "bank_account",
   "company_profile",
+  "business_plan",
   "credit_rating",
   "security_commitment",
   "other"
@@ -135,6 +136,7 @@ export const UPLOAD_DOCUMENT_TYPE_LABEL: Record<(typeof UPLOAD_DOCUMENT_TYPES)[n
   business_registration: "사업자등록증",
   bank_account: "통장사본",
   company_profile: "회사소개서",
+  business_plan: "사업계획서",
   credit_rating: "신용평가서",
   security_commitment: "보안확약서",
   other: "기타"
