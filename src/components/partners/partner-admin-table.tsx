@@ -292,6 +292,9 @@ export function PartnerAdminTable({ rows, csvRows, isAdmin = false }: PartnerAdm
             {localRows.length.toLocaleString("ko-KR")}
           </span>
           개의 파트너사가 검색되었습니다.
+          <span className="ml-2 hidden text-slate-400 lg:inline">
+            · 체크박스를 누른 채 위/아래로 드래그하면 연속 선택
+          </span>
         </div>
         {isAdmin ? (
           <button
@@ -336,9 +339,10 @@ export function PartnerAdminTable({ rows, csvRows, isAdmin = false }: PartnerAdm
         defaultDir="asc"
         minWidth="1280px"
         rowKey={(row) => row.partner.id}
-        selectable={isAdmin}
+        selectable
         selectedIds={selection.selectedIds}
         onToggleRow={selection.toggleRow}
+        onReplaceSelection={selection.replaceSelection}
         onToggleAll={selection.toggleAll}
         allSelected={selection.allSelected}
         someSelected={selection.someSelected}
