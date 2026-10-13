@@ -85,6 +85,16 @@ const columns: SortableColumn<ContactTableRow>[] = [
     )
   },
   {
+    key: "position",
+    label: "직급",
+    kind: "text",
+    className: "min-w-[6.5rem]",
+    value: (row) => row.position,
+    render: (row) => (
+      <TableText value={row.position} className="min-w-[6.5rem] whitespace-nowrap" />
+    )
+  },
+  {
     key: "assignment",
     label: "담당구분",
     kind: "text",
@@ -100,18 +110,6 @@ const columns: SortableColumn<ContactTableRow>[] = [
           role_type: row.role_type,
           is_contract_contact: row.is_contract_contact
         }}
-      />
-    )
-  },
-  {
-    key: "department",
-    label: "부서/직급",
-    kind: "text",
-    value: (row) => [row.department, row.position].filter(Boolean).join(" / "),
-    render: (row) => (
-      <TableText
-        value={[row.department, row.position].filter(Boolean).join(" / ")}
-        className="block min-w-[8rem] max-w-[16rem] break-keep whitespace-normal"
       />
     )
   },
