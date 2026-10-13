@@ -25,10 +25,10 @@ export type Partner = {
   contract_contact_email: string | null;
   revenue_2023: string | null;
   employee_count: string | null;
-  engineer_count: string | null;
-  dedicated_sales_count: string | null;
-  dedicated_engineer_count: string | null;
-  founded_date: string | null;
+  engineer_count?: string | null;
+  dedicated_sales_count?: string | null;
+  dedicated_engineer_count?: string | null;
+  founded_date?: string | null;
   credit_rating: string | null;
   region_group: string | null;
   region: string | null;
