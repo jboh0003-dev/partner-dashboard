@@ -12,6 +12,8 @@ import type { PersonContactRow } from "@/lib/contacts/person-groups";
 type ContactPartnerEmbed = {
   company_name: string;
   external_no: string | null;
+  region_group?: string | null;
+  region?: string | null;
   deleted_at?: string | null;
   is_active?: boolean | null;
 };
@@ -74,6 +76,8 @@ export function mapContactToPersonRow(row: ContactListDbRow): PersonContactRow {
     partner_no: partner?.external_no ?? null,
     name: row.name,
     company_name: partner?.company_name ?? "-",
+    region_group: partner?.region_group ?? null,
+    region: partner?.region ?? null,
     contract_start_date: null,
     role_type: row.role_type,
     role_raw: row.role_raw,
