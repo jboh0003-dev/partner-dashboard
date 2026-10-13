@@ -14,7 +14,7 @@ import { normalizeCompanyName } from "@/lib/partner-match";
 export const CONTACTS_LIST_MAX = 5000;
 
 export const CONTACT_LIST_SELECT =
-  "id, partner_id, name, department, position, role_type, role_raw, email, phone, phone_display, phone_normalized, is_contract_contact, is_primary, review_required, review_reason, memo, created_at, is_active, in_current_full_db, partner:partners!partner_contacts_partner_id_fkey(company_name, external_no, deleted_at, is_active)";
+  "id, partner_id, name, department, position, role_type, role_raw, email, phone, phone_display, phone_normalized, is_contract_contact, is_primary, review_required, review_reason, memo, created_at, is_active, in_current_full_db, partner:partners!partner_contacts_partner_id_fkey(company_name, external_no, region_group, region, deleted_at, is_active)";
 
 export function normalizeContactsRoleFilter(role?: string | null): string {
   const normalized = (role ?? "").trim();
@@ -26,9 +26,14 @@ export type ContactsListQueryInput = {
   partnerId?: string;
   q?: string;
   role?: string;
+  position?: string;
+  regionGroup?: string;
+  region?: string;
   bouncedContactIds?: string[];
   /** 회사명 검색으로 매칭된 partner_id (inner join 없이 or 조건에 사용) */
   companyMatchPartnerIds?: string[];
+  /** 광역권/지역 필터로 매칭된 partner_id */
+  partnerFilterIds?: string[];
 };
 
 export type ContactsListQueryResult = {
@@ -62,16 +67,31 @@ export function buildContactsCountLabel(input: {
   view: ContactListView;
   q?: string;
   role?: string;
+  position?: string;
+  regionGroup?: string;
+  region?: string;
   partnerId?: string;
 }): string {
   const total = input.total.toLocaleString("ko-KR");
   const q = (input.q ?? "").trim();
   const role = normalizeContactsRoleFilter(input.role);
   const hasPartner = Boolean((input.partnerId ?? "").trim());
+  const hasPosition = Boolean((input.position ?? "").trim());
+  const hasRegionGroup = Boolean((input.regionGroup ?? "").trim());
+  const hasRegion = Boolean((input.region ?? "").trim());
   const hasViewFilter = input.view !== "all";
 
   if (q) return `검색 결과 ${total}명`;
-  if (role !== "all" || hasPartner || hasViewFilter) return `필터 결과 ${total}명`;
+  if (
+    role !== "all" ||
+    hasPartner ||
+    hasPosition ||
+    hasRegionGroup ||
+    hasRegion ||
+    hasViewFilter
+  ) {
+    return `필터 결과 ${total}명`;
+  }
   return `현재 전체DB 기준 ${total}명`;
 }
 
@@ -114,6 +134,13 @@ function applyListFilters(query: any, input: ContactsListQueryInput, useBaseline
 
   if (input.partnerId) {
     filtered = filtered.eq("partner_id", input.partnerId);
+  } else if (input.partnerFilterIds && input.partnerFilterIds.length > 0) {
+    filtered = filtered.in("partner_id", input.partnerFilterIds);
+  }
+
+  const position = input.position?.trim();
+  if (position) {
+    filtered = filtered.eq("position", position);
   }
 
   const q = input.q?.trim();
@@ -148,6 +175,33 @@ function applyListFilters(query: any, input: ContactsListQueryInput, useBaseline
   }
 
   return filtered;
+}
+
+async function resolvePartnerFilterIds(
+  supabase: SupabaseClient,
+  regionGroup?: string,
+  region?: string
+): Promise<string[]> {
+  const normalizedRegionGroup = regionGroup?.trim() ?? "";
+  const normalizedRegion = region?.trim() ?? "";
+  if (!normalizedRegionGroup && !normalizedRegion) return [];
+
+  let query = supabase
+    .from("partners")
+    .select("id")
+    .is("deleted_at", null)
+    .or("is_active.is.null,is_active.eq.true");
+
+  if (normalizedRegionGroup) {
+    query = query.eq("region_group", normalizedRegionGroup);
+  }
+  if (normalizedRegion) {
+    query = query.eq("region", normalizedRegion);
+  }
+
+  const { data, error } = await query.limit(5000);
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((partner) => String(partner.id));
 }
 
 async function resolveCompanyMatchPartnerIds(
@@ -197,13 +251,27 @@ async function runListQuery(
   }
 
   const q = input.q?.trim();
-  const companyMatchPartnerIds = q
-    ? await resolveCompanyMatchPartnerIds(supabase, q)
-    : [];
+  const [companyMatchPartnerIds, partnerFilterIds] = await Promise.all([
+    q ? resolveCompanyMatchPartnerIds(supabase, q) : Promise.resolve([]),
+    input.partnerId
+      ? Promise.resolve([])
+      : resolvePartnerFilterIds(supabase, input.regionGroup, input.region)
+  ]);
+
+  const hasRegionFilter = Boolean(input.regionGroup?.trim() || input.region?.trim());
+  if (!input.partnerId && hasRegionFilter && partnerFilterIds.length === 0) {
+    return {
+      rows: [],
+      total: 0,
+      error: null,
+      usedFallbackQuery: !useBaselineColumns
+    };
+  }
 
   const queryInput: ContactsListQueryInput = {
     ...input,
-    companyMatchPartnerIds
+    companyMatchPartnerIds,
+    partnerFilterIds
   };
 
   const query = applyListFilters(
