@@ -1,7 +1,10 @@
 "use client";
 
+import { ListFilter, Search, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { sortRows, type SortDir, type SortKind } from "@/lib/table-sort";
+
+const EMPTY_FILTER_VALUE = "__PARTNER_CONNECT_EMPTY_FILTER_VALUE__";
 
 export type SortableColumn<T> = {
   key: string;
@@ -13,6 +16,10 @@ export type SortableColumn<T> = {
   textSelectable?: boolean;
   sticky?: "left" | "right";
   stickyOffset?: number;
+  /** Excel형 열 필터에서 사용할 값. 여러 담당구분처럼 한 행이 복수 값이면 배열로 반환 */
+  filterValues?: (row: T) => Array<string | number | null | undefined>;
+  /** false면 Excel형 열 필터 버튼을 숨김 */
+  filterable?: boolean;
   value: (row: T) => string | number | null | undefined;
   render: (row: T) => React.ReactNode;
 };
@@ -21,6 +28,27 @@ function isTextSelectableColumn<T>(column: SortableColumn<T>) {
   if (column.textSelectable === false) return false;
   if (column.key === "actions") return false;
   return true;
+}
+
+function normalizeFilterValue(value: string | number | null | undefined): string {
+  if (value === null || value === undefined) return EMPTY_FILTER_VALUE;
+  const normalized = String(value).trim();
+  return normalized || EMPTY_FILTER_VALUE;
+}
+
+function displayFilterValue(value: string): string {
+  return value === EMPTY_FILTER_VALUE ? "(빈 셀)" : value;
+}
+
+function rowFilterValues<T>(column: SortableColumn<T>, row: T): string[] {
+  const rawValues = column.filterValues?.(row) ?? [column.value(row)];
+  const normalized = [...new Set(rawValues.map(normalizeFilterValue))];
+  return normalized.length > 0 ? normalized : [EMPTY_FILTER_VALUE];
+}
+
+function isFilterableColumn<T>(column: SortableColumn<T>, excelFilters: boolean) {
+  if (!excelFilters || column.filterable === false) return false;
+  return column.key !== "actions" && column.key !== "detail";
 }
 
 const CHECKBOX_STICKY_WIDTH = 40;
@@ -53,6 +81,8 @@ type ClientSortableTableProps<T> = {
   dragScroll?: boolean;
   stickyLeftKeys?: string[];
   stickyRightKeys?: string[];
+  /** 각 열 헤더에 Excel처럼 값 목록 체크 필터 표시 */
+  excelFilters?: boolean;
 };
 
 function resolveStickyLeftOffset(
@@ -89,11 +119,16 @@ export function ClientSortableTable<T>({
   compact = false,
   dragScroll = false,
   stickyLeftKeys = [],
-  stickyRightKeys = []
+  stickyRightKeys = [],
+  excelFilters = false
 }: ClientSortableTableProps<T>) {
   const [sortKey, setSortKey] = useState(defaultSortKey);
   const [dir, setDir] = useState<SortDir>(defaultDir);
+  const [columnFilters, setColumnFilters] = useState<Record<string, string[]>>({});
+  const [openFilterKey, setOpenFilterKey] = useState<string | null>(null);
+  const [filterSearch, setFilterSearch] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
+  const filterMenuRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{ active: boolean; startX: number; scrollLeft: number } | null>(null);
   const selectionDragRef = useRef<{
     active: boolean;
@@ -104,14 +139,80 @@ export function ClientSortableTable<T>({
   const selectionAnchorRef = useRef<number | null>(null);
   const [isDragging, setIsDragging] = useState(false);
 
+  const filteredRows = useMemo(() => {
+    const activeFilters = Object.entries(columnFilters);
+    if (!excelFilters || activeFilters.length === 0) return rows;
+
+    return rows.filter((row) =>
+      activeFilters.every(([columnKey, selectedValues]) => {
+        const column = columns.find((item) => item.key === columnKey);
+        if (!column) return true;
+        if (selectedValues.length === 0) return false;
+        const values = rowFilterValues(column, row);
+        return values.some((value) => selectedValues.includes(value));
+      })
+    );
+  }, [rows, columns, columnFilters, excelFilters]);
+
   const sortedRows = useMemo(() => {
     if (compareRows) {
-      return [...rows].sort((a, b) => compareRows(a, b, sortKey, dir));
+      return [...filteredRows].sort((a, b) => compareRows(a, b, sortKey, dir));
     }
     const column = columns.find((item) => item.key === sortKey) ?? columns[0];
-    if (!column) return rows;
-    return sortRows(rows, column.value, column.kind, dir);
-  }, [rows, columns, sortKey, dir, compareRows]);
+    if (!column) return filteredRows;
+    return sortRows(filteredRows, column.value, column.kind, dir);
+  }, [filteredRows, columns, sortKey, dir, compareRows]);
+
+  const activeFilterCount = Object.keys(columnFilters).length;
+
+  const visibleIds = useMemo(() => sortedRows.map(rowKey), [sortedRows, rowKey]);
+  const visibleAllSelected =
+    visibleIds.length > 0 && visibleIds.every((id) => selectedIds?.has(id) ?? false);
+  const visibleSomeSelected =
+    visibleIds.some((id) => selectedIds?.has(id) ?? false) && !visibleAllSelected;
+
+  useEffect(() => {
+    if (
+      !excelFilters ||
+      activeFilterCount === 0 ||
+      !onReplaceSelection ||
+      !selectedIds ||
+      selectedIds.size === 0
+    ) {
+      return;
+    }
+
+    const visibleSet = new Set(filteredRows.map(rowKey));
+    const next = [...selectedIds].filter((id) => visibleSet.has(id));
+    if (next.length !== selectedIds.size) {
+      onReplaceSelection(next);
+    }
+  }, [
+    activeFilterCount,
+    excelFilters,
+    filteredRows,
+    onReplaceSelection,
+    rowKey,
+    selectedIds
+  ]);
+
+  useEffect(() => {
+    if (!openFilterKey) return;
+
+    const handleOutside = (event: MouseEvent) => {
+      if (
+        filterMenuRef.current &&
+        event.target instanceof Node &&
+        !filterMenuRef.current.contains(event.target)
+      ) {
+        setOpenFilterKey(null);
+        setFilterSearch("");
+      }
+    };
+
+    window.addEventListener("mousedown", handleOutside);
+    return () => window.removeEventListener("mousedown", handleOutside);
+  }, [openFilterKey]);
 
   function handleSort(key: string) {
     if (sortKey === key) {
@@ -120,6 +221,76 @@ export function ClientSortableTable<T>({
     }
     setSortKey(key);
     setDir("asc");
+  }
+
+  function filterOptionsFor(column: SortableColumn<T>): Array<{ value: string; count: number }> {
+    const counts = new Map<string, number>();
+
+    for (const row of rows) {
+      for (const value of rowFilterValues(column, row)) {
+        counts.set(value, (counts.get(value) ?? 0) + 1);
+      }
+    }
+
+    return [...counts.entries()]
+      .map(([value, count]) => ({ value, count }))
+      .sort((a, b) =>
+        displayFilterValue(a.value).localeCompare(displayFilterValue(b.value), "ko-KR", {
+          numeric: true
+        })
+      );
+  }
+
+  function toggleFilterValue(column: SortableColumn<T>, value: string) {
+    const options = filterOptionsFor(column).map((option) => option.value);
+    const currentValues = columnFilters[column.key];
+    const next = new Set(currentValues ?? options);
+
+    if (next.has(value)) next.delete(value);
+    else next.add(value);
+
+    setColumnFilters((current) => {
+      const updated = { ...current };
+      if (next.size === options.length) {
+        delete updated[column.key];
+      } else {
+        updated[column.key] = [...next];
+      }
+      return updated;
+    });
+  }
+
+  function selectAllFilterValues(columnKey: string) {
+    setColumnFilters((current) => {
+      const updated = { ...current };
+      delete updated[columnKey];
+      return updated;
+    });
+  }
+
+  function clearAllFilterValues(columnKey: string) {
+    setColumnFilters((current) => ({ ...current, [columnKey]: [] }));
+  }
+
+  function clearAllColumnFilters() {
+    setColumnFilters({});
+    setOpenFilterKey(null);
+    setFilterSearch("");
+  }
+
+  function toggleVisibleRows() {
+    if (!onReplaceSelection || !selectedIds) {
+      onToggleAll?.();
+      return;
+    }
+
+    const next = new Set(selectedIds);
+    if (visibleAllSelected) {
+      visibleIds.forEach((id) => next.delete(id));
+    } else {
+      visibleIds.forEach((id) => next.add(id));
+    }
+    onReplaceSelection([...next]);
   }
 
   const replaceSelectionWithRange = useCallback(
@@ -237,6 +408,23 @@ export function ClientSortableTable<T>({
 
   return (
     <div className="ui-table-shell">
+      {excelFilters && activeFilterCount > 0 ? (
+        <div className="flex items-center justify-between gap-3 border-b border-slate-100 bg-slate-50/80 px-3 py-2 text-xs text-slate-600">
+          <span>
+            열 필터 {activeFilterCount}개 적용 · {filteredRows.length.toLocaleString("ko-KR")}건 표시
+          </span>
+          <button
+            type="button"
+            onClick={clearAllColumnFilters}
+            className="inline-flex items-center gap-1 font-semibold text-slate-600 hover:text-slate-900"
+            data-no-drag-scroll
+          >
+            <X size={13} />
+            전체 필터 해제
+          </button>
+        </div>
+      ) : null}
+
       <div
         ref={scrollRef}
         className={[
@@ -255,7 +443,7 @@ export function ClientSortableTable<T>({
         <table className="w-full divide-y divide-slate-100" style={{ minWidth }}>
           <thead
             className={[
-              "ui-table-head sticky top-0 z-10 select-none shadow-[0_1px_0_0_rgba(226,232,240,0.9)]",
+              "ui-table-head sticky top-0 z-20 select-none shadow-[0_1px_0_0_rgba(226,232,240,0.9)]",
               headCellClass
             ]
               .filter(Boolean)
@@ -275,12 +463,16 @@ export function ClientSortableTable<T>({
                 >
                   <input
                     type="checkbox"
-                    checked={allSelected}
+                    checked={onReplaceSelection ? visibleAllSelected : allSelected}
                     ref={(input) => {
-                      if (input) input.indeterminate = someSelected;
+                      if (input) {
+                        input.indeterminate = onReplaceSelection
+                          ? visibleSomeSelected
+                          : someSelected;
+                      }
                     }}
-                    onChange={() => onToggleAll?.()}
-                    aria-label="현재 필터 결과 전체 선택"
+                    onChange={toggleVisibleRows}
+                    aria-label="현재 표시 결과 전체 선택"
                     className="h-4 w-4 rounded border-slate-300 select-none"
                     data-no-drag-scroll
                   />
@@ -288,6 +480,19 @@ export function ClientSortableTable<T>({
               ) : null}
               {columns.map((column) => {
                 const isActive = sortKey === column.key;
+                const filterable = isFilterableColumn(column, excelFilters);
+                const activeValues = columnFilters[column.key];
+                const filterActive = activeValues !== undefined;
+                const allOptions = filterable ? filterOptionsFor(column) : [];
+                const normalizedSearch = filterSearch.trim().toLowerCase();
+                const visibleOptions = normalizedSearch
+                  ? allOptions.filter((option) =>
+                      displayFilterValue(option.value)
+                        .toLowerCase()
+                        .includes(normalizedSearch)
+                    )
+                  : allOptions;
+
                 return (
                   <th
                     key={column.key}
@@ -303,132 +508,262 @@ export function ClientSortableTable<T>({
                     ].join(" ")}
                     style={stickyStyle(column)}
                   >
-                    <button
-                      type="button"
-                      onClick={() => handleSort(column.key)}
+                    <div
                       className={[
-                        "inline-flex select-none items-center gap-1.5 transition hover:text-slate-800",
+                        "relative inline-flex items-center gap-1",
                         column.align === "right" ? "ml-auto" : "",
-                        column.align === "center" ? "mx-auto" : "",
-                        isActive ? "text-okestro-700" : ""
+                        column.align === "center" ? "mx-auto" : ""
                       ].join(" ")}
-                      title={`${column.label} 정렬`}
-                      data-no-drag-scroll
                     >
-                      <span>{column.label}</span>
-                      <span className="text-[10px] leading-none text-okestro-600" aria-hidden>
-                        {isActive ? (dir === "asc" ? "▲" : "▼") : "↕"}
-                      </span>
-                    </button>
+                      <button
+                        type="button"
+                        onClick={() => handleSort(column.key)}
+                        className={[
+                          "inline-flex select-none items-center gap-1 transition hover:text-slate-800",
+                          isActive ? "text-okestro-700" : ""
+                        ].join(" ")}
+                        title={`${column.label} 정렬`}
+                        data-no-drag-scroll
+                      >
+                        <span>{column.label}</span>
+                        <span className="text-[10px] leading-none text-okestro-600" aria-hidden>
+                          {isActive ? (dir === "asc" ? "▲" : "▼") : "↕"}
+                        </span>
+                      </button>
+
+                      {filterable ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setOpenFilterKey((current) =>
+                              current === column.key ? null : column.key
+                            );
+                            setFilterSearch("");
+                          }}
+                          className={[
+                            "inline-flex h-5 w-5 items-center justify-center rounded transition",
+                            filterActive
+                              ? "bg-blue-100 text-blue-700"
+                              : "text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                          ].join(" ")}
+                          title={`${column.label} 값 필터`}
+                          aria-label={`${column.label} 값 필터`}
+                          data-no-drag-scroll
+                        >
+                          <ListFilter size={13} />
+                        </button>
+                      ) : null}
+
+                      {filterable && openFilterKey === column.key ? (
+                        <div
+                          ref={filterMenuRef}
+                          className="absolute left-0 top-full z-[80] mt-2 w-64 rounded-xl border border-slate-200 bg-white p-2 text-left shadow-xl"
+                          data-no-drag-scroll
+                          role="menu"
+                        >
+                          <div className="mb-2 flex items-center gap-2 rounded-lg border border-slate-200 px-2 py-1.5">
+                            <Search size={13} className="shrink-0 text-slate-400" />
+                            <input
+                              value={filterSearch}
+                              onChange={(event) => setFilterSearch(event.target.value)}
+                              placeholder="값 검색"
+                              className="min-w-0 flex-1 bg-transparent text-xs text-slate-700 outline-none"
+                              autoFocus
+                              data-no-drag-scroll
+                            />
+                          </div>
+
+                          <div className="mb-1 flex items-center justify-between border-b border-slate-100 pb-2">
+                            <button
+                              type="button"
+                              onClick={() => selectAllFilterValues(column.key)}
+                              className="text-[11px] font-semibold text-blue-700 hover:underline"
+                              data-no-drag-scroll
+                            >
+                              전체 선택
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => clearAllFilterValues(column.key)}
+                              className="text-[11px] font-semibold text-slate-500 hover:underline"
+                              data-no-drag-scroll
+                            >
+                              전체 해제
+                            </button>
+                          </div>
+
+                          <div className="max-h-64 overflow-y-auto py-1">
+                            {visibleOptions.length === 0 ? (
+                              <div className="px-2 py-4 text-center text-xs text-slate-400">
+                                일치하는 값이 없습니다.
+                              </div>
+                            ) : (
+                              visibleOptions.map((option) => {
+                                const checked =
+                                  activeValues === undefined ||
+                                  activeValues.includes(option.value);
+                                return (
+                                  <label
+                                    key={option.value}
+                                    className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-xs text-slate-700 hover:bg-slate-50"
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={checked}
+                                      onChange={() =>
+                                        toggleFilterValue(column, option.value)
+                                      }
+                                      className="h-3.5 w-3.5 rounded border-slate-300"
+                                      data-no-drag-scroll
+                                    />
+                                    <span className="min-w-0 flex-1 truncate">
+                                      {displayFilterValue(option.value)}
+                                    </span>
+                                    <span className="tabular-nums text-[10px] text-slate-400">
+                                      {option.count}
+                                    </span>
+                                  </label>
+                                );
+                              })
+                            )}
+                          </div>
+
+                          <div className="mt-1 flex justify-end border-t border-slate-100 pt-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setOpenFilterKey(null);
+                                setFilterSearch("");
+                              }}
+                              className="rounded-md bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-slate-700"
+                              data-no-drag-scroll
+                            >
+                              완료
+                            </button>
+                          </div>
+                        </div>
+                      ) : null}
+                    </div>
                   </th>
                 );
               })}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-50 bg-white select-text">
-            {sortedRows.map((row, rowIndex) => {
-              const id = rowKey(row);
-              const extraRowClass = getRowClassName?.(row, id);
-              return (
-                <tr
-                  key={id}
-                  className={["ui-table-row", extraRowClass].filter(Boolean).join(" ")}
-                  style={{ contentVisibility: "auto", containIntrinsicSize: "0 58px" }}
-                  onMouseEnter={(event) => {
-                    const state = selectionDragRef.current;
-                    if (!state?.active || !onReplaceSelection) return;
-                    if ((event.buttons & 1) !== 1) return;
-                    replaceSelectionWithRange(
-                      state.startIndex,
-                      rowIndex,
-                      state.base,
-                      state.mode
-                    );
-                  }}
+            {sortedRows.length === 0 ? (
+              <tr>
+                <td
+                  colSpan={columns.length + (selectable ? 1 : 0)}
+                  className="px-4 py-10 text-center text-sm text-slate-500"
                 >
-                  {selectable ? (
-                    <td
-                      className={[
-                        compact ? "px-3 py-2 align-middle" : "px-3 py-3 align-top",
-                        "select-none",
-                        onReplaceSelection ? "cursor-pointer" : "",
-                        stickyLeftKeys.length > 0 ? "ui-table-sticky-left bg-white" : ""
-                      ]
-                        .filter(Boolean)
-                        .join(" ")}
-                      style={checkboxStickyStyle}
-                      data-no-drag-scroll
-                      onMouseDown={(event) => {
-                        if (event.button !== 0 || !onReplaceSelection) return;
-                        event.preventDefault();
-
-                        if (event.shiftKey && selectionAnchorRef.current != null) {
-                          replaceSelectionWithRange(
-                            selectionAnchorRef.current,
-                            rowIndex,
-                            new Set(selectedIds ?? []),
-                            "select"
-                          );
-                          selectionAnchorRef.current = rowIndex;
-                          selectionDragRef.current = null;
-                          return;
-                        }
-
-                        const mode = selectedIds?.has(id) ? "deselect" : "select";
-                        const base = new Set(selectedIds ?? []);
-                        selectionAnchorRef.current = rowIndex;
-                        selectionDragRef.current = {
-                          active: true,
-                          startIndex: rowIndex,
-                          mode,
-                          base
-                        };
-                        replaceSelectionWithRange(rowIndex, rowIndex, base, mode);
-                      }}
-                      title={
-                        onReplaceSelection
-                          ? "누른 채 위/아래로 드래그하여 연속 선택 · Shift+클릭으로 구간 선택"
-                          : undefined
-                      }
-                    >
-                      <input
-                        type="checkbox"
-                        checked={selectedIds?.has(id) ?? false}
-                        onChange={
-                          onReplaceSelection ? undefined : () => onToggleRow?.(id)
-                        }
-                        readOnly={Boolean(onReplaceSelection)}
-                        aria-label="행 선택"
+                  선택한 열 필터 조건에 맞는 데이터가 없습니다.
+                </td>
+              </tr>
+            ) : (
+              sortedRows.map((row, rowIndex) => {
+                const id = rowKey(row);
+                const extraRowClass = getRowClassName?.(row, id);
+                return (
+                  <tr
+                    key={id}
+                    className={["ui-table-row", extraRowClass].filter(Boolean).join(" ")}
+                    style={{ contentVisibility: "auto", containIntrinsicSize: "0 58px" }}
+                    onMouseEnter={(event) => {
+                      const state = selectionDragRef.current;
+                      if (!state?.active || !onReplaceSelection) return;
+                      if ((event.buttons & 1) !== 1) return;
+                      replaceSelectionWithRange(
+                        state.startIndex,
+                        rowIndex,
+                        state.base,
+                        state.mode
+                      );
+                    }}
+                  >
+                    {selectable ? (
+                      <td
                         className={[
-                          "h-4 w-4 rounded border-slate-300 select-none",
-                          onReplaceSelection ? "pointer-events-none" : "cursor-pointer"
-                        ].join(" ")}
+                          compact ? "px-3 py-2 align-middle" : "px-3 py-3 align-top",
+                          "select-none",
+                          onReplaceSelection ? "cursor-pointer" : "",
+                          stickyLeftKeys.length > 0 ? "ui-table-sticky-left bg-white" : ""
+                        ]
+                          .filter(Boolean)
+                          .join(" ")}
+                        style={checkboxStickyStyle}
                         data-no-drag-scroll
-                      />
-                    </td>
-                  ) : null}
-                  {columns.map((column) => (
-                    <td
-                      key={column.key}
-                      className={[
-                        cellClass,
-                        isTextSelectableColumn(column) ? "select-text" : "select-none",
-                        column.align === "right"
-                          ? "text-right tabular-nums"
-                          : column.align === "center"
-                            ? "text-center"
-                            : "text-left",
-                        stickyBodyClass(column),
-                        column.className
-                      ].join(" ")}
-                      style={stickyStyle(column)}
-                    >
-                      {column.render(row)}
-                    </td>
-                  ))}
-                </tr>
-              );
-            })}
+                        onMouseDown={(event) => {
+                          if (event.button !== 0 || !onReplaceSelection) return;
+                          event.preventDefault();
+
+                          if (event.shiftKey && selectionAnchorRef.current != null) {
+                            replaceSelectionWithRange(
+                              selectionAnchorRef.current,
+                              rowIndex,
+                              new Set(selectedIds ?? []),
+                              "select"
+                            );
+                            selectionAnchorRef.current = rowIndex;
+                            selectionDragRef.current = null;
+                            return;
+                          }
+
+                          const mode = selectedIds?.has(id) ? "deselect" : "select";
+                          const base = new Set(selectedIds ?? []);
+                          selectionAnchorRef.current = rowIndex;
+                          selectionDragRef.current = {
+                            active: true,
+                            startIndex: rowIndex,
+                            mode,
+                            base
+                          };
+                          replaceSelectionWithRange(rowIndex, rowIndex, base, mode);
+                        }}
+                        title={
+                          onReplaceSelection
+                            ? "누른 채 위/아래로 드래그하여 연속 선택 · Shift+클릭으로 구간 선택"
+                            : undefined
+                        }
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedIds?.has(id) ?? false}
+                          onChange={
+                            onReplaceSelection ? undefined : () => onToggleRow?.(id)
+                          }
+                          readOnly={Boolean(onReplaceSelection)}
+                          aria-label="행 선택"
+                          className={[
+                            "h-4 w-4 rounded border-slate-300 select-none",
+                            onReplaceSelection ? "pointer-events-none" : "cursor-pointer"
+                          ].join(" ")}
+                          data-no-drag-scroll
+                        />
+                      </td>
+                    ) : null}
+                    {columns.map((column) => (
+                      <td
+                        key={column.key}
+                        className={[
+                          cellClass,
+                          isTextSelectableColumn(column) ? "select-text" : "select-none",
+                          column.align === "right"
+                            ? "text-right tabular-nums"
+                            : column.align === "center"
+                              ? "text-center"
+                              : "text-left",
+                          stickyBodyClass(column),
+                          column.className
+                        ].join(" ")}
+                        style={stickyStyle(column)}
+                      >
+                        {column.render(row)}
+                      </td>
+                    ))}
+                  </tr>
+                );
+              })
+            )}
           </tbody>
         </table>
       </div>
