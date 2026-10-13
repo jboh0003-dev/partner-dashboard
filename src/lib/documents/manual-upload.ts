@@ -18,13 +18,14 @@ import {
   resolveUploadStoragePath
 } from "@/lib/documents/storage-path";
 
-export const MANUAL_UPLOAD_MAX_BYTES = 20 * 1024 * 1024;
-export const COMPANY_PROFILE_MAX_BYTES = 10 * 1024 * 1024;
+export const MANUAL_UPLOAD_MAX_BYTES = 50 * 1024 * 1024;
 
 export const MANUAL_UPLOAD_DOCUMENT_TYPES = [
   "partner_contract",
   "partner_application",
   "business_registration",
+  "company_profile",
+  "business_plan",
   "bank_account",
   "credit_rating",
   "security_commitment",
@@ -58,9 +59,6 @@ function sanitizeExtension(fileName: string): string {
 
 function validateUploadInput(input: ManualUploadInput): string | null {
   if (!MANUAL_UPLOAD_DOCUMENT_TYPES.includes(input.documentType as ManualUploadDocumentType)) {
-    if (input.documentType === "company_profile") {
-      return "회사소개서(company_profile)는 Storage 절감 정책으로 수동 업로드 대상에서 제외됩니다.";
-    }
     return "지원하지 않는 문서 구분입니다.";
   }
 
@@ -70,7 +68,7 @@ function validateUploadInput(input: ManualUploadInput): string | null {
   }
 
   if (input.fileBuffer.byteLength > MANUAL_UPLOAD_MAX_BYTES) {
-    return "파일 크기는 20MB를 초과할 수 없습니다.";
+    return "파일 크기는 50MB를 초과할 수 없습니다.";
   }
 
   if (!input.displayName.trim()) {
