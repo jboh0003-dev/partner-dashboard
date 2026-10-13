@@ -38,13 +38,23 @@ export function parseContactListView(value?: string | null): ContactListView {
 
 export function buildContactViewHref(
   view: ContactListView,
-  params: { q?: string; role?: string; partnerId?: string }
+  params: {
+    q?: string;
+    role?: string;
+    position?: string;
+    partnerId?: string;
+    regionGroup?: string;
+    region?: string;
+  }
 ): string {
   const search = new URLSearchParams();
   if (view !== "all") search.set("view", view);
   if (params.q?.trim()) search.set("q", params.q.trim());
   if (params.role && params.role !== "all") search.set("role", params.role);
   if (params.partnerId?.trim()) search.set("partnerId", params.partnerId.trim());
+  if (params.position?.trim()) search.set("position", params.position.trim());
+  if (params.regionGroup?.trim()) search.set("regionGroup", params.regionGroup.trim());
+  if (params.region?.trim()) search.set("region", params.region.trim());
   const query = search.toString();
   return query ? `/dashboard/contacts?${query}` : "/dashboard/contacts";
 }
@@ -52,7 +62,10 @@ export function buildContactViewHref(
 export function buildContactsClearFilterHref(params: {
   q?: string;
   role?: string;
+  position?: string;
   partnerId?: string;
+  regionGroup?: string;
+  region?: string;
 }): string {
   return buildContactViewHref("all", params);
 }
