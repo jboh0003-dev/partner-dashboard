@@ -92,7 +92,9 @@ const UPDATE_FIELD_OPTIONS: Array<{ key: string; label: string }> = [
   { key: "address", label: "주소" },
   { key: "revenue_2023", label: "매출액" },
   { key: "employee_count", label: "임직원 수" },
-  { key: "engineer_count", label: "엔지니어 수" }
+  { key: "engineer_count", label: "엔지니어 수" },
+  { key: "dedicated_sales_count", label: "전담 영업 수" },
+  { key: "dedicated_engineer_count", label: "전담 기술 수" }
 ];
 
 function emptyCompany(): CompanyForm {
