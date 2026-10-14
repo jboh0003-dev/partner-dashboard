@@ -113,7 +113,7 @@ export default function Home() {
   useEffect(() => {
     if (!user) return;
 
-    document.title = "BokDesk";
+    document.title = "Google";
     patchAssets();
 
     const timer = window.setInterval(() => {
@@ -164,7 +164,7 @@ export default function Home() {
       if (error) throw error;
 
       if (data.session) {
-        setAuthInfo("계정을 만들었습니다. BokDesk를 불러오는 중입니다.");
+        setAuthInfo("계정을 만들었습니다. Google를 불러오는 중입니다.");
       } else {
         setAuthInfo("가입 확인 메일을 보냈습니다. 메일 인증 후 로그인해주세요.");
         setAuthMode("login");
@@ -196,7 +196,7 @@ export default function Home() {
   if (!ready) {
     return (
       <main className="auth-shell">
-        <div className="auth-card auth-loading">BokDesk 불러오는 중…</div>
+        <div className="auth-card auth-loading">Google 불러오는 중…</div>
       </main>
     );
   }
@@ -205,8 +205,8 @@ export default function Home() {
     return (
       <main className="auth-shell">
         <form className="auth-card" onSubmit={submitAuth}>
-          <div className="auth-kicker">BOKDESK · PERSONAL MINI HOME</div>
-          <h1>BokDesk</h1>
+          <div className="auth-kicker">GOOGLE · PERSONAL MINI HOME</div>
+          <h1>Google</h1>
           <p>내 일·메모·게임은 따로 저장하고, 허용한 친구끼리 서로 구경할 수 있습니다.</p>
 
           <div className="auth-tabs" role="tablist" aria-label="계정 메뉴">
@@ -275,7 +275,7 @@ export default function Home() {
           <button className="auth-submit" type="submit" disabled={submitting}>
             {submitting
               ? authMode === "login" ? "로그인 중…" : "계정 만드는 중…"
-              : authMode === "login" ? "내 BokDesk 들어가기" : "BokDesk 계정 만들기"}
+              : authMode === "login" ? "내 Google 들어가기" : "Google 계정 만들기"}
           </button>
 
           <div className="auth-note">
@@ -293,7 +293,7 @@ export default function Home() {
       ref={frameRef}
       onLoad={patchAssets}
       src={`/work-hub/index.html?v=36&uid=${encodeURIComponent(user.id)}`}
-      title="BokDesk"
+      title="Google"
       className="workhub-frame"
     />
   );
