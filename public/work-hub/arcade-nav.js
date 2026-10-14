@@ -28,22 +28,36 @@
       .shell{display:flex!important;min-height:100vh!important}
       .side{
         position:fixed!important;inset:0 auto 0 0!important;width:var(--workhub-side-width)!important;height:100vh!important;
-        padding:28px 15px!important;display:flex!important;flex-direction:column!important;align-items:stretch!important;
-        justify-content:flex-start!important;background:#39242a!important;border-right:3px double #af8b53!important;
-        border-bottom:0!important;color:#f7edda!important;overflow-y:auto!important;z-index:60!important
+        padding:24px 14px!important;display:flex!important;flex-direction:column!important;align-items:stretch!important;
+        justify-content:flex-start!important;background:#ffffff!important;border-right:1px solid #e8eaed!important;
+        border-bottom:0!important;color:#202124!important;overflow-y:auto!important;z-index:60!important
       }
-      .brand{display:block!important;padding:0 10px 28px!important;margin:0!important;font-size:27px!important;line-height:1.08!important}
-      .brand small{display:block!important;margin:7px 0 0!important;font-size:11px!important;line-height:1.3!important}
-      .nav{display:flex!important;flex-direction:column!important;gap:6px!important;width:100%!important}
+      .brand{
+        display:block!important;padding:0 12px 22px!important;margin:0!important;font-size:27px!important;line-height:1.08!important;
+        color:#202124!important;font-weight:850!important;letter-spacing:-.8px!important
+      }
+      .brand small{
+        display:block!important;margin:7px 0 0!important;font-size:10px!important;line-height:1.3!important;
+        color:#9aa0a6!important;letter-spacing:1.25px!important;font-weight:750!important
+      }
+      .nav{display:flex!important;flex-direction:column!important;gap:4px!important;width:100%!important}
       .nav button{
-        width:100%!important;margin:0!important;padding:14px 13px!important;text-align:left!important;border-radius:5px!important;
-        font-size:16px!important;line-height:1.25!important
+        width:100%!important;margin:0!important;padding:13px 13px!important;text-align:left!important;border:0!important;border-radius:11px!important;
+        font-size:15px!important;line-height:1.3!important;color:#5f6368!important;background:transparent!important;font-weight:750!important;
+        box-shadow:none!important;transition:background .14s ease,color .14s ease!important
       }
-      .nav-divider{display:flex;align-items:center;gap:8px;margin:15px 8px 3px;color:#bda98b;font-size:11px;font-weight:900;letter-spacing:1.7px}
-      .nav-divider:before,.nav-divider:after{content:'';height:1px;background:#765963;flex:1}.nav-divider span{white-space:nowrap}
-      #workhub-live-nav.active,#workhub-arcade-nav.active{
-        background:#81525a!important;border-color:#c09a68!important;color:#fff7e5!important;box-shadow:inset 3px 0 #e4c693
+      .nav button:hover{background:#f3f4f6!important;color:#202124!important}
+      .nav button.active,
+      #workhub-live-nav.active,#workhub-arcade-nav.active,
+      #workhub-notes-nav.active,#workhub-monthly-nav.active,#workhub-history-nav.active{
+        background:#fee500!important;border:0!important;color:#191919!important;box-shadow:none!important
       }
+      .nav-divider{display:flex!important;align-items:center!important;gap:7px!important;margin:17px 9px 5px!important;color:#9aa0a6!important;font-size:9px!important;font-weight:850!important;letter-spacing:.8px!important}
+      .nav-divider:before,.nav-divider:after{content:'';height:1px;background:#e3e6ea!important;flex:1}.nav-divider span{white-space:nowrap;background:#fff!important;padding:0 3px!important}
+      body.dark .side{background:#1f1f1f!important;border-right-color:#343434!important;color:#f5f5f5!important}
+      body.dark .brand{color:#f5f5f5!important}body.dark .brand small{color:#9b9b9b!important}
+      body.dark .nav button{color:#b5b5b5!important}body.dark .nav button:hover{background:#303030!important;color:#fff!important}
+      body.dark .nav-divider:before,body.dark .nav-divider:after{background:#414141!important}body.dark .nav-divider span{background:#1f1f1f!important;color:#999!important}
       .main{margin-left:var(--workhub-side-width)!important;width:calc(100% - var(--workhub-side-width))!important;min-width:0!important}
       header{position:sticky!important;top:0!important;z-index:45!important}
       .special-root{max-width:1900px;margin:0 auto;padding:22px 32px 48px}
