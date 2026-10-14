@@ -202,7 +202,7 @@
     .ledger-task-actions .ledger-status{color:var(--ink)!important}
 
 
-    /* weekly home hero - original Work Hub mascot, not a Kakao character */
+    /* weekly home hero - original Google mascot, not a Kakao character */
     .workhub-home-hero{
       position:relative;min-height:164px;margin:0 0 16px;padding:26px 250px 24px 26px;
       display:flex;align-items:center;overflow:hidden;
@@ -434,7 +434,7 @@
     }
     .workflow-undo button{background:var(--kakao-yellow)!important;color:var(--kakao-black)!important;border:0!important}
 
-    /* live center - BokDesk / Kakao light UI */
+    /* live center - Google / Kakao light UI */
     #workhub-live-root .special-hero{
       min-height:auto!important;padding:24px 26px!important;
       background:linear-gradient(135deg,#fffbd5 0%,#ffffff 72%)!important;
