@@ -1,10 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import {
-  ChevronDown,
-  ChevronUp,
   Copy,
   Download,
   ExternalLink,
@@ -21,11 +19,9 @@ import { runPartnerSearch } from "@/app/dashboard/search/actions";
 import { OkeAvatar } from "@/components/search/oke-avatar";
 import { OkeLoadingProgress } from "@/components/search/oke-loading-progress";
 import {
-  EXAMPLE_QUESTIONS,
   OKE_GREETING,
   OKE_NAME,
-  OKE_SUBTITLE,
-  PAGE_EXAMPLE_QUESTIONS
+  OKE_SUBTITLE
 } from "@/components/search/search-examples";
 import { getSearchIntentLabel } from "@/lib/search/intent-labels";
 import {
@@ -72,17 +68,10 @@ type SearchChatProps = {
 export function SearchChat({ variant = "page" }: SearchChatProps) {
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [examplesExpanded, setExamplesExpanded] = useState(true);
   const [pendingQuery, setPendingQuery] = useState("");
   const [isPending, startTransition] = useTransition();
   const isPanel = variant === "panel";
   const hasResults = messages.some((message) => message.role === "assistant");
-
-  useEffect(() => {
-    if (isPanel && hasResults) {
-      setExamplesExpanded(false);
-    }
-  }, [isPanel, hasResults]);
 
   function submitQuery(query: string) {
     const trimmed = query.trim();
@@ -160,24 +149,6 @@ export function SearchChat({ variant = "page" }: SearchChatProps) {
               ))}
             </div>
 
-            <div className="ui-card border-okestro-100/80 bg-gradient-to-br from-white to-okestro-50/35 p-5">
-              <p className="text-xs font-semibold tracking-wide text-okestro-800">
-                Partner Agent에게 물어보기
-              </p>
-              <div className="mt-3 flex flex-col gap-2">
-                {PAGE_EXAMPLE_QUESTIONS.map((question) => (
-                  <button
-                    key={question}
-                    type="button"
-                    onClick={() => submitQuery(question)}
-                    disabled={isPending}
-                    className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-left text-sm leading-snug text-slate-700 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-800 disabled:opacity-50"
-                  >
-                    {question}
-                  </button>
-                ))}
-              </div>
-            </div>
             </div>
           </div>
         ) : null}
@@ -228,50 +199,6 @@ export function SearchChat({ variant = "page" }: SearchChatProps) {
       </div>
 
       <div className="shrink-0 border-t border-slate-200 bg-white p-4 md:px-6">
-        {isPanel ? (
-          <div className="mb-4">
-            {examplesExpanded ? (
-              <div className="rounded-xl border border-slate-200 bg-slate-50">
-                <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-2.5">
-                  <p className="text-xs font-semibold text-slate-600">예시 질문</p>
-                  <button
-                    type="button"
-                    onClick={() => setExamplesExpanded(false)}
-                    className="inline-flex items-center gap-1 text-xs font-semibold text-slate-500 hover:text-slate-800"
-                  >
-                    <ChevronUp size={14} />
-                    예시 질문 접기
-                  </button>
-                </div>
-                <div className="max-h-40 overflow-y-auto p-3">
-                  <div className="flex flex-col gap-2">
-                    {EXAMPLE_QUESTIONS.map((question) => (
-                      <button
-                        key={question}
-                        type="button"
-                        onClick={() => submitQuery(question)}
-                        disabled={isPending}
-                        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-left text-xs leading-snug text-slate-700 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-800 disabled:opacity-50"
-                      >
-                        {question}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setExamplesExpanded(true)}
-                className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 transition hover:border-slate-300 hover:bg-slate-50"
-              >
-                <ChevronDown size={14} />
-                예시 질문 보기
-              </button>
-            )}
-          </div>
-        ) : null}
-
         <form
           onSubmit={(event) => {
             event.preventDefault();
