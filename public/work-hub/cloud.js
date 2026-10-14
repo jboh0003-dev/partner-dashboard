@@ -201,7 +201,7 @@
         user_id:session.user.id,
         display_name:(preferred||fallback).slice(0,30),
         avatar_emoji:'🙂',
-        status_message:'BokDesk'
+        status_message:'Google'
       }).select('*').single();
       if(createError) throw createError;
       profile=created;
@@ -369,7 +369,7 @@
       const menu=document.createElement('div');
       menu.id='cloudUserMenu';
       menu.style='position:fixed;right:18px;top:92px;background:var(--card);border:1px solid var(--line);border-radius:13px;padding:10px;z-index:500;box-shadow:0 18px 40px rgba(0,0,0,.14);min-width:210px';
-      menu.innerHTML='<b style="display:block;font-size:11px;margin-bottom:8px">'+safe(profile?.display_name||session.user.email||'BokDesk')+'</b><button class="btn" id="cloudFriends" style="width:100%">친구꺼 보기</button><button class="btn" id="cloudAccount" style="width:100%;margin-top:6px">계정관리</button><button class="btn" id="cloudSyncNow" style="width:100%;margin-top:6px">지금 동기화</button>';
+      menu.innerHTML='<b style="display:block;font-size:11px;margin-bottom:8px">'+safe(profile?.display_name||session.user.email||'Google')+'</b><button class="btn" id="cloudFriends" style="width:100%">친구꺼 보기</button><button class="btn" id="cloudAccount" style="width:100%;margin-top:6px">계정관리</button><button class="btn" id="cloudSyncNow" style="width:100%;margin-top:6px">지금 동기화</button>';
       document.body.appendChild(menu);
       document.getElementById('cloudFriends').onclick=()=>{menu.remove();openFriends();};
       document.getElementById('cloudAccount').onclick=()=>{menu.remove();openAccountManager();};
@@ -600,7 +600,7 @@
     async function openFriendHome(friendId,friendProfile,share){
       closeOverlay('friendsManager');
       const root=document.createElement('div');root.id='friendHome';root.className='cloud-auth';
-      root.innerHTML='<div class="friend-home"><div class="friend-home-cover"><div class="friend-home-head"><div><h2>BokDesk · Friend Space</h2><p>친구가 허용한 일·메모·게임은 읽기 전용으로 보고, 방명록에만 글을 남길 수 있습니다.</p></div><button type="button" class="account-close" data-close>×</button></div><div class="friend-home-profile"><div class="friends-avatar">'+safe(friendProfile?.avatar_emoji||'🙂')+'</div><div><b>'+safe(friendProfile?.display_name||'친구')+'</b><span>'+safe(friendProfile?.status_message||'')+'</span></div></div></div><nav class="friend-home-nav"><button data-tab="home" class="active">🏠 홈</button><button data-tab="work">📋 일</button><button data-tab="notes">📝 메모</button><button data-tab="game">🎮 게임</button><button data-tab="guestbook">📮 방명록</button><button data-back>← 친구목록</button></nav><div class="friend-home-body" id="friendHomeBody"><div class="friends-empty">친구 공간을 불러오는 중…</div></div></div>';
+      root.innerHTML='<div class="friend-home"><div class="friend-home-cover"><div class="friend-home-head"><div><h2>Google · Friend Space</h2><p>친구가 허용한 일·메모·게임은 읽기 전용으로 보고, 방명록에만 글을 남길 수 있습니다.</p></div><button type="button" class="account-close" data-close>×</button></div><div class="friend-home-profile"><div class="friends-avatar">'+safe(friendProfile?.avatar_emoji||'🙂')+'</div><div><b>'+safe(friendProfile?.display_name||'친구')+'</b><span>'+safe(friendProfile?.status_message||'')+'</span></div></div></div><nav class="friend-home-nav"><button data-tab="home" class="active">🏠 홈</button><button data-tab="work">📋 일</button><button data-tab="notes">📝 메모</button><button data-tab="game">🎮 게임</button><button data-tab="guestbook">📮 방명록</button><button data-back>← 친구목록</button></nav><div class="friend-home-body" id="friendHomeBody"><div class="friends-empty">친구 공간을 불러오는 중…</div></div></div>';
       document.body.appendChild(root);
       const close=()=>root.remove();root.querySelector('[data-close]').onclick=close;root.onclick=e=>{if(e.target===root)close();};
       root.querySelector('[data-back]').onclick=()=>{close();openFriends();};
