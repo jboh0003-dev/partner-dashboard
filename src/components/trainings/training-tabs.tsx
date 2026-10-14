@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-type TrainingTabKey = "summary" | "attendees" | "recruitment";
+type TrainingTabKey = "summary" | "registrations" | "attendees" | "recruitment";
 
 type TrainingTabsProps = {
   active: TrainingTabKey;
@@ -10,6 +10,7 @@ type TrainingTabsProps = {
 export function TrainingTabs({ active, searchParams }: TrainingTabsProps) {
   const tabs: Array<{ key: TrainingTabKey; label: string }> = [
     { key: "summary", label: "월별 교육 요약" },
+    { key: "registrations", label: "교육 신청 현황" },
     { key: "attendees", label: "참석자 상세 목록" },
     { key: "recruitment", label: "모객 대상 추출" }
   ];
@@ -45,7 +46,7 @@ function buildTabHref(
   const params = new URLSearchParams();
   params.set("tab", tab);
 
-  if (tab === "attendees") {
+  if (tab === "attendees" || tab === "registrations") {
     appendParam(params, "q", searchParams.q);
     appendParam(params, "month", searchParams.month);
     appendParam(params, "training", searchParams.training);
