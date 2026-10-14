@@ -26,6 +26,7 @@ function DashboardHero() {
         compact
         eyebrow={null}
         prominentTitle
+        centerContent
         title={
           <span className="inline-flex flex-wrap items-baseline gap-x-2 overflow-visible leading-[1.08]">
             <span>OKESTRO Partner</span>
