@@ -68,6 +68,32 @@ type MonthlySummaryRow = {
 
 type AttendeeDetailRow = EducationStatusAttendeeRow;
 
+type RegistrationRow = {
+  id: string;
+  company_name_raw: string;
+  attendee_name: string;
+  attendee_department: string | null;
+  attendee_position: string | null;
+  attendee_phone: string | null;
+  attendee_email: string | null;
+  registration_status: string;
+  match_status: string | null;
+  review_reason: string | null;
+  training: {
+    id: string;
+    training_name: string;
+    product: string | null;
+    start_date: string | null;
+    training_year: number | null;
+    training_month: number | null;
+  } | null;
+  partner: {
+    id: string;
+    company_name: string;
+    external_no: string | null;
+  } | null;
+};
+
 export default async function TrainingsPage({
   searchParams
 }: {
@@ -153,6 +179,38 @@ export default async function TrainingsPage({
     latestMonth: findLatestTrainingMonth(trainings)
   };
 
+  const registrationResult =
+    tab === "registrations"
+      ? await supabase
+          .from("training_registrations")
+          .select(
+            "id, company_name_raw, attendee_name, attendee_department, attendee_position, attendee_phone, attendee_email, registration_status, match_status, review_reason, training:trainings(id, training_name, product, start_date, training_year, training_month), partner:partners(id, company_name, external_no)"
+          )
+          .is("deleted_at", null)
+          .order("created_at", { ascending: false })
+          .limit(5000)
+      : { data: [], error: null };
+
+  const registrationRows = ((registrationResult.data ?? []) as unknown as RegistrationRow[])
+    .filter((row) => {
+      const q = (params.q ?? "").trim().toLowerCase();
+      if (!q) return true;
+      return [
+        row.company_name_raw,
+        row.attendee_name,
+        row.attendee_department,
+        row.attendee_position,
+        row.attendee_phone,
+        row.attendee_email,
+        row.training?.training_name,
+        row.training?.product
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+        .includes(q);
+    });
+
   const recruitmentSource =
     tab === "recruitment" ? await fetchRecruitmentSourceData() : null;
   const recruitmentFilters = parseRecruitmentFilters(params);
@@ -208,6 +266,11 @@ export default async function TrainingsPage({
                 training={tab === "attendees" ? params.training : "all"}
               />
             ) : null}
+            <UploadHintLink
+              href="/dashboard/upload?type=training_registrations"
+              title="교육 신청 DB 업로드"
+              hint="MS Forms 응답 Excel을 그대로 자동 정리"
+            />
             <UploadHintLink
               href="/dashboard/upload?type=training_attendance_detail"
               title="정기교육 참석자 업로드"
@@ -288,6 +351,12 @@ export default async function TrainingsPage({
 
       {tab === "summary" ? (
         <SummarySection rows={summaryRows} error={trainingsError?.message ?? null} />
+      ) : tab === "registrations" ? (
+        <RegistrationsSection
+          rows={registrationRows}
+          q={params.q}
+          error={registrationResult.error?.message ?? null}
+        />
       ) : tab === "attendees" ? (
         <AttendeesSection
           rows={filteredAttendees}
@@ -312,7 +381,8 @@ export default async function TrainingsPage({
 
 function parseTrainingTab(
   value: string | undefined
-): "summary" | "attendees" | "recruitment" {
+): "summary" | "registrations" | "attendees" | "recruitment" {
+  if (value === "registrations") return "registrations";
   if (value === "attendees") return "attendees";
   if (value === "recruitment") return "recruitment";
   return "summary";
@@ -410,6 +480,93 @@ function SummarySection({
           </table>
         </div>
       </section>
+    </>
+  );
+}
+
+function RegistrationsSection({
+  rows,
+  q,
+  error
+}: {
+  rows: RegistrationRow[];
+  q?: string;
+  error: string | null;
+}) {
+  return (
+    <>
+      <form className="mb-5 flex w-full items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4">
+        <input type="hidden" name="tab" value="registrations" />
+        <input
+          name="q"
+          defaultValue={q ?? ""}
+          placeholder="회사명, 이름, 직급, 이메일, 휴대폰, 교육명 검색"
+          className="min-w-[260px] flex-1 rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none focus:border-blue-600"
+        />
+        <button className="shrink-0 rounded-xl bg-slate-950 px-5 py-2.5 text-sm font-semibold text-white hover:bg-slate-800">
+          검색
+        </button>
+      </form>
+
+      {error ? (
+        <EmptyState title="교육 신청 현황을 불러오지 못했습니다." description={error} />
+      ) : rows.length === 0 ? (
+        <EmptyState
+          title="등록된 교육 신청이 없습니다."
+          description="교육 신청 DB 업로드에서 MS Forms Excel을 올리면 자동으로 표시됩니다."
+        />
+      ) : (
+        <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <div className="w-full overflow-x-auto">
+            <table className="w-full min-w-[1100px] divide-y divide-slate-200">
+              <thead className="bg-slate-50">
+                <tr>
+                  <Th>교육일</Th>
+                  <Th>교육</Th>
+                  <Th>파트너사</Th>
+                  <Th>이름</Th>
+                  <Th>직급</Th>
+                  <Th>직무/부서</Th>
+                  <Th>휴대폰</Th>
+                  <Th>이메일</Th>
+                  <Th>매칭</Th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {rows.map((row) => (
+                  <tr key={row.id} className="hover:bg-slate-50">
+                    <td className="px-5 py-3 text-sm text-slate-700">{row.training?.start_date ?? "-"}</td>
+                    <td className="px-5 py-3 text-sm font-semibold text-slate-900">
+                      {row.training?.product ?? row.training?.training_name ?? "-"}
+                    </td>
+                    <td className="px-5 py-3 text-sm text-slate-800">
+                      {row.partner?.company_name ?? row.company_name_raw}
+                    </td>
+                    <td className="px-5 py-3 text-sm font-medium text-slate-900">{row.attendee_name}</td>
+                    <td className="px-5 py-3 text-sm text-slate-700">{row.attendee_position ?? "-"}</td>
+                    <td className="px-5 py-3 text-sm text-slate-700">{row.attendee_department ?? "-"}</td>
+                    <td className="px-5 py-3 text-sm text-slate-700">{row.attendee_phone ?? "-"}</td>
+                    <td className="px-5 py-3 text-sm text-slate-700">{row.attendee_email ?? "-"}</td>
+                    <td className="px-5 py-3 text-sm">
+                      <span
+                        className={[
+                          "rounded-full px-2 py-1 text-[11px] font-semibold",
+                          row.match_status === "matched"
+                            ? "bg-emerald-50 text-emerald-700"
+                            : "bg-amber-50 text-amber-800"
+                        ].join(" ")}
+                        title={row.review_reason ?? undefined}
+                      >
+                        {row.match_status === "matched" ? "자동 매칭" : "확인 필요"}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
     </>
   );
 }
