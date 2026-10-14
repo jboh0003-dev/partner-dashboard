@@ -5,6 +5,11 @@ export type AgentConversationMessage = {
   content: string;
 };
 
+type CompletionMessage = {
+  role: "system" | "user" | "assistant";
+  content: string;
+};
+
 type ChatCompletionResponse = {
   choices?: Array<{
     message?: {
@@ -55,7 +60,7 @@ export function isPartnerAgentLlmAvailable(): boolean {
 }
 
 async function requestCompletion(
-  messages: AgentConversationMessage[],
+  messages: CompletionMessage[],
   options?: {
     timeoutMs?: number;
     jsonMode?: boolean;
@@ -106,7 +111,7 @@ export async function requestPartnerAgentJson(
 ): Promise<Record<string, unknown> | null> {
   const content = await requestCompletion(
     [
-      { role: "assistant", content: systemPrompt },
+      { role: "system", content: systemPrompt },
       { role: "user", content: userPrompt }
     ],
     { timeoutMs, jsonMode: true }
@@ -181,7 +186,7 @@ export async function rewriteConversationalSearchQuery(
   const content = await requestCompletion(
     [
       {
-        role: "assistant",
+        role: "system",
         content:
           "You rewrite a Korean follow-up question into one standalone retrieval query for an internal Partner Connect CRM. Use conversation history only to resolve references such as 그 회사, 그 사람, 담당자는, 교육은. Preserve exact company names, person names, emails, phone numbers, dates, grades, product names, and project codes. Do not answer the question. Do not add facts. Return only the rewritten query in Korean, one line, under 160 characters."
       },
@@ -259,7 +264,7 @@ export async function synthesizeConversationalAnswer(input: {
   const content = await requestCompletion(
     [
       {
-        role: "assistant",
+        role: "system",
         content:
           "당신은 오케스트로 Partner Connect의 내부 AI Agent입니다. 사용자의 질문에 한국어로 자연스럽고 충분하게 답하세요. 아래 원칙은 반드시 지킵니다.\n" +
           "1) 제공된 RETRIEVED_DATA에 있는 사실만 사용합니다. 추측하거나 없는 정보를 만들지 않습니다.\n" +
