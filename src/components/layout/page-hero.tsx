@@ -9,6 +9,7 @@ type PageHeroProps = {
   compact?: boolean;
   eyebrow?: string | null;
   prominentTitle?: boolean;
+  centerContent?: boolean;
 };
 
 export function PageHero({
@@ -18,7 +19,8 @@ export function PageHero({
   children,
   compact = false,
   eyebrow = "OKESTRO Partner Portal",
-  prominentTitle = false
+  prominentTitle = false,
+  centerContent = false
 }: PageHeroProps) {
   return (
     <section
@@ -41,8 +43,15 @@ export function PageHero({
       />
       <div
         className={[
-          "relative flex flex-wrap items-start justify-between gap-4",
-          compact ? "px-6 py-6" : "px-8 py-9"
+          "relative flex flex-wrap justify-between gap-4",
+          centerContent ? "items-center" : "items-start",
+          centerContent
+            ? compact
+              ? "min-h-[120px] px-6 py-4"
+              : "min-h-[176px] px-8 py-6"
+            : compact
+              ? "px-6 py-6"
+              : "px-8 py-9"
         ].join(" ")}
       >
         <div className="max-w-3xl">
