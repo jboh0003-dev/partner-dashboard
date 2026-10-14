@@ -16,7 +16,7 @@
   function setHomeVisible(visible) {
     document.body.classList.toggle('bokdesk-home-mode', visible);
     if (visible) {
-      document.title = 'BokDesk';
+      document.title = 'Google';
       window.scrollTo({ top: 0, behavior: 'auto' });
     }
   }
@@ -24,11 +24,11 @@
   function renameInternalNavigation() {
     const brand = document.querySelector('.brand');
     if (brand) {
-      brand.innerHTML = 'BokDesk<small>PRIVATE WORK HUB</small>';
+      brand.innerHTML = 'Google<small>GOOGLE</small>';
       brand.setAttribute('role', 'button');
       brand.setAttribute('tabindex', '0');
-      brand.setAttribute('aria-label', 'BokDesk 홈으로 이동');
-      brand.title = 'BokDesk 홈';
+      brand.setAttribute('aria-label', 'Google 홈으로 이동');
+      brand.title = 'Google 홈';
     }
 
     const labNav = document.querySelector('#workhub-arcade-nav span');
@@ -39,7 +39,7 @@
     const labKicker = labRoot?.querySelector('.special-kicker');
     const labDesc = labRoot?.querySelector('.special-hero p');
     if (labTitle) labTitle.textContent = 'Lab';
-    if (labKicker) labKicker.textContent = 'BOKDESK · PRIVATE LAB';
+    if (labKicker) labKicker.textContent = 'GOOGLE · PRIVATE LAB';
     if (labDesc) labDesc.textContent = '게임과 작은 실험 기능을 업무 화면과 분리해둔 개인 공간입니다.';
   }
 
