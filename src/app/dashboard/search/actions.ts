@@ -4,6 +4,11 @@ import { searchPartners } from "@/lib/search/engine";
 import type { SearchResult } from "@/lib/search/types";
 import { normalizeSearchQuery } from "@/lib/search/query-normalize";
 import { requireUser } from "@/lib/auth/require-user";
+import {
+  rewriteConversationalSearchQuery,
+  synthesizeConversationalAnswer,
+  type AgentConversationMessage
+} from "@/lib/search/conversation";
 
 function formatAnswerForReading(answer: string): string {
   const normalized = answer
@@ -123,7 +128,10 @@ function preferResult(first: SearchResult, retry: SearchResult): SearchResult {
   return resultQualityScore(retry) > resultQualityScore(first) ? retry : first;
 }
 
-export async function runPartnerSearch(query: string): Promise<SearchResult> {
+export async function runPartnerSearch(
+  query: string,
+  history: AgentConversationMessage[] = []
+): Promise<SearchResult> {
   const auth = await requireUser();
   if (!auth.ok) {
     return {
@@ -154,8 +162,9 @@ export async function runPartnerSearch(query: string): Promise<SearchResult> {
     };
   }
 
-  const normalized = normalizeConversationalQuery(trimmed);
-  const expanded = expandNaturalLanguageQuery(trimmed);
+  const standalone = await rewriteConversationalSearchQuery(trimmed, history);
+  const normalized = normalizeConversationalQuery(standalone);
+  const expanded = expandNaturalLanguageQuery(standalone);
 
   let result = await searchPartners(normalized);
 
@@ -166,13 +175,19 @@ export async function runPartnerSearch(query: string): Promise<SearchResult> {
     expanded !== normalized &&
     /^(정책|파트너\s*정책|제도|파트너\s*제도)/i.test(normalized)
   ) {
-    // "정책 알려줘"처럼 너무 짧은 질문은 넓은 정책 검색 결과도 비교한다.
     const retry = await searchPartners(expanded);
     result = preferResult(result, retry);
   }
 
+  const conversationalAnswer = await synthesizeConversationalAnswer({
+    question: trimmed,
+    standaloneQuery: standalone,
+    history,
+    result
+  });
+
   return {
     ...result,
-    answer: formatAnswerForReading(result.answer)
+    answer: formatAnswerForReading(conversationalAnswer ?? result.answer)
   };
 }
