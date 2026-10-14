@@ -35,6 +35,7 @@ import {
 import { PartnerDocumentsUploadSection } from "@/components/upload/partner-documents-upload-section";
 import { PartnerApplicationUploadSection } from "@/components/upload/partner-application-upload-section";
 import { PartnerOnboardingPackageUploadSection } from "@/components/upload/partner-onboarding-package-upload-section";
+import { TrainingRegistrationsUploadSection } from "@/components/upload/training-registrations-upload-section";
 import { PartnerDuplicatesPanel } from "@/components/upload/partner-duplicates-panel";
 import { ImportJobsPanel } from "@/components/upload/import-jobs-panel";
 import { PARTNER_MASTER_ACTION_LABEL } from "@/lib/imports/partner-master";
@@ -48,6 +49,7 @@ type UploadType =
   | "partner_contacts"
   | "partner_training_summary"
   | "training_attendance_detail"
+  | "training_registrations"
   | "partner_equipment"
   | "partner_documents"
   | "partner_onboarding_package"
@@ -284,13 +286,23 @@ const UPLOAD_TYPES: UploadTypeMeta[] = [
     mode: "active"
   },
   {
+    key: "training_registrations",
+    menuTitle: "교육 신청 DB",
+    menuHint: "MS Forms 응답 Excel 자동 정리",
+    workTitle: "교육 신청 DB 업로드",
+    workDescription: "MS Forms 응답 Excel을 그대로 올리면 교육 회차·신청자·파트너·인력을 자동 정리합니다.",
+    sourceFile: "MS Forms 교육 신청 응답.xlsx",
+    order: 4,
+    mode: "active"
+  },
+  {
     key: "training_attendance_detail",
     menuTitle: "정기교육 참석자 업로드",
     menuHint: "특정 정기교육 회차의 실제 참석자 반영",
     workTitle: "정기교육 참석자 업로드",
     workDescription: "특정 정기교육 회차의 실제 참석자를 반영합니다.",
     sourceFile: "2026 오케스트로 정기교육 관리시트.xlsx",
-    order: 4,
+    order: 5,
     mode: "active",
     showInMenu: false
   },
@@ -1187,7 +1199,11 @@ export default function UploadPage() {
           </div>
         ) : null}
 
-        {selectedType === "partner_onboarding_package" ? (
+        {selectedType === "training_registrations" ? (
+          <div className="mt-5">
+            <TrainingRegistrationsUploadSection />
+          </div>
+        ) : selectedType === "partner_onboarding_package" ? (
           <div className="mt-5">
             <PartnerOnboardingPackageUploadSection />
           </div>
