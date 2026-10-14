@@ -88,6 +88,11 @@ export function SearchChat({ variant = "page" }: SearchChatProps) {
     const trimmed = query.trim();
     if (!trimmed || isPending) return;
 
+    const history = messages.slice(-8).map((message) => ({
+      role: message.role,
+      content: message.content
+    }));
+
     const userMessage: ChatMessage = {
       id: `user-${Date.now()}`,
       role: "user",
@@ -99,7 +104,7 @@ export function SearchChat({ variant = "page" }: SearchChatProps) {
     setPendingQuery(trimmed);
 
     startTransition(async () => {
-      const result = await runPartnerSearch(trimmed);
+      const result = await runPartnerSearch(trimmed, history);
       setPendingQuery("");
       setMessages((current) => [
         ...current,
@@ -282,7 +287,7 @@ export function SearchChat({ variant = "page" }: SearchChatProps) {
             <input
               value={input}
               onChange={(event) => setInput(event.target.value)}
-              placeholder="누구지, 연락처, 영업 누구, 될만한 건처럼 편하게 물어보세요."
+              placeholder="파트너 정보부터 후속 질문까지 편하게 이어서 물어보세요."
               className="w-full rounded-xl border border-slate-300 py-3 pl-11 pr-4 text-sm outline-none focus:border-blue-600"
               disabled={isPending}
             />
@@ -293,7 +298,7 @@ export function SearchChat({ variant = "page" }: SearchChatProps) {
             className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-gradient-to-r from-slate-900 to-blue-900 px-5 py-3 text-sm font-semibold text-white transition hover:from-slate-800 hover:to-blue-800 disabled:opacity-50"
           >
             <Sparkles size={14} />
-            검색
+            보내기
           </button>
         </form>
       </div>
