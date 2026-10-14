@@ -201,7 +201,7 @@ export default async function ContactsPage({
             <input
               name="q"
               defaultValue={q}
-              placeholder="회사명, 이름, 이메일, 연락처 검색"
+              placeholder="회사명, 이름, 이메일, 휴대폰번호 검색"
               className="min-w-[260px] flex-1 rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none focus:border-blue-600"
             />
             {q ? (
