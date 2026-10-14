@@ -9,6 +9,7 @@ import {
 } from "@/lib/contacts/map-contact-list-row";
 import type { PersonContactRow } from "@/lib/contacts/person-groups";
 import { normalizeCompanyName } from "@/lib/partner-match";
+import { fixMissingLeadingZero, stripPhoneDigits } from "@/lib/contacts/phone-normalize";
 
 /** 기본 목록은 페이지네이션 없이 전체 조회 */
 export const CONTACTS_LIST_MAX = 5000;
@@ -49,6 +50,19 @@ export type ContactsQuickStats = {
   excludedCount: number;
   error: string | null;
 };
+
+function normalizePhoneSearchDigits(value: string): string | null {
+  const trimmed = value.trim();
+  if (!trimmed || !/^[+\d\s().-]+$/.test(trimmed)) return null;
+
+  let digits = stripPhoneDigits(trimmed);
+  if (digits.startsWith("82") && digits.length >= 11) {
+    digits = `0${digits.slice(2)}`;
+  }
+  digits = fixMissingLeadingZero(digits);
+
+  return digits.length >= 4 ? digits : null;
+}
 
 function isMissingColumnError(message: string): boolean {
   const lower = message.toLowerCase();
@@ -145,14 +159,21 @@ function applyListFilters(query: any, input: ContactsListQueryInput, useBaseline
 
   const q = input.q?.trim();
   if (q) {
-    const escaped = q.replace(/[%_,]/g, "");
+    const escaped = q.replace(/[%_,()]/g, "");
+    const phoneDigits = normalizePhoneSearchDigits(q);
     const clauses = [
       `name.ilike.%${escaped}%`,
       `email.ilike.%${escaped}%`,
       `phone.ilike.%${escaped}%`,
+      `phone_display.ilike.%${escaped}%`,
       `department.ilike.%${escaped}%`,
       `position.ilike.%${escaped}%`
     ];
+
+    if (phoneDigits) {
+      clauses.push(`phone_normalized.ilike.%${phoneDigits}%`);
+    }
+
     if (input.companyMatchPartnerIds && input.companyMatchPartnerIds.length > 0) {
       clauses.push(`partner_id.in.(${input.companyMatchPartnerIds.join(",")})`);
     }
