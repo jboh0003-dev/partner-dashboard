@@ -124,24 +124,26 @@
     const liveButton = document.querySelector('[data-bokdesk-open="live"]');
     const labButton = document.querySelector('[data-bokdesk-open="lab"]');
 
-    if (scheduleButton instanceof HTMLButtonElement) scheduleButton.disabled = !(coreReady && themeReady);
-    if (liveButton instanceof HTMLButtonElement) liveButton.disabled = !(themeReady && liveReady);
-    if (labButton instanceof HTMLButtonElement) labButton.disabled = !(themeReady && labReady);
+    // Theme loading must never block navigation. Visuals may arrive later, but the
+    // workspace cards should become interactive as soon as their target exists.
+    if (scheduleButton instanceof HTMLButtonElement) scheduleButton.disabled = !coreReady;
+    if (liveButton instanceof HTMLButtonElement) liveButton.disabled = !liveReady;
+    if (labButton instanceof HTMLButtonElement) labButton.disabled = !labReady;
 
-    if (coreReady && themeReady && liveReady && labReady) {
+    if (coreReady && liveReady && labReady) {
       readyState.textContent = '준비 완료';
       readyState.dataset.ready = 'true';
       setHomeVisible(true);
       return;
     }
 
-    if (coreReady && themeReady) {
-      readyState.textContent = '일정관리 준비 완료 · 나머지 불러오는 중';
+    if (coreReady) {
+      readyState.textContent = themeReady ? '일정관리 준비 완료 · 나머지 불러오는 중' : '일정관리 준비 완료 · 디자인 불러오는 중';
     } else {
       readyState.textContent = '화면 준비 중…';
     }
 
-    if (attempts > 60 && !(coreReady && themeReady)) {
+    if (attempts > 60 && !coreReady) {
       readyState.textContent = '일정 화면 준비가 지연되고 있습니다';
       readyState.title = '새로고침 후에도 계속되면 연결 상태를 확인해주세요.';
     }
