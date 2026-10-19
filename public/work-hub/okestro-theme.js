@@ -427,6 +427,94 @@
     .kart-message{border-color:#60a5fa!important;background:rgba(15,23,42,.94)!important;color:#fff!important}
     .kart-message em{color:#93c5fd!important}
     .kart-modal-bg{background:rgba(2,6,23,.78)!important}
+    /* Readability pass: desktop work UI must be readable without zooming */
+    .title{font-size:27px!important}
+    .subclock{font-size:12px!important;color:#64748b!important}
+    .btn,.tabs button{font-size:13px!important;padding:9px 12px!important}
+    .nav button{font-size:14px!important;padding:11px 12px!important;color:#475569!important}
+    .nav-divider{font-size:10px!important;color:#64748b!important}
+    .brand small{font-size:10px!important;color:#64748b!important}
+
+    .ledger-metrics{gap:12px!important}
+    .ledger-metric{min-height:82px!important;padding:14px 16px!important}
+    .ledger-metric span{font-size:12px!important;color:#475569!important;font-weight:750!important}
+    .ledger-metric strong{font-size:28px!important;line-height:1.1!important}
+
+    .ledger-week-head{padding:15px 16px!important}
+    .ledger-week-title b{font-size:20px!important;line-height:1.25!important}
+    .ledger-week-title span{margin-top:5px!important;font-size:13px!important;color:#475569!important}
+    .ledger-week-nav{gap:7px!important}
+    .ledger-week-nav button{min-height:36px!important;padding:8px 11px!important;font-size:12px!important;color:#334155!important}
+
+    .ledger-top-quick{
+      grid-template-columns:200px minmax(320px,1fr) 150px 76px!important;
+      gap:8px!important;padding:11px 12px!important
+    }
+    .ledger-top-quick select,.ledger-top-quick input{min-height:40px!important;padding:8px 11px!important;font-size:13px!important}
+    .ledger-top-quick button{min-height:40px!important;font-size:13px!important}
+
+    .ledger-board{gap:12px!important;padding:12px!important}
+    .ledger-board .ledger-area>summary{min-height:48px!important;padding:11px 13px!important}
+    .ledger-board .ledger-area>summary b{font-size:15px!important}
+    .ledger-board .ledger-area>summary span{
+      min-width:26px!important;height:26px!important;font-size:11px!important
+    }
+    .ledger-board .ledger-area-body{padding:7px 9px 9px!important}
+    .ledger-board .ledger-task-row{
+      grid-template-columns:minmax(0,1fr) 238px!important;
+      gap:7px 10px!important;min-height:74px!important;margin:6px 0!important;padding:10px 11px!important
+    }
+    .ledger-board .ledger-task-main strong{
+      font-size:15px!important;line-height:1.45!important;font-weight:800!important;color:#0f172a!important
+    }
+    .ledger-board .ledger-task-meta{gap:6px!important;margin-top:7px!important}
+    .ledger-board .ledger-task-meta span{
+      padding:4px 7px!important;font-size:11px!important;line-height:1.2!important;
+      color:#475569!important;font-weight:700!important
+    }
+    .ledger-board .ledger-state-group{gap:4px!important;padding:3px!important}
+    .ledger-board .ledger-state-btn{
+      min-height:32px!important;font-size:11px!important;font-weight:800!important;color:#64748b!important
+    }
+    .ledger-board .ledger-task-actions{gap:5px!important}
+    .ledger-board .ledger-task-actions button{
+      min-height:30px!important;padding:6px 8px!important;font-size:11px!important;font-weight:750!important;color:#475569!important
+    }
+    .ledger-empty{padding:16px!important;font-size:12px!important;color:#64748b!important}
+
+    .special-kicker,.memo-kicker,.ledger-kicker{font-size:11px!important}
+    .special-count,.memo-count{font-size:12px!important}
+    .special-hero p,.memo-hero p,.ledger-hero p{font-size:13px!important;line-height:1.55!important;color:#475569!important}
+    .calendar-head p{font-size:13px!important;color:#475569!important}
+    .calendar-label{font-size:16px!important}
+    .cal-num{font-size:14px!important}
+    .holiday-name,.cal-preview span{font-size:11px!important}
+    .memo-card,.memo-bucket,.calendar-card,.cloud-card{font-size:13px!important}
+
+    .friend-home-nav button{font-size:12px!important;padding:10px 13px!important}
+    .friend-stat span,.game-metric span{font-size:10px!important;color:#64748b!important}
+    .friend-stat strong,.game-metric strong{font-size:17px!important}
+    .friend-item b{font-size:12px!important;line-height:1.45!important}
+    .friend-item small,.friend-item span{font-size:10px!important;color:#64748b!important}
+    .social-post-author b{font-size:12px!important}
+    .social-post-author small{font-size:10px!important}
+    .social-post-body{font-size:13px!important}
+    .social-post-actions button,.social-post-actions span{font-size:10px!important}
+    .social-comment b,.social-comment p,.social-comment-form input,.social-comment-form button{font-size:10px!important}
+
+    @media (max-width:1200px){
+      .ledger-board{grid-template-columns:1fr!important}
+      .ledger-board .ledger-task-row{grid-template-columns:minmax(0,1fr) 230px!important}
+    }
+    @media (max-width:760px){
+      .ledger-board .ledger-task-row{
+        grid-template-columns:1fr!important;
+        grid-template-areas:"main" "status" "actions"!important
+      }
+      .ledger-top-quick{grid-template-columns:1fr!important}
+      .ledger-metrics{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+    }
+
     /* remove antique/gothic remnants */
     [style*="Georgia"],[style*="Batang"]{font-family:Pretendard,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif!important}
     .metric strong,.lanehead h3,.calendar-head h3,.cloud-card h2,.runner-heading h2,.runner-records h3,.runner-message b{
