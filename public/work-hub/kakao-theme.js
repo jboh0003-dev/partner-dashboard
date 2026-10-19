@@ -623,21 +623,63 @@
       #workhub-live-root .stock{grid-template-columns:22px minmax(0,1fr) 76px 52px!important}
     }
 
-    /* horizontal density: keep weekly controls close instead of stretching across ultrawide screens */
-    .workhub-home-hero,.ledger-metrics,.ledger-week{max-width:1480px!important;margin-left:0!important;margin-right:auto!important}
-    .ledger-top-quick{
-      grid-template-columns:170px minmax(340px,680px) 122px 64px!important;
-      justify-content:start!important
+    /* weekly quadrant board: use the full canvas without making each task a full-width strip */
+    .main>.wrap{max-width:none!important;width:100%!important;margin:0!important;padding-left:14px!important;padding-right:14px!important}
+    .workhub-home-hero,.ledger-metrics,.ledger-week{max-width:none!important;width:100%!important;margin-left:0!important;margin-right:0!important}
+    .ledger-board{
+      display:grid!important;
+      grid-template-columns:repeat(2,minmax(0,1fr))!important;
+      gap:10px!important;
+      padding:10px!important;
+      background:#f7f8fa!important;
+      align-items:start!important
     }
-    .ledger-task-row{
-      grid-template-columns:minmax(360px,680px) 220px 150px!important;
-      justify-content:start!important
+    body.dark .ledger-board{background:#1d1d1d!important}
+    .ledger-board .ledger-area{
+      margin:0!important;border:1px solid var(--line)!important;border-radius:14px!important;
+      overflow:hidden!important;background:var(--card)!important;align-self:start!important
     }
-    .ledger-task-main{max-width:680px!important}
-    .ledger-state-group{width:220px!important}
-    .ledger-task-actions{width:150px!important;justify-content:flex-start!important}
-    @media(min-width:1600px){
-      .main>.wrap{max-width:1540px!important;margin-left:0!important;margin-right:auto!important;padding-left:18px!important;padding-right:18px!important}
+    .ledger-board .ledger-area:first-of-type{border-top:1px solid var(--line)!important}
+    .ledger-board .ledger-area>summary{
+      padding:9px 12px!important;min-height:38px!important;border-bottom:1px solid var(--line)!important;
+      background:#fff7bf!important
+    }
+    body.dark .ledger-board .ledger-area>summary{background:#3b3616!important}
+    .ledger-board .ledger-area>summary b{font-size:13px!important}
+    .ledger-board .ledger-area-body{padding:6px 7px 7px!important}
+    .ledger-board .ledger-task-row{
+      display:grid!important;
+      grid-template-columns:minmax(0,1fr) 210px!important;
+      grid-template-areas:"main status" "main actions"!important;
+      gap:4px 8px!important;align-items:center!important;
+      min-height:58px!important;margin:4px 0!important;padding:7px 8px!important
+    }
+    .ledger-board .ledger-task-main{grid-area:main!important;min-width:0!important;max-width:none!important;padding:0 2px!important}
+    .ledger-board .ledger-task-main strong{
+      font-size:13px!important;line-height:1.3!important;font-weight:800!important;
+      white-space:normal!important;overflow-wrap:anywhere!important;word-break:keep-all!important
+    }
+    .ledger-board .ledger-task-meta{margin-top:4px!important;gap:4px!important}
+    .ledger-board .ledger-task-meta span{padding:2px 5px!important;font-size:8px!important}
+    .ledger-board .ledger-state-group{
+      grid-area:status!important;width:auto!important;min-width:0!important;
+      gap:2px!important;padding:2px!important
+    }
+    .ledger-board .ledger-state-btn{min-height:26px!important;font-size:8px!important;padding:0 4px!important}
+    .ledger-board .ledger-task-actions{
+      grid-area:actions!important;width:auto!important;justify-content:flex-end!important;gap:3px!important
+    }
+    .ledger-board .ledger-task-actions button{padding:4px 6px!important;font-size:8px!important}
+    @media(max-width:1380px){
+      .ledger-board{grid-template-columns:1fr!important}
+      .ledger-board .ledger-task-row{grid-template-columns:minmax(0,1fr) 230px!important}
+    }
+    @media(max-width:760px){
+      .ledger-board .ledger-task-row{
+        grid-template-columns:1fr!important;
+        grid-template-areas:"main" "status" "actions"!important
+      }
+      .ledger-board .ledger-task-actions{justify-content:flex-start!important}
     }
 
     /* compact weekly dashboard: fit most of a week's work without unnecessary scrolling */
