@@ -282,8 +282,7 @@
     function areaSection(area, items) {
       const open = items.length > 0 || area === '기타';
       return `<details class="ledger-area" ${open?'open':''}><summary><b>${escapeHtml(area)}</b><span>${items.length}</span></summary><div class="ledger-area-body">
-        <form class="ledger-area-quick" data-ledger-area-quick="1" data-area="${escapeHtml(area)}"><select name="goal">${classificationOptions(area)}</select><input name="title" placeholder="${escapeHtml(area)} 업무 추가 · Enter"><input name="dueDate" type="date" title="Due Date (선택)"><button>+ 추가</button></form>
-        <div class="ledger-grid"><div class="ledger-grid-head"><div>금주 주요 업무</div><div>상태</div><div>관리</div></div>${items.length?items.map(task=>taskRow(task)).join(''):'<div class="ledger-empty">이번 주 등록된 업무가 없습니다.</div>'}</div>
+        <div class="ledger-grid">${items.length?items.map(task=>taskRow(task)).join(''):'<div class="ledger-empty">이번 주 등록된 업무가 없습니다.</div>'}</div>
       </div></details>`;
     }
 
