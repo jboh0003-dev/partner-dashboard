@@ -106,7 +106,7 @@ export default function Home() {
     addScript("workhub-kart-crossing-init", "/work-hub/kart-crossing-init.js?v=1");
     addScript("workhub-kart-crossing-layout", "/work-hub/kart-crossing-layout.js?v=1");
     addScript("workhub-kart-crossing-script", "/work-hub/kart-crossing.js?v=3");
-    addScript("workhub-kakao-theme", "/work-hub/kakao-theme.js?v=6");
+    addScript("workhub-okestro-theme", "/work-hub/okestro-theme.js?v=1");
     return true;
   }, [supabase, user?.id]);
 
@@ -292,7 +292,7 @@ export default function Home() {
       key={user.id}
       ref={frameRef}
       onLoad={patchAssets}
-      src={`/work-hub/index.html?v=37&uid=${encodeURIComponent(user.id)}`}
+      src={`/work-hub/index.html?v=38&uid=${encodeURIComponent(user.id)}`}
       title="Google"
       className="workhub-frame"
     />
