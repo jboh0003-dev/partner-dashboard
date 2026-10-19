@@ -158,6 +158,16 @@
         }
         friendBtn.onclick=openFriends;
 
+        let postsBtn=document.getElementById('myPostsBtn');
+        if(!postsBtn){
+          postsBtn=document.createElement('button');
+          postsBtn.type='button';
+          postsBtn.id='myPostsBtn';
+          postsBtn.innerHTML='✎ <span>내 게시글</span>';
+          nav.appendChild(postsBtn);
+        }
+        postsBtn.onclick=openMyPosts;
+
         let accountBtn=document.getElementById('accountManageBtn');
         if(!accountBtn){
           accountBtn=document.createElement('button');
@@ -210,16 +220,21 @@
 
     async function saveProfile(values){
       if(!session?.user?.id) return;
+      const allowedThemes=['yellow','blue','mint','pink','night','violet'];
+      const requestedTheme=String(values.home_theme??profile?.home_theme??'blue');
       const next={
-        display_name:String(values.display_name||'').trim().slice(0,30)||'친구',
-        avatar_emoji:String(values.avatar_emoji||'🙂').trim().slice(0,16)||'🙂',
-        status_message:String(values.status_message||'').trim().slice(0,120),
+        display_name:String(values.display_name??profile?.display_name??'친구').trim().slice(0,30)||'친구',
+        avatar_emoji:String(values.avatar_emoji??profile?.avatar_emoji??'🙂').trim().slice(0,16)||'🙂',
+        status_message:String(values.status_message??profile?.status_message??'').trim().slice(0,120),
+        home_title:String(values.home_title??profile?.home_title??'Google').trim().slice(0,40)||'Google',
+        home_theme:allowedThemes.includes(requestedTheme)?requestedTheme:'blue',
         updated_at:new Date().toISOString()
       };
       const {data,error}=await sb.from('workhub_profiles').update(next).eq('user_id',session.user.id).select('*').single();
       if(error) throw error;
       profile=data;
       socialCache=null;
+      return data;
     }
 
     async function readRemote(){
@@ -326,9 +341,21 @@
           <div class="account-section">
             <h3>내 미니프로필</h3>
             <div class="profile-edit-grid">
-              <input id="profileEmoji" maxlength="16" value="${safe(profile?.avatar_emoji||'🙂')}" aria-label="프로필 이모지">
+              <input id="profileEmoji" maxlength="16" value="${safe(profile?.avatar_emoji||'🙂')}" aria-label="프로필 아이콘">
               <input id="profileName" maxlength="30" value="${safe(profile?.display_name||'친구')}" placeholder="표시 이름" aria-label="표시 이름">
+              <input id="profileHomeTitle" maxlength="40" value="${safe(profile?.home_title||'Google')}" placeholder="미니홈 제목" aria-label="미니홈 제목">
+              <select id="profileHomeTheme" aria-label="미니홈 테마">
+                <option value="blue" ${(profile?.home_theme||'blue')==='blue'?'selected':''}>OKESTRO Blue</option>
+                <option value="night" ${profile?.home_theme==='night'?'selected':''}>Deep Navy</option>
+                <option value="mint" ${profile?.home_theme==='mint'?'selected':''}>Mint</option>
+                <option value="violet" ${profile?.home_theme==='violet'?'selected':''}>Violet</option>
+                <option value="pink" ${profile?.home_theme==='pink'?'selected':''}>Rose</option>
+                <option value="yellow" ${profile?.home_theme==='yellow'?'selected':''}>Warm</option>
+              </select>
               <input class="status-field" id="profileStatus" maxlength="120" value="${safe(profile?.status_message||'')}" placeholder="상태메시지" aria-label="상태메시지">
+            </div>
+            <div class="profile-preset-row" aria-label="빠른 프로필 아이콘">
+              ${['🧑‍💼','😎','🤖','🐯','🐰','🦊','⭐','🔥','🎮','💼'].map(x=>'<button type="button" data-profile-emoji="'+x+'">'+x+'</button>').join('')}
             </div>
             <div class="account-actions" style="margin-top:9px"><button type="button" class="btn primary" id="profileSave">프로필 저장</button></div>
           </div>
@@ -345,12 +372,17 @@
       const close=()=>root.remove();
       root.querySelector('[data-close]').onclick=close;
       root.onclick=e=>{if(e.target===root)close();};
+      root.querySelectorAll('[data-profile-emoji]').forEach(btn=>btn.onclick=()=>{
+        document.getElementById('profileEmoji').value=btn.dataset.profileEmoji||'🙂';
+      });
       document.getElementById('profileSave').onclick=async()=>{
         const btn=document.getElementById('profileSave');btn.disabled=true;
         try{
           await saveProfile({
             avatar_emoji:document.getElementById('profileEmoji').value,
             display_name:document.getElementById('profileName').value,
+            home_title:document.getElementById('profileHomeTitle').value,
+            home_theme:document.getElementById('profileHomeTheme').value,
             status_message:document.getElementById('profileStatus').value
           });
           toast('프로필을 저장했습니다.');
