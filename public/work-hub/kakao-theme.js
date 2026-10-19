@@ -623,6 +623,23 @@
       #workhub-live-root .stock{grid-template-columns:22px minmax(0,1fr) 76px 52px!important}
     }
 
+    /* horizontal density: keep weekly controls close instead of stretching across ultrawide screens */
+    .workhub-home-hero,.ledger-metrics,.ledger-week{max-width:1480px!important;margin-left:0!important;margin-right:auto!important}
+    .ledger-top-quick{
+      grid-template-columns:170px minmax(340px,680px) 122px 64px!important;
+      justify-content:start!important
+    }
+    .ledger-task-row{
+      grid-template-columns:minmax(360px,680px) 220px 150px!important;
+      justify-content:start!important
+    }
+    .ledger-task-main{max-width:680px!important}
+    .ledger-state-group{width:220px!important}
+    .ledger-task-actions{width:150px!important;justify-content:flex-start!important}
+    @media(min-width:1600px){
+      .main>.wrap{max-width:1540px!important;margin-left:0!important;margin-right:auto!important;padding-left:18px!important;padding-right:18px!important}
+    }
+
     /* compact weekly dashboard: fit most of a week's work without unnecessary scrolling */
     .workhub-home-hero{
       min-height:104px!important;margin-bottom:10px!important;padding:14px 200px 14px 18px!important;
