@@ -401,9 +401,10 @@
       const menu=document.createElement('div');
       menu.id='cloudUserMenu';
       menu.style='position:fixed;right:18px;top:92px;background:var(--card);border:1px solid var(--line);border-radius:13px;padding:10px;z-index:500;box-shadow:0 18px 40px rgba(0,0,0,.14);min-width:210px';
-      menu.innerHTML='<b style="display:block;font-size:11px;margin-bottom:8px">'+safe(profile?.display_name||session.user.email||'Google')+'</b><button class="btn" id="cloudFriends" style="width:100%">친구꺼 보기</button><button class="btn" id="cloudAccount" style="width:100%;margin-top:6px">계정관리</button><button class="btn" id="cloudSyncNow" style="width:100%;margin-top:6px">지금 동기화</button>';
+      menu.innerHTML='<b style="display:block;font-size:11px;margin-bottom:8px">'+safe(profile?.display_name||session.user.email||'Google')+'</b><button class="btn" id="cloudFriends" style="width:100%">친구꺼 보기</button><button class="btn" id="cloudPosts" style="width:100%;margin-top:6px">내 게시글</button><button class="btn" id="cloudAccount" style="width:100%;margin-top:6px">계정관리</button><button class="btn" id="cloudSyncNow" style="width:100%;margin-top:6px">지금 동기화</button>';
       document.body.appendChild(menu);
       document.getElementById('cloudFriends').onclick=()=>{menu.remove();openFriends();};
+      document.getElementById('cloudPosts').onclick=()=>{menu.remove();openMyPosts();};
       document.getElementById('cloudAccount').onclick=()=>{menu.remove();openAccountManager();};
       document.getElementById('cloudSyncNow').onclick=async()=>{await pushCloud(true);menu.remove();};
     }
@@ -933,7 +934,7 @@
     if(existing)await afterAuth(existing);else showAuth();
 
     const {data:{subscription}}=sb.auth.onAuthStateChange((event,s)=>{
-      if(event==='SIGNED_OUT'){session=null;window.clearInterval(pullTimer);closeOverlay('accountManager');closeOverlay('friendsManager');closeOverlay('friendHome');showAuth();}
+      if(event==='SIGNED_OUT'){session=null;window.clearInterval(pullTimer);closeOverlay('accountManager');closeOverlay('friendsManager');closeOverlay('friendHome');closeOverlay('myPosts');closeOverlay('myGuestbook');showAuth();}
       if(event==='SIGNED_IN'&&s&&session?.user?.id!==s.user.id)window.setTimeout(()=>afterAuth(s),0);
     });
 
