@@ -55,6 +55,7 @@ const PARTNER_CHILD_PREFIXES = [
   "/dashboard/contacts",
   "/dashboard/documents",
   "/dashboard/platinum-upgrade",
+  "/dashboard/platinum-report",
   "/dashboard/performance",
   "/partner-apply",
   "/dashboard/partner-applications"
@@ -75,6 +76,7 @@ const NAV_GROUPS: NavGroup[] = [
         label: "파트너",
         icon: Building2,
         children: [
+          { href: "/dashboard/platinum-report", label: "플래티넘 현황", icon: ClipboardCheck },
           { href: "/dashboard/contacts", label: "인력·담당자", icon: Users },
           { href: "/dashboard/documents", label: "파트너 문서", icon: FileText },
           { href: "/dashboard/platinum-upgrade", label: "플래티넘 승급", icon: ArrowUpCircle },
