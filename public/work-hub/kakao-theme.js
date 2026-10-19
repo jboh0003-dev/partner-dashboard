@@ -623,6 +623,54 @@
       #workhub-live-root .stock{grid-template-columns:22px minmax(0,1fr) 76px 52px!important}
     }
 
+    /* compact weekly dashboard: fit most of a week's work without unnecessary scrolling */
+    .workhub-home-hero{
+      min-height:104px!important;margin-bottom:10px!important;padding:14px 200px 14px 18px!important;
+      border-radius:16px!important
+    }
+    .workhub-home-kicker{padding:3px 7px!important;font-size:8px!important}
+    .workhub-home-copy h2{margin:5px 0 4px!important;font-size:22px!important;line-height:1.2!important}
+    .workhub-home-copy p{font-size:11px!important;line-height:1.4!important}
+    .workhub-mascot-scene{
+      right:10px!important;bottom:-4px!important;transform:scale(.67)!important;transform-origin:right bottom!important
+    }
+    .ledger-metrics{gap:8px!important;margin-bottom:10px!important}
+    .ledger-metric{min-height:56px!important;padding:9px 12px!important;border-radius:12px!important}
+    .ledger-metric span{font-size:10px!important}
+    .ledger-metric strong{margin-top:2px!important;font-size:22px!important}
+    .ledger-week{margin-bottom:10px!important}
+    .ledger-week-head{padding:10px 14px!important}
+    .ledger-week-title b{font-size:18px!important}
+    .ledger-week-title span{margin-top:2px!important;font-size:10px!important;line-height:1.35!important}
+    .ledger-week-nav button{padding:6px 9px!important;font-size:10px!important}
+    .ledger-top-quick{
+      grid-template-columns:180px minmax(250px,1fr) 132px auto!important;
+      gap:6px!important;padding:7px 10px!important
+    }
+    .ledger-top-quick select,.ledger-top-quick input{
+      min-height:34px!important;padding:6px 8px!important;font-size:11px!important
+    }
+    .ledger-top-quick button{min-height:34px!important;padding:6px 11px!important;font-size:11px!important}
+    .ledger-area>summary{padding:8px 13px!important;min-height:36px!important}
+    .ledger-area>summary b{font-size:13px!important}
+    .ledger-area>summary span{min-width:22px!important;height:20px!important;font-size:9px!important}
+    .ledger-area-body{padding:4px 8px 6px!important}
+    .ledger-grid-head{display:none!important}
+    .ledger-task-row{
+      grid-template-columns:minmax(340px,1fr) minmax(240px,300px) 164px!important;
+      min-height:50px!important;margin:4px 0!important;padding:6px 8px!important;gap:8px!important;
+      border-radius:11px!important
+    }
+    .ledger-task-main{padding:0 3px!important}
+    .ledger-task-main strong{font-size:14px!important;line-height:1.3!important}
+    .ledger-task-meta{margin-top:3px!important;gap:4px!important}
+    .ledger-task-meta span{padding:2px 5px!important;font-size:8px!important}
+    .ledger-state-group{gap:3px!important;padding:2px!important;border-radius:9px!important}
+    .ledger-state-btn{min-height:28px!important;border-radius:7px!important;font-size:9px!important}
+    .ledger-task-actions{gap:4px!important}
+    .ledger-task-actions button{padding:5px 6px!important;font-size:9px!important;border-radius:7px!important}
+    .ledger-empty{padding:9px!important;font-size:10px!important}
+
     /* arcade keeps its own game visuals, but navigation follows the workspace */
     .arcade-hero,.arcade-game-card,.arcade-panel{
       border-radius:18px!important;border-color:var(--line)!important;box-shadow:none!important;
