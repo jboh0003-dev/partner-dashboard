@@ -95,11 +95,11 @@ export default function Home() {
     addScript("workhub-cloud-script", "/work-hub/cloud.js?v=social-11");
     addScript("workhub-arcade-nav-script", "/work-hub/arcade-nav.js?v=7");
     addScript("workhub-notes-script", "/work-hub/work-notes.js?v=4");
-    addScript("workhub-ledger-script", "/work-hub/work-ledger.js?v=7");
+    addScript("workhub-ledger-script", "/work-hub/work-ledger.js?v=8");
     addScript("workhub-kart-crossing-init", "/work-hub/kart-crossing-init.js?v=1");
     addScript("workhub-kart-crossing-layout", "/work-hub/kart-crossing-layout.js?v=1");
     addScript("workhub-kart-crossing-script", "/work-hub/kart-crossing.js?v=4");
-    addScript("workhub-okestro-theme", "/work-hub/okestro-theme.js?v=7");
+    addScript("workhub-okestro-theme", "/work-hub/okestro-theme.js?v=8");
     return true;
   }, [supabase, user?.id]);
 
@@ -285,7 +285,7 @@ export default function Home() {
       key={user.id}
       ref={frameRef}
       onLoad={patchAssets}
-      src={`/work-hub/index.html?v=50&uid=${encodeURIComponent(user.id)}`}
+      src={`/work-hub/index.html?v=51&uid=${encodeURIComponent(user.id)}`}
       title="Google"
       className="workhub-frame"
     />
