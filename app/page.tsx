@@ -77,13 +77,6 @@ export default function Home() {
     frameWindow.__workhubConnectClient = supabase;
     frameWindow.__workhubAuthorizedUserId = user.id;
 
-    if (!doc.getElementById("workhub-large-css")) {
-      const link = doc.createElement("link");
-      link.id = "workhub-large-css";
-      link.rel = "stylesheet";
-      link.href = "/work-hub/large.css?v=4";
-      doc.head.appendChild(link);
-    }
 
     const addScript = (id: string, src: string) => {
       if (doc.getElementById(id)) return;
@@ -106,7 +99,7 @@ export default function Home() {
     addScript("workhub-kart-crossing-init", "/work-hub/kart-crossing-init.js?v=1");
     addScript("workhub-kart-crossing-layout", "/work-hub/kart-crossing-layout.js?v=1");
     addScript("workhub-kart-crossing-script", "/work-hub/kart-crossing.js?v=3");
-    addScript("workhub-okestro-theme", "/work-hub/okestro-theme.js?v=2");
+    addScript("workhub-okestro-theme", "/work-hub/okestro-theme.js?v=3");
     return true;
   }, [supabase, user?.id]);
 
@@ -292,7 +285,7 @@ export default function Home() {
       key={user.id}
       ref={frameRef}
       onLoad={patchAssets}
-      src={`/work-hub/index.html?v=40&uid=${encodeURIComponent(user.id)}`}
+      src={`/work-hub/index.html?v=41&uid=${encodeURIComponent(user.id)}`}
       title="Google"
       className="workhub-frame"
     />
