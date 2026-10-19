@@ -90,16 +90,16 @@ export default function Home() {
     addScript("workhub-atlas-retired-guard", "/work-hub/work-atlas.js?v=99");
     addScript("workhub-favorites-script", "/work-hub/favorites.js?v=4");
     addScript("workhub-workflow-script", "/work-hub/workflow.js?v=3");
-    addScript("workhub-calendar-script", "/work-hub/calendar.js?v=7");
+    addScript("workhub-calendar-script", "/work-hub/calendar.js?v=8");
     addScript("workhub-create-script", "/work-hub/create.js?v=3");
-    addScript("workhub-cloud-script", "/work-hub/cloud.js?v=social-9");
+    addScript("workhub-cloud-script", "/work-hub/cloud.js?v=social-10");
     addScript("workhub-arcade-nav-script", "/work-hub/arcade-nav.js?v=7");
     addScript("workhub-notes-script", "/work-hub/work-notes.js?v=4");
     addScript("workhub-ledger-script", "/work-hub/work-ledger.js?v=7");
     addScript("workhub-kart-crossing-init", "/work-hub/kart-crossing-init.js?v=1");
     addScript("workhub-kart-crossing-layout", "/work-hub/kart-crossing-layout.js?v=1");
-    addScript("workhub-kart-crossing-script", "/work-hub/kart-crossing.js?v=3");
-    addScript("workhub-okestro-theme", "/work-hub/okestro-theme.js?v=6");
+    addScript("workhub-kart-crossing-script", "/work-hub/kart-crossing.js?v=4");
+    addScript("workhub-okestro-theme", "/work-hub/okestro-theme.js?v=7");
     return true;
   }, [supabase, user?.id]);
 
@@ -285,7 +285,7 @@ export default function Home() {
       key={user.id}
       ref={frameRef}
       onLoad={patchAssets}
-      src={`/work-hub/index.html?v=47&uid=${encodeURIComponent(user.id)}`}
+      src={`/work-hub/index.html?v=48&uid=${encodeURIComponent(user.id)}`}
       title="Google"
       className="workhub-frame"
     />
