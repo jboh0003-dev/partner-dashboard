@@ -50,7 +50,7 @@
       .nav button.active,
       #workhub-live-nav.active,#workhub-arcade-nav.active,
       #workhub-notes-nav.active,#workhub-monthly-nav.active,#workhub-history-nav.active{
-        background:#fee500!important;border:0!important;color:#191919!important;box-shadow:none!important
+        background:#eff6ff!important;border:0!important;color:#191919!important;box-shadow:none!important
       }
       .nav-divider{display:flex!important;align-items:center!important;gap:7px!important;margin:17px 9px 5px!important;color:#9aa0a6!important;font-size:9px!important;font-weight:850!important;letter-spacing:.8px!important}
       .nav-divider:before,.nav-divider:after{content:'';height:1px;background:#e3e6ea!important;flex:1}.nav-divider span{white-space:nowrap;background:#fff!important;padding:0 3px!important}
@@ -64,12 +64,12 @@
       .special-root[hidden],.arcade-game-panel[hidden]{display:none!important}
       .special-hero{
         display:flex;align-items:center;justify-content:space-between;gap:18px;padding:22px 24px;border:1px solid var(--line);
-        border-top:4px double #af8b53;border-radius:6px;background:linear-gradient(135deg,color-mix(in srgb,var(--card) 88%,#b99d62),var(--card))
+        border-top:1px solid #e2e8f0;border-radius:6px;background:linear-gradient(135deg,color-mix(in srgb,var(--card) 88%,#dbeafe),var(--card))
       }
       .special-kicker{font-size:11px;letter-spacing:3px;color:var(--muted);font-weight:900}
-      .special-hero h2{font-family:Georgia,'Noto Serif KR',Batang,serif;font-size:30px;margin:5px 0 7px}
+      .special-hero h2{font-family:Pretendard,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:30px;margin:5px 0 7px}
       .special-hero p{margin:0;color:var(--muted);font-size:14px;line-height:1.55}
-      .special-count{flex:0 0 auto;border:1px solid #bd9349;background:#fff6d9;color:#765315;border-radius:999px;padding:9px 13px;font-size:12px;font-weight:950}
+      .special-count{flex:0 0 auto;border:1px solid #bfdbfe;background:#eff6ff;color:#1d4ed8;border-radius:999px;padding:9px 13px;font-size:12px;font-weight:950}
       .dark .special-count{background:#40351c;color:#ffe09a;border-color:#715b2d}
       .live-stage{margin-top:16px;min-width:0}
       .live-stage .live-center-below{width:100%!important;margin:0!important}
@@ -83,10 +83,10 @@
         display:grid;grid-template-columns:54px minmax(0,1fr) auto;gap:13px;align-items:center;width:100%;padding:15px 16px;
         border:1px solid var(--line);border-radius:7px;background:var(--card);color:var(--ink);text-align:left;cursor:pointer;box-shadow:var(--shadow)
       }
-      .arcade-game-card:hover{border-color:#b49362;transform:translateY(-1px)}
-      .arcade-game-card.active{border:2px solid var(--brand);background:color-mix(in srgb,var(--card) 91%,#c9a97a);box-shadow:0 12px 30px #72384118}
-      .arcade-game-icon{width:54px;height:54px;display:grid;place-items:center;border-radius:7px;background:#30292a;color:#f4cc70;font-size:27px}
-      .arcade-game-card b{display:block;font-family:Georgia,'Noto Serif KR',Batang,serif;font-size:18px;margin-bottom:4px}
+      .arcade-game-card:hover{border-color:#93c5fd;transform:translateY(-1px)}
+      .arcade-game-card.active{border:2px solid var(--brand);background:color-mix(in srgb,var(--card) 91%,#dbeafe);box-shadow:0 12px 30px #2563eb18}
+      .arcade-game-icon{width:54px;height:54px;display:grid;place-items:center;border-radius:7px;background:#0f172a;color:#2563eb;font-size:27px}
+      .arcade-game-card b{display:block;font-family:Pretendard,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:18px;margin-bottom:4px}
       .arcade-game-card small{display:block;color:var(--muted);font-size:12px;line-height:1.45}
       .arcade-game-arrow{color:var(--muted);font-size:20px;font-weight:900}
       .arcade-stage{min-width:0}.arcade-game-panel{min-width:0}
