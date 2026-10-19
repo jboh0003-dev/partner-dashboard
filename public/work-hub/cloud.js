@@ -752,7 +752,7 @@
         root.querySelector('#myPostBody').value='';
         toast('게시글을 올렸습니다.');
         await draw();
-      });
+      };
       await draw();
     }
 
