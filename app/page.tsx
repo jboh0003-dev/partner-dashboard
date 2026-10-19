@@ -285,7 +285,7 @@ export default function Home() {
       key={user.id}
       ref={frameRef}
       onLoad={patchAssets}
-      src={`/work-hub/index.html?v=48&uid=${encodeURIComponent(user.id)}`}
+      src={`/work-hub/index.html?v=49&uid=${encodeURIComponent(user.id)}`}
       title="Google"
       className="workhub-frame"
     />
