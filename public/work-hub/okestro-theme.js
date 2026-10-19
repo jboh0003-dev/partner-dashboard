@@ -392,6 +392,41 @@
     .friend-home-profile .friends-avatar{background:#fff!important;border-color:#dbeafe!important}
     .friend-home-nav button.active{background:#2563eb!important;color:#fff!important}
 
+    /* Lab game shells follow the same OKESTRO product language; canvases keep their own game art */
+    .bokrun-shell,.kart-crossing{
+      border:1px solid #e2e8f0!important;border-top:1px solid #e2e8f0!important;border-radius:16px!important;
+      background:#fff!important;box-shadow:0 1px 2px rgba(15,23,42,.04)!important;overflow:hidden!important
+    }
+    body.dark .bokrun-shell,body.dark .kart-crossing{background:#111827!important;border-color:#263244!important}
+    .bokrun-hero,.kart-head{
+      background:linear-gradient(135deg,#0f172a 0%,#1e3a8a 56%,#2563eb 100%)!important;
+      color:#fff!important;border-bottom:0!important
+    }
+    .bokrun-kicker,.kart-kicker{color:#bfdbfe!important;opacity:1!important}
+    .bokrun-hero h2,.kart-head h2{color:#fff!important;font-family:Pretendard,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif!important;font-weight:800!important}
+    .bokrun-hero p,.kart-head p{color:#dbeafe!important}
+    .bokrun-wallet span{background:rgba(255,255,255,.12)!important;color:#fff!important}
+    .bokrun-nav{background:#f8fafc!important;border-color:#e2e8f0!important}
+    .bokrun-nav button{color:#64748b!important}.bokrun-nav button.active{background:#eff6ff!important;color:#1d4ed8!important}
+    .bokrun-world.active,.bokrun-unit.selected,.bokrun-consume.active{border-color:#60a5fa!important;box-shadow:inset 0 0 0 1px #60a5fa!important;background:#eff6ff!important}
+    .bokrun-start,.bokrun-primary,.kart-head-actions .primary,.kart-reveal-button{
+      background:#2563eb!important;border-color:#2563eb!important;color:#fff!important
+    }
+    .bokrun-start:hover,.bokrun-primary:hover,.kart-head-actions .primary:hover,.kart-reveal-button:hover{background:#1d4ed8!important}
+    .bokrun-card,.kart-lounge,.kart-selected,.kart-modal{
+      background:#fff!important;border-color:#e2e8f0!important;color:#0f172a!important;box-shadow:none!important
+    }
+    body.dark .bokrun-card,body.dark .kart-lounge,body.dark .kart-selected,body.dark .kart-modal{background:#111827!important;border-color:#334155!important;color:#f8fafc!important}
+    .kart-lounge-title h3,.kart-modal h3,.kart-message b{
+      font-family:Pretendard,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif!important
+    }
+    .kart-balance{background:#eff6ff!important;border-color:#bfdbfe!important;color:#1d4ed8!important}
+    .kart-controls{background:#0f172a!important;border-color:#334155!important}
+    .kart-controls button{background:#1e293b!important;border-color:#475569!important;color:#e2e8f0!important;border-radius:9px!important}
+    .kart-controls button:active{background:#334155!important}
+    .kart-message{border-color:#60a5fa!important;background:rgba(15,23,42,.94)!important;color:#fff!important}
+    .kart-message em{color:#93c5fd!important}
+    .kart-modal-bg{background:rgba(2,6,23,.78)!important}
     /* remove antique/gothic remnants */
     [style*="Georgia"],[style*="Batang"]{font-family:Pretendard,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif!important}
     .metric strong,.lanehead h3,.calendar-head h3,.cloud-card h2,.runner-heading h2,.runner-records h3,.runner-message b{
