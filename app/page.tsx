@@ -92,7 +92,7 @@ export default function Home() {
     addScript("workhub-workflow-script", "/work-hub/workflow.js?v=3");
     addScript("workhub-calendar-script", "/work-hub/calendar.js?v=8");
     addScript("workhub-create-script", "/work-hub/create.js?v=3");
-    addScript("workhub-cloud-script", "/work-hub/cloud.js?v=social-10");
+    addScript("workhub-cloud-script", "/work-hub/cloud.js?v=social-11");
     addScript("workhub-arcade-nav-script", "/work-hub/arcade-nav.js?v=7");
     addScript("workhub-notes-script", "/work-hub/work-notes.js?v=4");
     addScript("workhub-ledger-script", "/work-hub/work-ledger.js?v=7");
@@ -285,7 +285,7 @@ export default function Home() {
       key={user.id}
       ref={frameRef}
       onLoad={patchAssets}
-      src={`/work-hub/index.html?v=49&uid=${encodeURIComponent(user.id)}`}
+      src={`/work-hub/index.html?v=50&uid=${encodeURIComponent(user.id)}`}
       title="Google"
       className="workhub-frame"
     />
