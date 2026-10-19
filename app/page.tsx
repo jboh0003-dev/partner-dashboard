@@ -106,7 +106,7 @@ export default function Home() {
     addScript("workhub-kart-crossing-init", "/work-hub/kart-crossing-init.js?v=1");
     addScript("workhub-kart-crossing-layout", "/work-hub/kart-crossing-layout.js?v=1");
     addScript("workhub-kart-crossing-script", "/work-hub/kart-crossing.js?v=3");
-    addScript("workhub-kakao-theme", "/work-hub/kakao-theme.js?v=4");
+    addScript("workhub-kakao-theme", "/work-hub/kakao-theme.js?v=5");
     return true;
   }, [supabase, user?.id]);
 
