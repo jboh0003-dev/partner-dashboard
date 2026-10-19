@@ -629,6 +629,133 @@
       await draw();
     }
 
+
+    function socialTime(value){
+      try{return new Date(value).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});}
+      catch{return '';}
+    }
+
+    async function loadPosts(ownerId){
+      const {data:postRows,error:postError}=await sb.from('workhub_posts')
+        .select('id,author_id,mood,body,created_at')
+        .eq('author_id',ownerId)
+        .order('created_at',{ascending:false})
+        .limit(30);
+      if(postError)throw postError;
+      const posts=postRows||[];
+      const postIds=posts.map(p=>p.id);
+      let comments=[],reactions=[];
+      if(postIds.length){
+        const [commentRes,reactionRes]=await Promise.all([
+          sb.from('workhub_post_comments').select('id,post_id,author_id,body,created_at').in('post_id',postIds).order('created_at',{ascending:true}),
+          sb.from('workhub_post_reactions').select('post_id,user_id,emoji,created_at').in('post_id',postIds)
+        ]);
+        if(commentRes.error)throw commentRes.error;
+        if(reactionRes.error)throw reactionRes.error;
+        comments=commentRes.data||[];
+        reactions=reactionRes.data||[];
+      }
+      const ids=[...new Set([ownerId,...comments.map(x=>x.author_id)].filter(Boolean))];
+      let profiles=[];
+      if(ids.length){
+        const pr=await sb.from('workhub_profiles').select('user_id,display_name,avatar_emoji').in('user_id',ids);
+        if(pr.error)throw pr.error;
+        profiles=pr.data||[];
+      }
+      const profileMap=new Map(profiles.map(p=>[p.user_id,p]));
+      return posts.map(post=>({
+        ...post,
+        author:profileMap.get(post.author_id)||{display_name:'친구',avatar_emoji:'🙂'},
+        comments:comments.filter(x=>x.post_id===post.id).map(x=>({...x,author:profileMap.get(x.author_id)||{display_name:'친구',avatar_emoji:'🙂'}})),
+        reactions:reactions.filter(x=>x.post_id===post.id)
+      }));
+    }
+
+    function renderPostCards(posts,ownerId){
+      if(!posts.length)return '<div class="friends-empty">아직 게시글이 없습니다.</div>';
+      return '<div class="social-post-list">'+posts.map(post=>{
+        const mine=post.author_id===session?.user?.id;
+        const reacted=(post.reactions||[]).some(r=>r.user_id===session?.user?.id);
+        const comments=(post.comments||[]).map(cm=>{
+          const canDelete=cm.author_id===session?.user?.id || ownerId===session?.user?.id;
+          return '<div class="social-comment"><div class="mini-avatar">'+safe(cm.author?.avatar_emoji||'🙂')+'</div><div><b>'+safe(cm.author?.display_name||'친구')+'</b><p>'+safe(cm.body||'')+'</p></div>'+(canDelete?'<button type="button" data-comment-delete="'+safe(cm.id)+'">삭제</button>':'<span></span>')+'</div>';
+        }).join('');
+        return '<article class="social-post-card"><div class="social-post-head"><div class="social-post-author"><span class="mini-avatar">'+safe(post.author?.avatar_emoji||'🙂')+'</span><div><b>'+safe(post.author?.display_name||'친구')+'</b><small>'+safe(socialTime(post.created_at))+'</small></div></div><span class="social-post-mood">'+safe(post.mood||'💬')+'</span></div><div class="social-post-body">'+safe(post.body||'')+'</div><div class="social-post-actions"><button type="button" class="'+(reacted?'active':'')+'" data-post-react="'+safe(post.id)+'">♥ 공감 '+(post.reactions||[]).length+'</button><span>댓글 '+(post.comments||[]).length+'</span>'+(mine?'<button type="button" class="danger" data-post-delete="'+safe(post.id)+'">게시글 삭제</button>':'')+'</div><div class="social-comments">'+comments+'</div><form class="social-comment-form" data-comment-form="'+safe(post.id)+'"><input maxlength="300" placeholder="댓글 남기기"><button type="submit">등록</button></form></article>';
+      }).join('')+'</div>';
+    }
+
+    function bindPostActions(container,posts,ownerId,refresh){
+      container.querySelectorAll('[data-post-react]').forEach(btn=>btn.onclick=async()=>{
+        const postId=btn.dataset.postReact;
+        const post=posts.find(x=>x.id===postId);
+        const reacted=(post?.reactions||[]).some(r=>r.user_id===session.user.id);
+        const result=reacted
+          ?await sb.from('workhub_post_reactions').delete().eq('post_id',postId).eq('user_id',session.user.id)
+          :await sb.from('workhub_post_reactions').insert({post_id:postId,user_id:session.user.id,emoji:'❤️'});
+        if(result.error){console.error(result.error);toast('공감 처리에 실패했습니다.');return;}
+        await refresh();
+      });
+      container.querySelectorAll('[data-comment-form]').forEach(form=>form.onsubmit=async(e)=>{
+        e.preventDefault();
+        const input=form.querySelector('input');
+        const body=String(input?.value||'').trim();
+        if(!body)return;
+        const {error}=await sb.from('workhub_post_comments').insert({post_id:form.dataset.commentForm,author_id:session.user.id,body});
+        if(error){console.error(error);toast('댓글 등록에 실패했습니다.');return;}
+        await refresh();
+      });
+      container.querySelectorAll('[data-comment-delete]').forEach(btn=>btn.onclick=async()=>{
+        const {error}=await sb.from('workhub_post_comments').delete().eq('id',btn.dataset.commentDelete);
+        if(error){console.error(error);toast('댓글 삭제에 실패했습니다.');return;}
+        await refresh();
+      });
+      container.querySelectorAll('[data-post-delete]').forEach(btn=>btn.onclick=async()=>{
+        if(!confirm('이 게시글을 삭제할까요?'))return;
+        const {error}=await sb.from('workhub_posts').delete().eq('id',btn.dataset.postDelete);
+        if(error){console.error(error);toast('게시글 삭제에 실패했습니다.');return;}
+        await refresh();
+      });
+    }
+
+    async function openMyPosts(){
+      if(!session?.user)return;
+      closeOverlay('friendsManager');closeOverlay('friendHome');closeOverlay('accountManager');
+      try{await ensureProfile();}catch(e){console.error(e);}
+      const root=document.createElement('div');
+      root.id='myPosts';
+      root.className='cloud-auth';
+      root.innerHTML='<div class="friends-modal social-post-modal"><div class="friends-head"><div><h2>내 게시글</h2><p>업무 이야기, 잡담, 게임 기록을 남기고 친구와 댓글·공감으로 소통합니다.</p></div><button type="button" class="account-close" data-close>×</button></div><form class="social-post-compose" id="myPostCompose"><div class="social-post-compose-head"><select id="myPostMood"><option>💬</option><option>💼</option><option>🔥</option><option>😎</option><option>😂</option><option>🎮</option><option>⭐</option></select><b>새 게시글</b></div><textarea id="myPostBody" maxlength="500" placeholder="오늘 한 일이나 친구에게 보여주고 싶은 내용을 적어보세요."></textarea><button type="submit">게시하기</button></form><div id="myPostsList"><div class="friends-empty">게시글을 불러오는 중…</div></div></div>';
+      document.body.appendChild(root);
+      const close=()=>root.remove();
+      root.querySelector('[data-close]').onclick=close;
+      root.onclick=e=>{if(e.target===root)close();};
+
+      const draw=async()=>{
+        const list=root.querySelector('#myPostsList');
+        try{
+          const posts=await loadPosts(session.user.id);
+          list.innerHTML=renderPostCards(posts,session.user.id);
+          bindPostActions(list,posts,session.user.id,draw);
+        }catch(e){console.error(e);list.innerHTML='<div class="friends-empty">게시글을 불러오지 못했습니다.</div>';}
+      };
+
+      root.querySelector('#myPostCompose').onsubmit=async(e=>{
+        e.preventDefault();
+        const body=String(root.querySelector('#myPostBody')?.value||'').trim();
+        const mood=String(root.querySelector('#myPostMood')?.value||'💬');
+        if(!body){toast('게시글 내용을 입력해주세요.');return;}
+        const button=e.currentTarget.querySelector('button[type="submit"]');
+        button.disabled=true;
+        const {error}=await sb.from('workhub_posts').insert({author_id:session.user.id,mood,body});
+        button.disabled=false;
+        if(error){console.error(error);toast('게시글 등록에 실패했습니다.');return;}
+        root.querySelector('#myPostBody').value='';
+        toast('게시글을 올렸습니다.');
+        await draw();
+      });
+      await draw();
+    }
+
     async function openFriendHome(friendId,friendProfile,share){
       closeOverlay('friendsManager');
       const root=document.createElement('div');root.id='friendHome';root.className='cloud-auth';
