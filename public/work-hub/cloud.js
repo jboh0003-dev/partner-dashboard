@@ -739,7 +739,7 @@
         }catch(e){console.error(e);list.innerHTML='<div class="friends-empty">게시글을 불러오지 못했습니다.</div>';}
       };
 
-      root.querySelector('#myPostCompose').onsubmit=async(e=>{
+      root.querySelector('#myPostCompose').onsubmit=async(e)=>{
         e.preventDefault();
         const body=String(root.querySelector('#myPostBody')?.value||'').trim();
         const mood=String(root.querySelector('#myPostMood')?.value||'💬');
