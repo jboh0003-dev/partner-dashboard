@@ -220,7 +220,7 @@
 
     async function saveProfile(values){
       if(!session?.user?.id) return;
-      const allowedThemes=['yellow','blue','mint','pink','night','violet'];
+      const allowedThemes=['blue','mint','pink','night','violet'];
       const requestedTheme=String(values.home_theme??profile?.home_theme??'blue');
       const next={
         display_name:String(values.display_name??profile?.display_name??'친구').trim().slice(0,30)||'친구',
@@ -350,7 +350,6 @@
                 <option value="mint" ${profile?.home_theme==='mint'?'selected':''}>Mint</option>
                 <option value="violet" ${profile?.home_theme==='violet'?'selected':''}>Violet</option>
                 <option value="pink" ${profile?.home_theme==='pink'?'selected':''}>Rose</option>
-                <option value="yellow" ${profile?.home_theme==='yellow'?'selected':''}>Warm</option>
               </select>
               <input class="status-field" id="profileStatus" maxlength="120" value="${safe(profile?.status_message||'')}" placeholder="상태메시지" aria-label="상태메시지">
             </div>
