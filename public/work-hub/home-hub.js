@@ -116,7 +116,7 @@
     bindBrand();
 
     const coreReady = typeof window.render === 'function';
-    const themeReady = window.__workhubKakaoThemeLoaded === true;
+    const themeReady = window.__workhubThemeReady === true || window.__workhubOkestroThemeLoaded === true;
     const liveReady = document.getElementById('workhub-live-nav') instanceof HTMLButtonElement;
     const labReady = document.getElementById('workhub-arcade-nav') instanceof HTMLButtonElement;
 
