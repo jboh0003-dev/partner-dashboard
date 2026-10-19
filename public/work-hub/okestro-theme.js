@@ -338,4 +338,7 @@
     }
   `;
   document.head.appendChild(style);
+  window.__workhubOkestroThemeLoaded = true;
+  window.__workhubThemeReady = true;
+  window.dispatchEvent(new CustomEvent('workhub:theme-ready',{detail:{theme:'okestro'}}));
 })();
