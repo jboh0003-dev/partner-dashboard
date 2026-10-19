@@ -498,7 +498,7 @@
           if(myGuestbookBtn)myGuestbookBtn.onclick=()=>{close();openMyGuestbook();};
 
           const form=document.getElementById('friendSearchForm');
-          form.onsubmit=async(e)=>{
+          form.onsubmit=async (e)=>{
             e.preventDefault();
             const input=document.getElementById('friendCodeInput'),code=String(input.value||'').trim().toUpperCase();
             if(!code){toast('친구 코드를 입력해주세요.');return;}
