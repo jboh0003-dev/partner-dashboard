@@ -30,22 +30,22 @@
       .calendar-head{display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:1px solid var(--line);gap:14px}
       .calendar-head h3{margin:0;font-size:21px;font-weight:950}.calendar-head p{margin:4px 0 0;color:var(--muted);font-size:12px}
       .calendar-nav{display:flex;gap:7px;align-items:center;flex-wrap:wrap;justify-content:flex-end}.calendar-label{font-size:15px;font-weight:900;min-width:105px;text-align:center}
-      .vacation-add{background:#723841!important;border-color:#723841!important;color:#fff8ec!important}
+      .vacation-add{background:#2563eb!important;border-color:#2563eb!important;color:#ffffff!important}
       .calendar-weekdays,.calendar-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr))}
       .calendar-weekdays{padding:10px 12px 0}.calendar-weekdays div{text-align:center;color:var(--muted);font-size:12px;font-weight:850;padding:7px}
       .calendar-weekdays div:first-child{color:#a8494f}.calendar-weekdays div:last-child{color:#746959}
       .calendar-grid{padding:0 12px 13px;gap:6px}
       .cal-day{position:relative;min-height:84px;border:1px solid var(--line);border-radius:11px;background:color-mix(in srgb,var(--card) 94%,#eef3f8);padding:8px;cursor:pointer;transition:.12s ease;overflow:visible}
-      .cal-day:hover{border-color:#ad8b62;box-shadow:0 8px 22px rgba(114,56,65,.12);z-index:30}.cal-day.out{opacity:.38}.cal-day.today{outline:2px solid #723841;outline-offset:-1px}
+      .cal-day:hover{border-color:#93c5fd;box-shadow:0 8px 22px rgba(37,99,235,.12);z-index:30}.cal-day.out{opacity:.38}.cal-day.today{outline:2px solid #2563eb;outline-offset:-1px}
       .cal-day.holiday{background:color-mix(in srgb,#fff0f0 35%,var(--card));border-color:color-mix(in srgb,#d0525b 35%,var(--line))}
       .cal-num{font-size:14px;font-weight:900}.cal-day.sun .cal-num,.cal-day.holiday .cal-num{color:#a8494f}.cal-day.sat .cal-num{color:#746959}
       .holiday-name{display:block;margin-top:2px;font-size:10px;font-weight:900;color:#d0525b;word-break:keep-all;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-      .cal-count{position:absolute;right:7px;top:7px;min-width:22px;height:22px;padding:0 6px;border-radius:999px;background:#723841;color:#fff8ec;display:grid;place-items:center;font-size:11px;font-weight:950}
+      .cal-count{position:absolute;right:7px;top:7px;min-width:22px;height:22px;padding:0 6px;border-radius:999px;background:#2563eb;color:#ffffff;display:grid;place-items:center;font-size:11px;font-weight:950}
       .cal-preview{margin-top:7px;display:flex;flex-direction:column;gap:4px}.cal-preview span{font-size:10px;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--muted)}
       .cal-preview span.done{color:#13865f;text-decoration:line-through}.cal-preview span.blocked{color:#c7652d}
-      .cal-preview .vacation-preview{color:#8a5963;font-weight:900;text-decoration:none}
-      .dark .cal-preview .vacation-preview{color:#e2b6bd}
-      .cal-tooltip{display:none;position:absolute;left:8px;top:calc(100% - 2px);width:min(390px,80vw);background:#35282b;color:#f5ead8;border:1px solid #6b5547;border-radius:8px;padding:11px;box-shadow:0 18px 45px rgba(31,20,22,.28);z-index:100}
+      .cal-preview .vacation-preview{color:#1d4ed8;font-weight:900;text-decoration:none}
+      .dark .cal-preview .vacation-preview{color:#93c5fd}
+      .cal-tooltip{display:none;position:absolute;left:8px;top:calc(100% - 2px);width:min(390px,80vw);background:#0f172a;color:#f8fafc;border:1px solid #334155;border-radius:8px;padding:11px;box-shadow:0 18px 45px rgba(31,20,22,.28);z-index:100}
       .cal-day:nth-child(7n+6) .cal-tooltip,.cal-day:nth-child(7n+7) .cal-tooltip{left:auto;right:8px}.cal-day:hover .cal-tooltip{display:block}
       .cal-tooltip b{display:block;font-size:13px;margin-bottom:6px}.cal-tip-item{font-size:12px;line-height:1.45;padding:6px 0;border-top:1px solid #57443d;word-break:keep-all;overflow-wrap:break-word}.cal-tip-item:first-of-type{border-top:0}.cal-tip-status{font-size:10px;color:#bbaa98;margin-right:6px}
       .holiday-tip{color:#f0a0a4;font-weight:900}.vacation-tip{color:#e0b7bd;font-weight:900}
