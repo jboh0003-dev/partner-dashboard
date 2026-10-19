@@ -140,8 +140,8 @@
       return false;
     }
     function tasksForWeek() { return S.workItems.filter(inDisplayedWeek); }
-    function statusText(status) { return ({todo:'시작 전',doing:'진행 중',done:'완료',blocked:'이슈'}[status] || status || '시작 전'); }
-    function statusMark(status) { return ({todo:'○',doing:'△',done:'✓',blocked:'!'}[status] || '○'); }
+    function statusText(status) { return ({todo:'시작 전',doing:'진행 중',done:'완료',blocked:'이슈',failed:'못함'}[status] || status || '시작 전'); }
+    function statusMark(status) { return ({todo:'○',doing:'△',done:'✓',blocked:'!',failed:'×'}[status] || '○'); }
 
     const style = document.createElement('style');
     style.id = 'workhub-ledger-style';
