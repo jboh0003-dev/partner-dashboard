@@ -1,9 +1,9 @@
 (() => {
   'use strict';
-  if (document.getElementById('workhub-okestro-theme')) return;
+  if (document.getElementById('workhub-okestro-theme-style')) return;
 
   const style = document.createElement('style');
-  style.id = 'workhub-okestro-theme';
+  style.id = 'workhub-okestro-theme-style';
   style.textContent = `
     :root{
       --bg:#f8fafc!important;
