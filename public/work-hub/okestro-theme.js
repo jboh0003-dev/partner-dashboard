@@ -289,6 +289,54 @@
     .monthly-group-head,.history-group>summary{background:#f8fafc!important;border-color:#e2e8f0!important}
     .history-month.active{background:#eff6ff!important;border-color:#bfdbfe!important;color:#1d4ed8!important}
 
+    /* Feature modules: normalize every late-injected legacy surface to the same Connect system */
+    #workhub-live-nav.active,#workhub-arcade-nav.active,#workhub-notes-nav.active,#workhub-monthly-nav.active,#workhub-history-nav.active,
+    #friendsManageBtn.active,#accountManageBtn.active{
+      background:#eff6ff!important;border-color:transparent!important;color:#1e40af!important;
+      box-shadow:none!important
+    }
+    .special-root,.notes-root,.ledger-special{max-width:none!important;margin:0!important;padding:16px 18px 28px!important}
+    .special-hero,.memo-hero,.ledger-hero{
+      border:1px solid #e2e8f0!important;border-top:1px solid #e2e8f0!important;border-radius:16px!important;
+      background:linear-gradient(135deg,#ffffff 0%,#f8fafc 100%)!important;box-shadow:0 1px 2px rgba(15,23,42,.03)!important;
+      padding:18px 20px!important
+    }
+    .special-kicker,.memo-kicker,.ledger-kicker{color:#2563eb!important;letter-spacing:.06em!important;font-size:9px!important}
+    .special-hero h2,.memo-hero h2,.ledger-hero h2{
+      font-family:Pretendard,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif!important;
+      color:#0f172a!important;font-size:24px!important;font-weight:800!important;letter-spacing:-.6px!important
+    }
+    body.dark .special-hero,body.dark .memo-hero,body.dark .ledger-hero{background:#111827!important;border-color:#263244!important}
+    body.dark .special-hero h2,body.dark .memo-hero h2,body.dark .ledger-hero h2{color:#f8fafc!important}
+    .special-count,.memo-count{
+      border:1px solid #dbeafe!important;background:#eff6ff!important;color:#1d4ed8!important;
+      border-radius:999px!important;font-size:10px!important
+    }
+    .arcade-game-card,.memo-composer,.memo-bucket,.memo-card,.calendar-card,.cloud-card{
+      border:1px solid #e2e8f0!important;border-top:1px solid #e2e8f0!important;border-radius:14px!important;
+      background:#fff!important;box-shadow:0 1px 2px rgba(15,23,42,.03)!important
+    }
+    .arcade-game-card:hover,.memo-card:hover{border-color:#bfdbfe!important}
+    .arcade-game-card.active{border-color:#93c5fd!important;background:#eff6ff!important;box-shadow:none!important}
+    .arcade-game-icon{background:#eff6ff!important;color:#2563eb!important;border-radius:12px!important}
+    .arcade-game-card b,.memo-metric strong,.calendar-head h3{
+      font-family:Pretendard,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif!important
+    }
+    .memo-bucket-head,.monthly-group-head,.history-group>summary{
+      background:#f8fafc!important;border-color:#e2e8f0!important
+    }
+    .memo-bucket{border-top:1px solid #e2e8f0!important}
+    .memo-bucket-count,.special-count,.memo-count{color:#2563eb!important}
+    .memo-actions .primary,.calendar-layer.active{background:#2563eb!important;border-color:#2563eb!important;color:#fff!important}
+    .memo-card.done{background:#f0fdf4!important;border-color:#bbf7d0!important}
+    .live-stage .live:not(.expanded),.live{
+      border:1px solid #1e293b!important;border-radius:16px!important;box-shadow:none!important
+    }
+    .runner-heading h2,.runner-records h3,.runner-message b,.reportcard h3{
+      font-family:Pretendard,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif!important
+    }
+    .ledger-grid{min-width:0!important}
+
     /* Social */
     .friends-avatar{background:#eff6ff!important;border-color:#bfdbfe!important}
     .friends-self{background:#f8fafc!important;border-color:#e2e8f0!important}
@@ -337,7 +385,20 @@
       .ledger-board .ledger-task-actions{justify-content:flex-start!important}
     }
   `;
+  const removeLegacyThemeNodes=()=>{
+    ['workhub-large-css','workhub-renaissance-css'].forEach(id=>document.getElementById(id)?.remove());
+  };
+  const keepThemeLast=()=>{
+    removeLegacyThemeNodes();
+    if(style.parentNode!==document.head || document.head.lastElementChild!==style){
+      document.head.appendChild(style);
+    }
+  };
   document.head.appendChild(style);
+  removeLegacyThemeNodes();
+  const guard=new MutationObserver(()=>queueMicrotask(keepThemeLast));
+  guard.observe(document.head,{childList:true});
+  [0,120,300,700,1500,3000].forEach(ms=>window.setTimeout(keepThemeLast,ms));
   window.__workhubOkestroThemeLoaded = true;
   window.__workhubThemeReady = true;
   window.dispatchEvent(new CustomEvent('workhub:theme-ready',{detail:{theme:'okestro'}}));
