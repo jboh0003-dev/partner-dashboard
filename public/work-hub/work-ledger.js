@@ -300,7 +300,8 @@
       const todo = items.filter(x=>x.status==='todo').length;
       const blocked = items.filter(x=>x.status==='blocked').length;
       const groupedAreas = allAreas();
-      const sections = groupedAreas.map(area => areaSection(area, items.filter(task=>taskArea(task)===area))).join('');
+      const populatedAreas = groupedAreas.filter(area => items.some(task=>taskArea(task)===area));
+      const sections = (populatedAreas.length?populatedAreas:['기타']).map(area => areaSection(area, items.filter(task=>taskArea(task)===area))).join('');
       const range = `${formatDate(weekStart)} ~ ${formatDate(add(weekStart,4))}`;
       const currentWeek = mon(today());
       const current = currentWeek === weekStart;
@@ -319,8 +320,8 @@
         <div class="workhub-mascot-scene" aria-hidden="true"><span class="mascot-bubble">${bubbleLabel}<br><b>${bubbleCount}개</b></span><div class="mascot-note"><i></i><i></i><i></i></div><div class="workhub-mascot"><span class="mascot-eye one"></span><span class="mascot-eye two"></span><span class="mascot-smile"></span><span class="mascot-arm"></span></div></div>
       </section>
       <div class="ledger-metrics"><div class="ledger-metric"><span>주간 업무</span><strong>${items.length}</strong></div><div class="ledger-metric"><span>시작 전</span><strong>${todo}</strong></div><div class="ledger-metric"><span>진행 중</span><strong>${doing}</strong></div><div class="ledger-metric"><span>완료</span><strong>${done}</strong></div><div class="ledger-metric issue-metric"><span>이슈</span><strong>${blocked}</strong></div></div>
-      <section class="ledger-week"><div class="ledger-week-head"><div class="ledger-week-title"><b>${current?'이번 주 일계표':'주간 일계표'}</b><span>${range} · 큰 업무영역별로 주간업무를 정리하고 상태만 빠르게 업데이트합니다.</span></div><div class="ledger-week-nav"><button type="button" data-ledger-week-nav="prev">← 이전주</button><button type="button" data-ledger-week-nav="today">이번주</button><button type="button" data-ledger-week-nav="next">차주 →</button></div></div>
-      <form class="ledger-top-quick" id="ledgerTopQuick"><select name="area">${allAreas().map(area=>`<option value="${escapeHtml(area)}">${escapeHtml(area)}</option>`).join('')}</select><input name="title" placeholder="빠른 추가 · 예: 파트너 안내하기"><input name="dueDate" type="date" title="Due Date (선택)"><button>+ 추가</button></form>${sections}</section>`;
+      <section class="ledger-week"><div class="ledger-week-head"><div class="ledger-week-title"><b>${current?'이번 주 일계표':'주간 일계표'}</b><span>${range} · 업무영역을 사분면처럼 나눠 한 화면에서 빠르게 확인합니다.</span></div><div class="ledger-week-nav"><button type="button" data-ledger-week-nav="prev">← 이전주</button><button type="button" data-ledger-week-nav="today">이번주</button><button type="button" data-ledger-week-nav="next">차주 →</button></div></div>
+      <form class="ledger-top-quick" id="ledgerTopQuick"><select name="area">${allAreas().map(area=>`<option value="${escapeHtml(area)}">${escapeHtml(area)}</option>`).join('')}</select><input name="title" placeholder="빠른 추가 · 예: 파트너 안내하기"><input name="dueDate" type="date" title="Due Date (선택)"><button>+ 추가</button></form><div class="ledger-board">${sections}</div></section>`;
       return head + holder.innerHTML;
     };
 
