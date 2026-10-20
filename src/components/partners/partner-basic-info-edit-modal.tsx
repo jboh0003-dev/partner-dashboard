@@ -7,6 +7,7 @@ import {
   buildPartnerGradeSavePayload,
   getDisplayPartnerGrade
 } from "@/lib/partners/grade";
+import { resolvePartnerLocation } from "@/lib/partners/address-location";
 import { formatPartnerNo } from "@/lib/partners/partner-no";
 import type { Partner } from "@/types/partner";
 
@@ -24,6 +25,8 @@ type FormState = {
   grade: string;
   grade_change_raw: string;
   region_group: string;
+  region: string;
+  city: string;
   sales_owner: string;
   business_number: string;
   founded_date: string;
@@ -40,13 +43,22 @@ type FormState = {
 };
 
 function toFormState(partner: Partner): FormState {
+  const location = resolvePartnerLocation({
+    address: partner.address,
+    regionGroup: partner.region_group,
+    region: partner.region,
+    city: partner.city
+  });
+
   return {
     company_name: partner.company_name,
     external_no: partner.external_no ?? "",
     contract_start_date: partner.contract_start_date ?? "",
     grade: getDisplayPartnerGrade(partner),
     grade_change_raw: partner.grade_change_raw ?? partner.grade_raw ?? "",
-    region_group: partner.region_group ?? "",
+    region_group: location.regionGroup,
+    region: location.region,
+    city: location.city,
     sales_owner: partner.sales_owner ?? "",
     business_number: partner.business_number ?? "",
     founded_date: partner.founded_date ?? "",
@@ -103,6 +115,8 @@ export function PartnerBasicInfoEditModal({
         grade_override: gradePayload.grade_override,
         grade_change_raw: form.grade_change_raw || null,
         region_group: form.region_group || null,
+        region: form.region || null,
+        city: form.city || null,
         sales_owner: form.sales_owner || null,
         business_number: form.business_number || null,
         founded_date: form.founded_date || null,
@@ -207,11 +221,25 @@ export function PartnerBasicInfoEditModal({
                   placeholder="예: Gold 승격 예정"
                 />
               </Field>
-              <Field label="광역그룹">
+              <Field label="광역그룹 (주소 자동)">
                 <input
                   value={form.region_group}
-                  onChange={(event) => setForm((prev) => ({ ...prev, region_group: event.target.value }))}
-                  className="ui-input w-full"
+                  readOnly
+                  className="ui-input w-full bg-slate-50 text-slate-700"
+                />
+              </Field>
+              <Field label="지역 (주소 자동)">
+                <input
+                  value={form.region}
+                  readOnly
+                  className="ui-input w-full bg-slate-50 text-slate-700"
+                />
+              </Field>
+              <Field label="시/군/구 (주소 자동)">
+                <input
+                  value={form.city}
+                  readOnly
+                  className="ui-input w-full bg-slate-50 text-slate-700"
                 />
               </Field>
               <Field label="영업담당자">
@@ -301,9 +329,29 @@ export function PartnerBasicInfoEditModal({
             <Field label="주소">
               <textarea
                 value={form.address}
-                onChange={(event) => setForm((prev) => ({ ...prev, address: event.target.value }))}
+                onChange={(event) => {
+                  const address = event.target.value;
+                  setForm((prev) => {
+                    const location = resolvePartnerLocation({
+                      address,
+                      regionGroup: prev.region_group,
+                      region: prev.region,
+                      city: prev.city
+                    });
+                    return {
+                      ...prev,
+                      address,
+                      region_group: location.regionGroup,
+                      region: location.region,
+                      city: location.city
+                    };
+                  });
+                }}
                 className="ui-input min-h-[80px] w-full"
               />
+              <span className="block text-[11px] text-slate-500">
+                주소 기준으로 광역그룹·지역·시/군/구가 자동 갱신됩니다.
+              </span>
             </Field>
 
             <Field label="비고">
