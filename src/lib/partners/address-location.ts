@@ -214,3 +214,41 @@ export function inferPartnerAddressLocation(value: unknown): PartnerAddressLocat
     city: inferCity(rest, rule)
   };
 }
+
+
+export type PartnerLocationInput = {
+  address?: unknown;
+  regionGroup?: unknown;
+  region?: unknown;
+  city?: unknown;
+};
+
+/**
+ * 주소가 인식되면 주소를 단일 기준으로 광역권/지역/시군구를 재계산한다.
+ * 주소에서 지역을 찾지 못한 경우에만 기존 지역 값을 유지한다.
+ */
+export function resolvePartnerLocation(input: PartnerLocationInput): {
+  regionGroup: string;
+  region: string;
+  city: string;
+} {
+  const addressLocation = inferPartnerAddressLocation(input.address);
+  if (addressLocation.region) {
+    return {
+      regionGroup: addressLocation.regionGroup,
+      region: addressLocation.region,
+      city: addressLocation.city
+    };
+  }
+
+  const regionLocation = inferPartnerAddressLocation(input.region);
+  return {
+    regionGroup: regionLocation.regionGroup || normalizeLocationValue(input.regionGroup),
+    region: regionLocation.region || normalizeLocationValue(input.region),
+    city: normalizeLocationValue(input.city)
+  };
+}
+
+function normalizeLocationValue(value: unknown): string {
+  return String(value ?? "").trim();
+}
