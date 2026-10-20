@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/auth/require-admin";
 import { collectFieldChanges, writePartnerChangeLogs } from "@/lib/partners/change-log";
+import { resolvePartnerLocation } from "@/lib/partners/address-location";
 import {
   buildPartnerGradeSavePayload,
   normalizePartnerGrade
@@ -20,6 +21,8 @@ const PartnerPatchSchema = z.object({
   grade_raw: z.string().nullable().optional(),
   grade_change_raw: z.string().nullable().optional(),
   region_group: z.string().nullable().optional(),
+  region: z.string().nullable().optional(),
+  city: z.string().nullable().optional(),
   sales_owner: z.string().nullable().optional(),
   business_number: z.string().nullable().optional(),
   founded_date: z.string().nullable().optional(),
@@ -45,6 +48,8 @@ const PARTNER_LOG_FIELDS = [
   "grade_raw",
   "grade_change_raw",
   "region_group",
+  "region",
+  "city",
   "sales_owner",
   "business_number",
   "founded_date",
@@ -105,6 +110,14 @@ export async function PATCH(
       }
     }
 
+    const normalizedAddress = normalizeOptionalText(body.address);
+    const location = resolvePartnerLocation({
+      address: normalizedAddress,
+      regionGroup: body.region_group ?? existing.region_group,
+      region: body.region ?? existing.region,
+      city: body.city ?? existing.city
+    });
+
     const payload = {
       company_name: body.company_name.trim(),
       external_no: normalizeOptionalText(body.external_no),
@@ -113,7 +126,9 @@ export async function PATCH(
       grade_override: gradeSave.grade_override,
       grade_change_raw: gradeChangeRaw,
       grade_raw: gradeChangeRaw,
-      region_group: normalizeOptionalText(body.region_group),
+      region_group: normalizeOptionalText(location.regionGroup),
+      region: normalizeOptionalText(location.region),
+      city: normalizeOptionalText(location.city),
       sales_owner: normalizeOptionalText(body.sales_owner),
       business_number: normalizeOptionalText(body.business_number),
       founded_date: normalizeOptionalText(body.founded_date),
@@ -124,7 +139,7 @@ export async function PATCH(
       dedicated_sales_count: normalizeOptionalText(body.dedicated_sales_count),
       dedicated_engineer_count: normalizeOptionalText(body.dedicated_engineer_count),
       website: normalizeOptionalText(body.website),
-      address: normalizeOptionalText(body.address),
+      address: normalizedAddress,
       main_phone: normalizeOptionalText(body.main_phone),
       memo: normalizeOptionalText(body.memo),
       updated_at: new Date().toISOString(),
