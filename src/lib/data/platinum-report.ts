@@ -4,5 +4,5 @@ export async function fetchPlatinumReports(): Promise<Report[]> {
   const db=await createClient();
   const {data,error}=await db.from('platinum_partner_reports').select('partner_id,source_date,payload,overrides,version,updated_at');
   if(error) throw new Error('플래티넘 현황을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.');
-  return ((data ?? []) as Report[]).sort((a,b)=>a.payload.company_name.localeCompare(b.payload.company_name,'ko'));
+  return ((data ?? []) as Report[]).filter(r => !r.payload.company_name.replace(/\s/g, '').includes('비씨피')).sort((a,b)=>a.payload.company_name.localeCompare(b.payload.company_name,'ko'));
 }
