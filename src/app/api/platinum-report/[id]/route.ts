@@ -3,7 +3,7 @@ import { requireAdmin } from '@/lib/auth/require-admin';
 import { createClient } from '@/lib/supabase/server';
 import type { Report } from '@/lib/platinum-report';
 const text=z.string().max(5000);
-const contact=z.object({key:z.string().min(1).max(100),name:text,position:text,role:text,phone:text,email:text,cohorts:text,mail_role:text,note:text,excluded:z.boolean(),technical:z.boolean()});
+const contact=z.object({key:z.string().min(1).max(100),name:text,position:text,role:text,phone:text,email:text,cohorts:text,mail_role:text,note:text,excluded:z.boolean(),technical:z.boolean(),security:z.enum(['submitted','not_submitted','unknown']),recent_attended:z.boolean().optional()});
 const equipment=z.object({node:text,form_factor:text,cpu:text,memory:text,os_disk:text,ceph_disk:text,nic:text,status_note:text,note:text});
 const schema=z.object({kind:z.literal('details'),version:z.number().int().positive(),details:z.object({
  owner:text,contract_contact:z.object({name:text,position:text,phone:text,email:text}),
@@ -27,11 +27,13 @@ export async function PATCH(request:Request,{params}:{params:Promise<{id:string}
  if(new Set(details.contacts.map(c=>c.key)).size!==details.contacts.length || new Set(details.education.map(e=>e.cohort)).size!==details.education.length)return Response.json({message:'중복된 인원 또는 교육기수가 있습니다.'},{status:400});
  const payload={...row.payload,...details,
  average_score:details.average_score??undefined,overall_rank:details.overall_rank??undefined,
- contacts:details.contacts.map(c=>({security:'unknown',source_row:0,...row.payload.contacts.find(old=>old.key===c.key),...c})),
+ contacts:details.contacts.map(c=>({source_row:0,...row.payload.contacts.find(old=>old.key===c.key),...c})),
  equipment:details.equipment.map((e,i)=>({...row.payload.equipment[i],source_row:row.payload.equipment[i]?.source_row??0,...e})),
  pocs:details.pocs.map((p,i)=>({...row.payload.pocs[i],source_row:row.payload.pocs[i]?.source_row??0,...p}))
  };
- const {data:updated,error:saveError}=await db.from('platinum_partner_reports').update({payload,version:row.version+1,updated_at:new Date().toISOString()}).eq('partner_id',id).eq('version',body.version).select('partner_id').maybeSingle();
+ const overrides={...row.overrides,security:{...row.overrides.security}};
+ for(const c of details.contacts) { if(overrides.security[c.key]) overrides.security[c.key]={...overrides.security[c.key],status:c.security}; }
+ const {data:updated,error:saveError}=await db.from('platinum_partner_reports').update({payload,overrides,version:row.version+1,updated_at:new Date().toISOString()}).eq('partner_id',id).eq('version',body.version).select('partner_id').maybeSingle();
  if(saveError)return Response.json({message:'저장하지 못했습니다. 다시 시도해주세요.'},{status:500});
  if(!updated)return Response.json({message:'다른 변경사항이 있습니다. 새로고침 후 다시 저장해주세요.'},{status:409});
  return Response.json({ok:true},{headers:{'Cache-Control':'private, no-store'}});

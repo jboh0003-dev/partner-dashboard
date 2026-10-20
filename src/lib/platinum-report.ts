@@ -1,6 +1,6 @@
 export type Security = 'submitted' | 'not_submitted' | 'unknown';
 export const SECURITY_LABELS: Record<Security, string> = { submitted: '제출', not_submitted: '미제출', unknown: '확인 필요' };
-export type Contact = { key: string; name: string; position: string; role: string; phone: string; email: string; mail_role: string; cohorts: string; note: string; excluded: boolean; technical: boolean; security: Security; source_row: number; connect_contact_id?: string; connect_contact?: { name: string; position: string; phone: string; email: string; updated_at: string } };
+export type Contact = { key: string; name: string; position: string; role: string; phone: string; email: string; mail_role: string; cohorts: string; note: string; excluded: boolean; technical: boolean; security: Security; recent_attended?: boolean; source_row: number; connect_contact_id?: string; connect_contact?: { name: string; position: string; phone: string; email: string; updated_at: string } };
 export type Equipment = { node: string; form_factor: string; cpu: string; memory: string; os_disk: string; ceph_disk: string; nic: string; note: string; status_note: string; source_row: number };
 export type Issue = { key: string; category: string; detail: string };
 export type Report = {
@@ -21,3 +21,7 @@ export function filterReports(rows: Report[], q = '', review = false) {
   return rows.filter(r => (!review || requiresReview(r)) && (!query || [r.payload.company_name,r.payload.region,r.payload.region_group,r.payload.owner,...r.payload.contacts.flatMap(c=>[c.name,c.email,c.phone])].join(' ').toLocaleLowerCase().includes(query)));
 }
 export function scoreLabel(score: number | null | undefined) { return score == null ? '결과 없음' : `${Number(score.toFixed(2))}점`; }
+
+export function securityPresence(r: Report, c: Contact) { return contactSecurity(r,c)==='submitted'?'있음':'없음'; }
+export function reportContactNote(note: string) { return note.replace(/보[안완]확약서\s*(미제출|제출|제출여부[^,]*),?\s*/g,'').replace(/정보변경 필요|확인\s*필요/g,'').replace(/^[,\s]+|[,\s]+$/g,''); }
+export const RECENT_TRAINING='설치툴·QA 교육 (9/30~10/2)';
