@@ -13,7 +13,7 @@ export async function GET(request:Request) {
   const rows=filterReports(await fetchPlatinumReports(),params.get('q')??'');
   if(!rows.length)return Response.json({message:'내려받을 파트너가 없습니다.'},{status:404});
   const wb=await buildPlatinumWorkbook(rows);const buffer=await wb.xlsx.writeBuffer();
-  const filename='플래티넘_파트너_현황_v3.xlsx';
-  return new Response(new Uint8Array(buffer),{headers:{'Content-Type':'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet','Content-Disposition':`attachment; filename="platinum-report-v3.xlsx"; filename*=UTF-8''${encodeURIComponent(filename)}`,'Cache-Control':'private, no-store','Vary':'Cookie'}});
+  const filename='플래티넘 파트너 현황.xlsx';
+  return new Response(new Uint8Array(buffer),{headers:{'Content-Type':'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet','Content-Disposition':`attachment; filename="platinum-report.xlsx"; filename*=UTF-8''${encodeURIComponent(filename)}`,'Cache-Control':'private, no-store','Vary':'Cookie'}});
  }catch{return Response.json({message:'엑셀 생성에 실패했습니다. 잠시 후 다시 시도해주세요.'},{status:500});}
 }
