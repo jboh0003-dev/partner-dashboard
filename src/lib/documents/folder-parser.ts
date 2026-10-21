@@ -2,6 +2,8 @@
 const GENERIC_FOLDER_PATTERNS: RegExp[] = [
   /^20\d{2}\s*년\s*\d{1,2}\s*월\s*(신청서|계약서|자료|문서)$/i,
   /^20\d{2}\s*년\s*(신청서|계약서|자료|문서)$/i,
+  /^20\d{2}\s*년\s*\d\s*분기$/i,
+  /^\d\s*분기$/i,
   /^기존\s*플래티넘\s*교육\s*참여$/i,
   /^기존플래티넘\s*교육참여$/i,
   /^교육\s*참여$/i,
@@ -61,7 +63,7 @@ export function normalizeFolderPartnerName(folderName: string | null | undefined
   text = text
     .replace(/^\[?\s*접수[_\s-]*\d+\s*\]?\s*/i, "")
     .replace(/^\[접수[_\s-]*\d+\]\s*/i, "")
-    .replace(/^\[(?:완료|보류|신규|계약완료|접수완료|확인필요|미완료)\]\s*/i, "")
+    .replace(/^\[(?:분류|분류완료|완료|보류|신규|계약완료|접수완료|확인필요|미완료)\]\s*/i, "")
     .replace(/^\((?:완료|보류|신규|계약완료|접수완료|확인필요|미완료)\)\s*/i, "")
     .replace(/^\d{6,8}_/i, "")
     .replace(/^\d+\.\s*/, "")
