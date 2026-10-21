@@ -15,6 +15,8 @@ type MatchItem = ReturnType<typeof parsePartnerDocumentFile> & {
   match_confidence: number;
   document_type: string;
   reason: string;
+  action?: "create" | "update" | "skip" | "review";
+  review_status?: string;
 };
 
 type Candidate = {
@@ -33,6 +35,7 @@ type Result = {
   selected: number;
   uploaded: number;
   reused: number;
+  duplicateSkipped: number;
   skipped: number;
   unregisteredExcluded: number;
   failed: number;
@@ -155,7 +158,7 @@ export function HistoricalPartnerDocumentsUpload() {
 
   const summary = useMemo(() => {
     if (!result) return null;
-    return `원본 ${result.totalFiles}건 · 대상 ${result.considered}건 · 최신본 ${result.selected}건 · 반영 ${result.uploaded}건 · 동일파일 ${result.reused}건 · 미등록 파트너 제외 ${result.unregisteredExcluded}건 · 확인필요 ${result.unmatched.length}건 · 실패 ${result.failed}건`;
+    return `원본 ${result.totalFiles}건 · 대상 ${result.considered}건 · 반영대상 ${result.selected}건 · 신규반영 ${result.uploaded}건 · 기존동일 ${result.reused}건 · 원본중복/기등록 ${result.duplicateSkipped}건 · 미등록 파트너 제외 ${result.unregisteredExcluded}건 · 확인필요 ${result.unmatched.length}건 · 실패 ${result.failed}건`;
   }, [result]);
 
   async function handleFiles(fileList: FileList | null) {
@@ -169,6 +172,7 @@ export function HistoricalPartnerDocumentsUpload() {
       selected: 0,
       uploaded: 0,
       reused: 0,
+      duplicateSkipped: 0,
       skipped: 0,
       unregisteredExcluded: 0,
       failed: 0,
@@ -198,6 +202,10 @@ export function HistoricalPartnerDocumentsUpload() {
           }
 
           const blob = await entry.async("blob");
+          if (blob.size <= 0) {
+            out.skipped += 1;
+            continue;
+          }
           const file = new File([blob], name, { type: contentTypeFor(name) });
           Object.defineProperty(file, "webkitRelativePath", {
             value: `${zipFile.name.replace(/\.zip$/i,"")}/${entry.name}`,
@@ -236,6 +244,16 @@ export function HistoricalPartnerDocumentsUpload() {
       const good: Candidate[] = [];
       for (const c of candidates) {
         const m = c.match;
+
+        if (m?.action === "skip" || m?.review_status === "skipped") {
+          if (/동일\s*파일|중복\s*파일|업로드\s*배치\s*내\s*중복/i.test(m.reason ?? "")) {
+            out.duplicateSkipped += 1;
+          } else {
+            out.skipped += 1;
+          }
+          continue;
+        }
+
         if (!m?.matched_partner_id || !m.matched_partner_name || m.match_status !== "matched") {
           if (m?.match_status === "unmatched" && m.reason.includes("파트너 DB에 등록되지 않은 회사")) {
             out.unregisteredExcluded += 1;
@@ -366,8 +384,8 @@ export function HistoricalPartnerDocumentsUpload() {
         <h2 className="text-base font-bold text-slate-950">과거 파트너 문서 일괄 최신화</h2>
         <p className="mt-2 text-sm leading-6 text-slate-600">
           ZIP 여러 개를 한 번에 선택하면 파트너·문서종류를 자동 대조하고,
-          파트너별 문서 종류마다 가장 최신 자료 1건만 Partner Connect에 남깁니다.
-          다운로드 파일명은 파트너명 기준으로 통일합니다.
+          파트너별 문서 종류마다 반영할 자료 1건을 Partner Connect에 연결합니다.
+          이미 등록된 동일·중복 파일은 다시 등록하지 않으며, 다운로드 파일명은 파트너명 기준으로 통일합니다.
         </p>
 
         <label className="mt-5 inline-flex cursor-pointer items-center gap-2 rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800">
