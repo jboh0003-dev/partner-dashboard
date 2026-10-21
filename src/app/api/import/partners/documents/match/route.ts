@@ -47,7 +47,12 @@ export async function POST(request: Request) {
 
     const [{ data: partners, error: partnerError }, { data: documents, error: documentError }] =
       await Promise.all([
-        supabase.from("partners").select("id, company_name, external_no").order("company_name"),
+        supabase
+          .from("partners")
+          .select("id, company_name, external_no")
+          .is("deleted_at", null)
+          .eq("is_active", true)
+          .order("company_name"),
         supabase
           .from("partner_documents")
           .select(
