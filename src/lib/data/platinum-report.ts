@@ -27,11 +27,24 @@ export async function fetchPlatinumReports(): Promise<Report[]> {
     group.push(person);
     peopleByPartner.set(person.partner_id,group);
   }
-  const documentsByPartner=new Map<string,{id:string;filename:string;original_filename:string;registered_at:string}[]>();
+  // Signer lists below were visually checked against the supplied original signed PDFs.
+  // Bind a list only to the same explicitly named document, never to all files for a company.
+  const verifiedPdfSigners:Record<string,string[]>={
+    '플래티넘 파트너 임직원 보안확약서_샘터정보기술_260520.pdf':['김현수','한효창'],
+    '플래티넘 파트너 임직원 보안확약서_앤티에스_260520.pdf':['장승환','정종엽'],
+    '플래티넘 파트너 임직원 보안확약서_에스지에이솔루션즈_260520.pdf':['한창남'],
+    '플래티넘 파트너 임직원 보안확약서_와이던플러스_260520.pdf':['김준영','윤흥민'],
+    '플래티넘 파트너 임직원 보안확약서_인트루바인_260520.pdf':['배민철','원천욱'],
+    '플래티넘 파트너 임직원 보안확약서_정원엔시스_260520.pdf':['진범석'],
+    '플래티넘 파트너 임직원 보안확약서_홍제기술_260520.pdf':['이병근'],
+    '플래티넘 파트너 임직원 보안확약서_튠시스템_261001.pdf':['정병주']
+  };
+  const documentsByPartner=new Map<string,{id:string;filename:string;original_filename:string;registered_at:string;signers?:string[]}[]>();
+
   for(const d of documents??[]) {
     if(d.is_active===false||d.document_status==='archived') continue;
     const group=documentsByPartner.get(d.partner_id)??[];
-    group.push({id:d.id,filename:getDocumentDownloadFileName(d),original_filename:d.original_filename??'',registered_at:d.created_at});
+    group.push({id:d.id,filename:getDocumentDownloadFileName(d),original_filename:d.original_filename??'',registered_at:d.created_at,signers:verifiedPdfSigners[d.original_filename??'']});
     documentsByPartner.set(d.partner_id,group);
   }
   for(const report of reports) {
