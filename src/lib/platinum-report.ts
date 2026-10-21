@@ -38,9 +38,9 @@ export function isPlatinumEngineer(c:Contact):boolean { return !c.excluded && (c
 export function isPlatinumContactPoint(c:Contact):boolean { return !c.excluded && !!(c.connect_is_primary || c.connect_is_contract_contact); }
 /** Filename-only matches are strict; avoid marking entire companies as signed from one file. */
 export function matchingSecurityDocuments(r:Report,c:Contact) {
- const name=(c.name??'').replace(/\\s/g,'');
+ const name=(c.name??'').replace(/\s/g,'');
  if(!name)return [];
- return (r.payload.security_documents??[]).filter(d=>(d.signers??[]).some(s=>s.replace(/\\s/g,'')===name)|| (d.original_filename??'').replace(/\\s/g,'').includes(name));
+ return (r.payload.security_documents??[]).filter(d=>(d.signers??[]).some(s=>s.replace(/\s/g,'')===name)|| (d.original_filename??'').replace(/\s/g,'').includes(name));
 }
 export function verifiedSecurityMark(r:Report,c:Contact):'O'|'확인 필요'|'—' {
  if(matchingSecurityDocuments(r,c).length)return 'O';
