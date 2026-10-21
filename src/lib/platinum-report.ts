@@ -6,7 +6,7 @@ export type Issue = { key: string; category: string; detail: string };
 export type Report = {
   partner_id: string; source_date: string; version: number; updated_at: string;
   payload: { company_name: string; grade_note: string; owner: string; region_group: string; region: string; city: string; service_region?: string; sources: string[]; security_documents?: {id:string;filename:string;original_filename?:string;registered_at:string;signers?:string[]}[]; contract_row: number; contract_contact: { name: string; position: string; phone: string; email: string }; education: { cohort: number; period: string; score: number | null; rank: number | null }[]; average_score?: number; overall_rank?: number; evaluation?: Record<string,number>; education_source_row?: number; contacts: Contact[]; dedicated_count_source?: number; equipment: Equipment[]; equipment_note?: string; pocs: { project: string; period: string; rating: string; comment: string; source_row: number }[]; issues: Issue[] };
-  overrides: { security?: Record<string, { status: Security; note: string; checked_at: string; checked_by: string }>; issues?: Record<string, { note: string; checked_at: string; checked_by: string }> };
+  overrides: { contact_points?: string[]; security?: Record<string, { status: Security; note: string; checked_at: string; checked_by: string }>; issues?: Record<string, { note: string; checked_at: string; checked_by: string }> };
 };
 export function contactSecurity(r: Report, c: Contact): Security { return r.overrides.security?.[c.key]?.status ?? c.security; }
 export function securityCounts(r: Report) {
@@ -35,7 +35,7 @@ export function contactTrainingLabels(c:Contact): string[] {
  return labels;
 }
 export function isPlatinumEngineer(c:Contact):boolean { return !c.excluded && (c.technical || c.connect_role_type==='engineer' || /엔지니어/.test(c.role??'')); }
-export function isPlatinumContactPoint(c:Contact):boolean { return !c.excluded && !!(c.connect_is_primary || c.connect_is_contract_contact); }
+export function isPlatinumContactPoint(c:Contact,r?:Report):boolean { return !c.excluded && (r?.overrides.contact_points !== undefined ? r.overrides.contact_points.includes(c.key) : !!(c.connect_is_primary || c.connect_is_contract_contact)); }
 /** Filename-only matches are strict; avoid marking entire companies as signed from one file. */
 export function matchingSecurityDocuments(r:Report,c:Contact) {
  const name=(c.name??'').replace(/\s/g,'');
