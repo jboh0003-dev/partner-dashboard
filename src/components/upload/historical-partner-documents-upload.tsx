@@ -381,7 +381,7 @@ export function HistoricalPartnerDocumentsUpload() {
   return (
     <div className="space-y-5">
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="text-base font-bold text-slate-950">과거 파트너 문서 일괄 최신화</h2>
+        <h2 className="text-base font-bold text-slate-950">과거 파트너 문서 일괄 반영</h2>
         <p className="mt-2 text-sm leading-6 text-slate-600">
           ZIP 여러 개를 한 번에 선택하면 파트너·문서종류를 자동 대조하고,
           파트너별 문서 종류마다 반영할 자료 1건을 Partner Connect에 연결합니다.
@@ -417,7 +417,7 @@ export function HistoricalPartnerDocumentsUpload() {
         {result && result.failed === 0 && result.unmatched.length === 0 ? (
           <div className="mt-4 flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800">
             <CheckCircle2 size={16} />
-            전체 반영 및 최신본 정리가 완료되었습니다.
+            전체 반영 및 문서 정리가 완료되었습니다.
           </div>
         ) : null}
 
