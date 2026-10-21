@@ -14,6 +14,7 @@ type MatchItem = ReturnType<typeof parsePartnerDocumentFile> & {
   match_method: string | null;
   match_confidence: number;
   document_type: string;
+  reason: string;
 };
 
 type Candidate = {
@@ -33,6 +34,7 @@ type Result = {
   uploaded: number;
   reused: number;
   skipped: number;
+  unregisteredExcluded: number;
   failed: number;
   unmatched: Array<{ path: string; reason: string }>;
   failures: Array<{ path: string; reason: string }>;
@@ -145,7 +147,7 @@ export function HistoricalPartnerDocumentsUpload() {
 
   const summary = useMemo(() => {
     if (!result) return null;
-    return `원본 ${result.totalFiles}건 · 대상 ${result.considered}건 · 최신본 ${result.selected}건 · 반영 ${result.uploaded}건 · 동일파일 ${result.reused}건 · 보류 ${result.unmatched.length}건 · 실패 ${result.failed}건`;
+    return `원본 ${result.totalFiles}건 · 대상 ${result.considered}건 · 최신본 ${result.selected}건 · 반영 ${result.uploaded}건 · 동일파일 ${result.reused}건 · 미등록 파트너 제외 ${result.unregisteredExcluded}건 · 확인필요 ${result.unmatched.length}건 · 실패 ${result.failed}건`;
   }, [result]);
 
   async function handleFiles(fileList: FileList | null) {
@@ -160,6 +162,7 @@ export function HistoricalPartnerDocumentsUpload() {
       uploaded: 0,
       reused: 0,
       skipped: 0,
+      unregisteredExcluded: 0,
       failed: 0,
       unmatched: [],
       failures: []
@@ -226,9 +229,13 @@ export function HistoricalPartnerDocumentsUpload() {
       for (const c of candidates) {
         const m = c.match;
         if (!m?.matched_partner_id || !m.matched_partner_name || m.match_status !== "matched") {
+          if (m?.match_status === "unmatched" && m.reason.includes("파트너 DB에 등록되지 않은 회사")) {
+            out.unregisteredExcluded += 1;
+            continue;
+          }
           out.unmatched.push({
             path: `${c.zipName} / ${c.path}`,
-            reason: "파트너 자동 매칭 확인 필요"
+            reason: m?.reason || "파트너 자동 매칭 확인 필요"
           });
           continue;
         }
