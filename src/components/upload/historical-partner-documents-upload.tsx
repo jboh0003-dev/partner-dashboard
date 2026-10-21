@@ -113,15 +113,23 @@ async function sha256(file: File) {
 
 function candidateScore(candidate: Candidate) {
   const r = candidate.row;
-  let score = candidate.zipRank * 1_000_000;
+  const year = r.period_year ?? 0;
+  const quarter = Number(r.period_quarter?.match(/\d/)?.[0] ?? 0);
+  const month = r.period_month ?? 0;
+
+  // ZIP 파일명이 바뀌거나 여러 묶음이 합쳐져도 내부 경로의 연/분기/월을 우선한다.
+  let score = year * 1_000_000_000 + quarter * 10_000_000 + month * 100_000;
+  if (!year) score += candidate.zipRank * 1_000_000;
+
   if (r.received_date) {
     const t = Date.parse(r.received_date);
     if (Number.isFinite(t)) score += Math.floor(t / 86_400_000);
   }
+
   const m = candidate.path.match(/(?:20)?(\d{2})[.\-_ ]?(\d{2})[.\-_ ]?(\d{2})/);
   if (m) {
-    const year = Number(m[1]) < 70 ? 2000 + Number(m[1]) : 1900 + Number(m[1]);
-    const t = Date.UTC(year, Number(m[2]) - 1, Number(m[3]));
+    const fileYear = Number(m[1]) < 70 ? 2000 + Number(m[1]) : 1900 + Number(m[1]);
+    const t = Date.UTC(fileYear, Number(m[2]) - 1, Number(m[3]));
     if (Number.isFinite(t)) score += Math.floor(t / 86_400_000);
   }
   return score;
@@ -324,10 +332,15 @@ export function HistoricalPartnerDocumentsUpload() {
 
           out.uploaded += 1;
         } catch (error) {
+          const message = error instanceof Error ? error.message : "알 수 없는 오류";
+          if (/동일\s*파일.*이미\s*등록|already\s*(exists|registered)|asset\s*already\s*exists/i.test(message)) {
+            out.reused += 1;
+            continue;
+          }
           out.failed += 1;
           out.failures.push({
             path: `${c.zipName} / ${c.path}`,
-            reason: error instanceof Error ? error.message : "알 수 없는 오류"
+            reason: message
           });
         }
       }
