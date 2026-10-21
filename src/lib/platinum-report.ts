@@ -42,7 +42,6 @@ export function matchingSecurityDocuments(r:Report,c:Contact) {
  if(!name)return [];
  return (r.payload.security_documents??[]).filter(d=>(d.signers??[]).some(s=>s.replace(/\s/g,'')===name)|| (d.original_filename??'').replace(/\s/g,'').includes(name));
 }
-export function verifiedSecurityMark(r:Report,c:Contact):'O'|'확인 필요'|'—' {
- if(matchingSecurityDocuments(r,c).length)return 'O';
- return contactSecurity(r,c)==='submitted'?'확인 필요':'—';
+export function verifiedSecurityMark(r:Report,c:Contact):'O'|'—' {
+ return matchingSecurityDocuments(r,c).length ? 'O' : '—';
 }
