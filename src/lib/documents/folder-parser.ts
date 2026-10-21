@@ -147,13 +147,21 @@ export function extractFolderPartnerHintFromPath(
   relativePath: string,
   sourceFolder = ""
 ): FolderPartnerHint | null {
-  const folderName =
-    getSourceFolderName(relativePath) ??
-    sourceFolder
-      .split("/")
-      .filter(Boolean)
-      .pop() ??
-    null;
+  const pathSegments = relativePath.split("/").filter(Boolean);
+  if (pathSegments.length > 1) pathSegments.pop();
 
-  return parseFolderPartnerHint(folderName);
+  const sourceSegments = sourceFolder.split("/").filter(Boolean);
+  const candidates = (pathSegments.length ? pathSegments : sourceSegments).reverse();
+
+  let fallback: FolderPartnerHint | null = null;
+  for (const segment of candidates) {
+    const hint = parseFolderPartnerHint(segment);
+    if (!hint) continue;
+    fallback ??= hint;
+    if (!hint.is_generic_folder && hint.match_candidates.length > 0) {
+      return hint;
+    }
+  }
+
+  return fallback;
 }
