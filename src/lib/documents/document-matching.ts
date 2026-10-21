@@ -4,10 +4,7 @@ import {
   shouldFlagContractDateMismatch,
   shouldIgnoreNameMismatchForReview
 } from "@/lib/documents/review-rules";
-import {
-  companyNamesMatchWithVariants,
-  matchReasonForStrategy
-} from "@/lib/documents/partner-aliases";
+import { matchReasonForStrategy } from "@/lib/documents/partner-aliases";
 import {
   PARTNER_MATCH_CONFIDENCE_THRESHOLD,
   resolveCompanyName,
@@ -172,14 +169,6 @@ function partnersConflict(
   if (left.partner.id === right.partner.id) return false;
   if (left.confidence < 60 || right.confidence < 60) return false;
   return !namesAreConsistent(left.queryUsed, right.partner.company_name);
-}
-
-function extractedSourceNamesConflict(
-  folderLabel: string | null,
-  fileLabel: string | null
-): boolean {
-  if (!folderLabel || !fileLabel) return false;
-  return !companyNamesMatchWithVariants(folderLabel, fileLabel);
 }
 
 function buildNeedsReviewResult(input: {
@@ -355,24 +344,6 @@ export function matchDocumentPartner(input: {
     ...(filenamePartnerName ? [filenamePartnerName] : []),
     ...filenameCandidates
   ]);
-
-  const folderLabel =
-    folderNormalizedName ?? effectiveFolderCandidates[0] ?? null;
-  const fileLabel =
-    filenamePartnerName ?? effectiveFilenameCandidates[0] ?? null;
-
-  if (
-    !isGenericFolder &&
-    extractedSourceNamesConflict(folderLabel, fileLabel)
-  ) {
-    return buildNeedsReviewResult({
-      partner: null,
-      method: null,
-      confidence: 0,
-      reason: REASON.sourceConflict,
-      candidates: []
-    });
-  }
 
   const folderMatch = findBestCandidateMatch(effectiveFolderCandidates, partners);
   const filenameMatch = findBestCandidateMatch(effectiveFilenameCandidates, partners);
