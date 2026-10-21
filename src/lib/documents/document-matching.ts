@@ -348,25 +348,8 @@ export function matchDocumentPartner(input: {
   const folderMatch = findBestCandidateMatch(effectiveFolderCandidates, partners);
   const filenameMatch = findBestCandidateMatch(effectiveFilenameCandidates, partners);
 
-  if (
-    folderMatch.best &&
-    filenameMatch.best &&
-    isStrongMatch(folderMatch.best) &&
-    isStrongMatch(filenameMatch.best) &&
-    partnersConflict(folderMatch.best, filenameMatch.best)
-  ) {
-    return buildNeedsReviewResult({
-      partner: null,
-      method: null,
-      confidence: Math.max(folderMatch.best.confidence, filenameMatch.best.confidence),
-      reason: REASON.sourceConflict,
-      candidates: mapCandidates(
-        [folderMatch.best.partner, filenameMatch.best.partner],
-        partners
-      )
-    });
-  }
-
+  // 과거 일괄자료는 파트너별 폴더 구조가 기준이다.
+  // 폴더명이 DB 파트너와 강하게 일치하면 파일명 내부의 약칭/브랜드명보다 폴더를 우선한다.
   if (effectiveFolderCandidates.length > 0) {
     if (folderMatch.best && isStrongMatch(folderMatch.best)) {
       return buildMatchedResult({
