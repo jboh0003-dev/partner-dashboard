@@ -111,22 +111,15 @@ async function resolveUploadTarget(
     ? await findCanonicalDocumentForType(supabase, input.partnerId, input.documentType)
     : null;
 
-  const storagePath = useCanonical
-    ? resolveCanonicalUploadStoragePath(
-        input.partnerId,
-        input.documentType,
-        fileExt,
-        input.originalFilename,
-        canonical?.storage_path,
-        canonical?.file_path,
-        true
-      )
-    : resolveUploadStoragePath(
-        input.partnerId,
-        input.documentType,
-        fileExt,
-        input.originalFilename
-      );
+  // 새 내용은 기존 canonical object를 덮어쓰지 않고 별도 object에 먼저 올린다.
+  // DB finalize 성공 후 이전 object를 제거해 중간 실패 시 기존 다운로드가 깨지지 않게 한다.
+  const contentIdentity = `${input.originalFilename}#${input.fileHash}`;
+  const storagePath = resolveUploadStoragePath(
+    input.partnerId,
+    input.documentType,
+    fileExt,
+    contentIdentity
+  );
 
   return { fileExt, useCanonical, canonical, storagePath };
 }
