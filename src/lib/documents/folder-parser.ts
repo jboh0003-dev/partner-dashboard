@@ -61,8 +61,12 @@ export function normalizeFolderPartnerName(folderName: string | null | undefined
   text = text
     .replace(/^\[?\s*접수[_\s-]*\d+\s*\]?\s*/i, "")
     .replace(/^\[접수[_\s-]*\d+\]\s*/i, "")
+    .replace(/^\[(?:완료|보류|신규|계약완료|접수완료|확인필요|미완료)\]\s*/i, "")
+    .replace(/^\((?:완료|보류|신규|계약완료|접수완료|확인필요|미완료)\)\s*/i, "")
     .replace(/^\d{6,8}_/i, "")
     .replace(/^\d+\.\s*/, "")
+    .replace(/\s*\(\s*\d{3,8}\s*접수완료\s*\)\s*$/i, "")
+    .replace(/\s*\(\s*접수완료\s*\)\s*$/i, "")
     .replace(/\[보류\]/gi, "")
     .replace(/\(보류\)/gi, "")
     .replace(/\s+/g, " ")
