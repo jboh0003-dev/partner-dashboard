@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
-import { getDocumentDisplayFileName } from '@/lib/documents/display';
+import { getDocumentDownloadFileName } from '@/lib/documents/display';
 import type { Report } from '@/lib/platinum-report';
 export async function fetchPlatinumReports(): Promise<Report[]> {
   const db=await createClient();
@@ -14,6 +14,6 @@ export async function fetchPlatinumReports(): Promise<Report[]> {
   if(documentError) throw new Error('보안확약서를 불러오지 못했습니다.');
   for(const report of reports) report.payload={...report.payload,security_documents:(documents??[])
     .filter(d=>d.partner_id===report.partner_id&&d.is_active!==false&&d.document_status!=='archived')
-    .map(d=>({id:d.id,filename:getDocumentDisplayFileName(d),registered_at:d.created_at}))};
+    .map(d=>({id:d.id,filename:getDocumentDownloadFileName(d),registered_at:d.created_at}))};
   return reports.filter(r => !r.payload.company_name.replace(/\s/g, '').includes('비씨피')).sort((a,b)=>a.payload.company_name.localeCompare(b.payload.company_name,'ko'));
 }
