@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import {
   buildDocumentResponseHeaders,
   downloadPartnerDocumentBlob,
-  fetchPartnerDocumentRecord
+  fetchPartnerDocumentRecord,
+  getPartnerDocumentDownloadFileName
 } from "@/lib/documents/server-access";
 
 export async function GET(
@@ -32,7 +33,7 @@ export async function GET(
       return NextResponse.json({
         ok: true,
         url: `/api/partners/documents/${id}/download`,
-        filename: document.original_filename ?? document.file_name
+        filename: getPartnerDocumentDownloadFileName(document)
       });
     }
 
