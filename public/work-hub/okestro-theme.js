@@ -265,6 +265,8 @@
       padding:4px 6px!important;font-size:8px!important;font-weight:700!important;cursor:pointer!important
     }
     .ledger-board .ledger-task-actions button:hover{background:#f8fafc!important;color:#0f172a!important}
+    .ledger-board .ledger-task-actions .ledger-delete{color:#b91c1c!important;border-color:#fecaca!important;background:#fff!important}
+    .ledger-board .ledger-task-actions .ledger-delete:hover{background:#fef2f2!important;color:#991b1b!important}
     .ledger-board .ledger-task-actions .ledger-carry{background:#eff6ff!important;border-color:#dbeafe!important;color:#1d4ed8!important}
     .ledger-empty{padding:12px!important;text-align:center!important;color:#94a3b8!important;font-size:9px!important}
 
