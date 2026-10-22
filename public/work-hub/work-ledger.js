@@ -275,7 +275,7 @@
       return `<div class="ledger-task-row ${task.status==='done'?'is-done':''} ${task.status==='doing'?'is-doing':''} ${task.status==='blocked'?'is-blocked':''}">
         <div class="ledger-task-main"><strong>${escapeHtml(task.title)}</strong><div class="ledger-task-meta"><span class="primary">${escapeHtml(goal || area)}</span>${role?`<span>${escapeHtml(role)}</span>`:''}${due?`<span>${due}</span>`:''}${task.status==='blocked'?'<span class="issue-badge">이슈</span>':''}</div></div>
         <div class="ledger-state-group" role="group" aria-label="${escapeHtml(task.title)} 상태">${statusButtons}</div>
-        <div class="ledger-task-actions"><button type="button" data-ledger-classify="1" data-id="${escapeHtml(task.id)}">분류</button>${task.status!=='done'?`<button type="button" class="ledger-carry" data-act="carryWeekV2" data-id="${escapeHtml(task.id)}">차주 →</button>`:''}<button type="button" data-act="edit" data-id="${escapeHtml(task.id)}">수정</button></div>
+        <div class="ledger-task-actions"><button type="button" data-ledger-classify="1" data-id="${escapeHtml(task.id)}">분류</button>${task.status!=='done'?`<button type="button" class="ledger-carry" data-act="carryWeekV2" data-id="${escapeHtml(task.id)}">차주 →</button>`:''}<button type="button" data-act="edit" data-id="${escapeHtml(task.id)}">수정</button><button type="button" class="ledger-delete" data-act="delete" data-id="${escapeHtml(task.id)}">삭제</button></div>
       </div>`;
     }
 
