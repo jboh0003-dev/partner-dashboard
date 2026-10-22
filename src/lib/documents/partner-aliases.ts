@@ -18,6 +18,14 @@ export const DOCUMENT_PARTNER_ALIAS_GROUPS: Array<{
   {
     canonicalName: "앤티에스",
     aliases: ["엔티에스"]
+  },
+  {
+    canonicalName: "에스티엑스네트워크서비스",
+    aliases: ["stx네트워크서비스", "STX네트워크서비스"]
+  },
+  {
+    canonicalName: "효성인포메이션시스템",
+    aliases: ["효성"]
   }
 ];
 
