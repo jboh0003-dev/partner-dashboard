@@ -44,6 +44,7 @@ type Result = {
 };
 
 const ALLOWED_TYPES = new Set([
+  "partner_contract",
   "partner_application",
   "company_profile",
   "business_registration",
@@ -52,6 +53,7 @@ const ALLOWED_TYPES = new Set([
 ]);
 
 const TYPE_LABEL: Record<string,string> = {
+  partner_contract: "파트너 계약서",
   partner_application: "오케스트로 파트너 신청서",
   company_profile: "회사소개서",
   business_registration: "사업자등록증",
@@ -384,7 +386,7 @@ export function HistoricalPartnerDocumentsUpload() {
         <h2 className="text-base font-bold text-slate-950">과거 파트너 문서 일괄 반영</h2>
         <p className="mt-2 text-sm leading-6 text-slate-600">
           ZIP 여러 개를 한 번에 선택하면 파트너·문서종류를 자동 대조하고,
-          파트너별 문서 종류마다 반영할 자료 1건을 Partner Connect에 연결합니다.
+          파트너별 문서 종류마다 반영할 자료 1건을 Partner Connect에 연결합니다. 계약서는 회사명 기준으로 우선 매칭하여 기존 계약서를 교체합니다.
           이미 등록된 동일·중복 파일은 다시 등록하지 않으며, 다운로드 파일명은 파트너명 기준으로 통일합니다.
         </p>
 
