@@ -296,6 +296,7 @@ export function matchDocumentPartner(input: {
   filenameCandidates?: string[];
   sourceFolderName?: string | null;
   partnerNo?: string | null;
+  preferFilenameOverPartnerNo?: boolean;
   partners: DocumentPartnerRow[];
   manualPartnerId?: string | null;
 }): DocumentMatchResult {
@@ -305,6 +306,7 @@ export function matchDocumentPartner(input: {
     isGenericFolder = false,
     filenamePartnerName,
     filenameCandidates = [],
+    preferFilenameOverPartnerNo = false,
     partners,
     manualPartnerId
   } = input;
@@ -329,6 +331,30 @@ export function matchDocumentPartner(input: {
     });
   }
 
+  const effectiveFolderCandidates = isGenericFolder ? [] : uniqueStrings(folderCandidates);
+  const effectiveFilenameCandidates = uniqueStrings([
+    ...(filenamePartnerName ? [filenamePartnerName] : []),
+    ...filenameCandidates
+  ]);
+
+  const folderMatch = findBestCandidateMatch(effectiveFolderCandidates, partners);
+  const filenameMatch = findBestCandidateMatch(effectiveFilenameCandidates, partners);
+
+  // 계약서 일괄 교체에서는 과거 파트너번호보다 파일명에 적힌 회사명을 우선한다.
+  // 번호 체계가 변경된 구간에서도 다른 파트너 문서를 잘못 덮어쓰지 않도록 한다.
+  if (
+    preferFilenameOverPartnerNo &&
+    filenameMatch.best &&
+    isStrongMatch(filenameMatch.best)
+  ) {
+    return buildMatchedResult({
+      partner: filenameMatch.best.partner,
+      method: filenameMatch.best.method ?? "exact",
+      confidence: filenameMatch.best.confidence,
+      reason: matchedReason(filenameMatch.best, "파일명")
+    });
+  }
+
   const partnerNoMatch = matchByPartnerNo(input.partnerNo, partners);
   if (partnerNoMatch) {
     return buildMatchedResult({
@@ -338,15 +364,6 @@ export function matchDocumentPartner(input: {
       reason: "파트너번호 일치"
     });
   }
-
-  const effectiveFolderCandidates = isGenericFolder ? [] : uniqueStrings(folderCandidates);
-  const effectiveFilenameCandidates = uniqueStrings([
-    ...(filenamePartnerName ? [filenamePartnerName] : []),
-    ...filenameCandidates
-  ]);
-
-  const folderMatch = findBestCandidateMatch(effectiveFolderCandidates, partners);
-  const filenameMatch = findBestCandidateMatch(effectiveFilenameCandidates, partners);
 
   // 과거 일괄자료는 파트너별 폴더 구조가 기준이다.
   // 폴더명이 DB 파트너와 강하게 일치하면 파일명 내부의 약칭/브랜드명보다 폴더를 우선한다.
