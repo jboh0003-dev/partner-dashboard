@@ -167,7 +167,7 @@ function PartnerAccordion({ item, pathname }: { item: NavAccordion; pathname: st
       <div className="flex items-center gap-0.5">
         <Link
           href={item.href}
-          prefetch={false}
+          prefetch
           className={[
             "group min-w-0 flex-1",
             listActive
@@ -207,7 +207,7 @@ function PartnerAccordion({ item, pathname }: { item: NavAccordion; pathname: st
               <Link
                 key={child.href}
                 href={child.href}
-                prefetch={false}
+                prefetch
                 className={["group", navChildClass(isActive)].join(" ")}
               >
                 <ChildIcon size={15} strokeWidth={isActive ? 2.25 : 2} className={navIconClass(isActive)} />
@@ -241,7 +241,7 @@ export function Sidebar({
   return (
     <aside className="fixed left-0 top-0 z-10 flex h-screen w-64 flex-col border-r border-slate-200/90 bg-white">
       <div className="border-b border-slate-100 px-5 py-5">
-        <Link href="/dashboard" prefetch={false} className="inline-flex">
+        <Link href="/dashboard" prefetch className="inline-flex">
           <BrandLogo className="h-8 w-auto object-contain" priority />
         </Link>
         <p className="mt-2.5 text-[12px] font-semibold tracking-[0.035em] text-slate-400">
@@ -302,7 +302,7 @@ export function Sidebar({
                   <Link
                     key={item.href}
                     href={item.href}
-                    prefetch={false}
+                    prefetch
                     className={["group", navItemClass(isActive)].join(" ")}
                   >
                     <Icon size={17} strokeWidth={isActive ? 2.25 : 2} className={navIconClass(isActive)} />
