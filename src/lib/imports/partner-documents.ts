@@ -108,6 +108,7 @@ export function analyzePartnerDocumentRows(
       filenameCandidates: [...row.filename_partner_candidates, ...mentionedInFilename],
       sourceFolderName: row.source_folder_name,
       partnerNo: row.partner_no,
+      preferFilenameOverPartnerNo: row.document_type === "partner_contract",
       partners
     });
 
