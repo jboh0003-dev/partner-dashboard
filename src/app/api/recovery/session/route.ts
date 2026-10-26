@@ -18,7 +18,7 @@ export async function POST(req:NextRequest){
  try{
  const raw=await req.text();if(raw.length>2048)throw new Error('INVALID_REQUEST');
  const {email,password}=JSON.parse(raw);if(typeof email!=='string'||typeof password!=='string'||!password||password.length>256)throw new Error('INVALID_REQUEST');
- const rows=await database()`select u.id,u.email,coalesce(p.role,'viewer') as role from auth.users u join public.profiles p on p.id=u.id where lower(u.email)=lower(${email.trim()}) and u.encrypted_password=extensions.crypt(${password},u.encrypted_password) and u.deleted_at is null and (u.banned_until is null or u.banned_until<now()) limit 1`;
+ const rows=await database()`select id,email,role from connect_recovery_private.authenticate(${email.trim()},${password})`;
  if(!rows.length){failures.set(ip,{count:prev&&prev.until>now?prev.count+1:1,until:now+600000});return NextResponse.json({message:'이메일 또는 비밀번호를 확인해주세요.'},{status:401,headers});}
  failures.delete(ip); if(failures.size>2000)for(const [k,v]of failures)if(v.until<now)failures.delete(k);
  const user=rows[0];const response=NextResponse.json({ok:true},{headers});response.cookies.set(RECOVERY_COOKIE,await signRecovery({id:String(user.id),email:String(user.email),role:String(user.role)}),{httpOnly:true,secure:true,sameSite:'lax',path:'/',maxAge:28800});return response;
