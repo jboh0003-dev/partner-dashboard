@@ -1,21 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useRef } from "react";
-import { createClient } from "@/lib/supabase/client";
 
-export default function WorkHubClient({ ownerId }: { ownerId: string }) {
+export default function WorkHubClient() {
   const frameRef = useRef<HTMLIFrameElement>(null);
 
   const patchAssets = useCallback(() => {
     const doc = frameRef.current?.contentDocument;
     if (!doc?.body || !doc.head || !doc.defaultView) return false;
-    // Share Connect's cookie-backed client. No second login or localStorage token.
-    const frameWindow = doc.defaultView as Window & {
-      __workhubConnectClient?: ReturnType<typeof createClient>;
-      __workhubAuthorizedUserId?: string;
-    };
-    frameWindow.__workhubConnectClient = createClient();
-    frameWindow.__workhubAuthorizedUserId = ownerId;
 
     if (!doc.getElementById("workhub-large-css")) {
       const link = doc.createElement("link");
@@ -35,11 +27,12 @@ export default function WorkHubClient({ ownerId }: { ownerId: string }) {
     };
 
     addScript("workhub-atlas-retired-guard", "/work-hub/work-atlas.js?v=99");
-        addScript("workhub-favorites-script", "/work-hub/favorites.js?v=4");
+    addScript("workhub-favorites-script", "/work-hub/favorites.js?v=4");
     addScript("workhub-workflow-script", "/work-hub/workflow.js?v=3");
     addScript("workhub-calendar-script", "/work-hub/calendar.js?v=7");
     addScript("workhub-create-script", "/work-hub/create.js?v=3");
-    addScript("workhub-cloud-script", "/work-hub/cloud.js?v=4");
+    // Supabase quota restriction: keep Work Hub local-only until Auth/Storage is available again.
+    // cloud.js is intentionally not loaded so existing browser localStorage keeps working.
     addScript("workhub-arcade-nav-script", "/work-hub/arcade-nav.js?v=5");
     addScript("workhub-notes-script", "/work-hub/work-notes.js?v=2");
     addScript("workhub-ledger-script", "/work-hub/work-ledger.js?v=3");
@@ -48,9 +41,8 @@ export default function WorkHubClient({ ownerId }: { ownerId: string }) {
     addScript("workhub-kart-crossing-script", "/work-hub/kart-crossing.js?v=2");
     addScript("workhub-kakao-theme", "/work-hub/kakao-theme.js?v=3");
 
-
     return true;
-  }, [ownerId]);
+  }, []);
 
   useEffect(() => {
     document.title = "BokDesk";
