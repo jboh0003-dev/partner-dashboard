@@ -24,6 +24,15 @@ function isProtectedPath(pathname: string): boolean {
 export async function middleware(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
 
+  // This isolated route verifies its own owner-only signed session before
+  // returning any rows. All other Connect paths keep their normal protection.
+  if (pathname === "/continuity") {
+    const response = NextResponse.next({ request });
+    response.headers.set("Cache-Control", "private, no-store, max-age=0");
+    response.headers.set("X-Robots-Tag", "noindex, nofollow, noarchive");
+    return response;
+  }
+
   const detachedWorkHub =
     pathname === "/work-hub" ||
     pathname.startsWith("/work-hub/") ||
@@ -41,20 +50,13 @@ export async function middleware(request: NextRequest) {
     });
   }
 
-  let supabaseResponse = NextResponse.next({
-    request
-  });
-
+  let supabaseResponse = NextResponse.next({ request });
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
   if (!supabaseUrl || !supabaseAnonKey) {
     if (isProtectedPath(pathname)) {
       if (pathname.startsWith("/api/")) {
-        return NextResponse.json(
-          { ok: false, message: "인증 환경변수가 설정되지 않았습니다." },
-          { status: 500 }
-        );
+        return NextResponse.json({ ok: false, message: "인증 환경변수가 설정되지 않았습니다." }, { status: 500 });
       }
       const loginUrl = request.nextUrl.clone();
       loginUrl.pathname = "/login";
@@ -66,30 +68,19 @@ export async function middleware(request: NextRequest) {
 
   const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
     cookies: {
-      getAll() {
-        return request.cookies.getAll();
-      },
+      getAll() { return request.cookies.getAll(); },
       setAll(cookiesToSet) {
-        cookiesToSet.forEach(({ name, value }) => {
-          request.cookies.set(name, value);
-        });
-        supabaseResponse = NextResponse.next({
-          request
-        });
-        cookiesToSet.forEach(({ name, value, options }) => {
-          supabaseResponse.cookies.set(name, value, options);
-        });
+        cookiesToSet.forEach(({ name, value }) => { request.cookies.set(name, value); });
+        supabaseResponse = NextResponse.next({ request });
+        cookiesToSet.forEach(({ name, value, options }) => { supabaseResponse.cookies.set(name, value, options); });
       }
     }
   });
 
-  // JWT 서명을 로컬/JWKS로 검증해 매 요청마다 Auth 서버 왕복을 만들지 않는다.
   const { data: claimsData } = await supabase.auth.getClaims();
   const claims = claimsData?.claims;
   const userId = typeof claims?.sub === "string" ? claims.sub : null;
 
-  // 로그인 페이지: 일반 로그인은 기존 세션이 있으면 목적지로 보내지만,
-  // Work Hub 소유자 계정 전환 요청은 로그인 화면을 그대로 보여준다.
   if (pathname === "/login") {
     const forceWorkHubSwitch = request.nextUrl.searchParams.get("switch") === "workhub";
     if (userId && !forceWorkHubSwitch) {
@@ -103,31 +94,18 @@ export async function middleware(request: NextRequest) {
     return supabaseResponse;
   }
 
-  // 루트: 세션 있으면 대시보드, 없으면 로그인
   if (pathname === "/") {
     const url = request.nextUrl.clone();
-    if (userId) {
-      url.pathname = "/dashboard";
-      url.search = "";
-      return NextResponse.redirect(url);
-    }
-    url.pathname = "/login";
+    url.pathname = userId ? "/dashboard" : "/login";
     url.search = "";
     return NextResponse.redirect(url);
   }
 
-  if (!isProtectedPath(pathname)) {
-    return supabaseResponse;
-  }
-
+  if (!isProtectedPath(pathname)) return supabaseResponse;
   if (!userId) {
     if (pathname.startsWith("/api/")) {
-      return NextResponse.json(
-        { ok: false, message: "로그인이 필요합니다. 다시 로그인해주세요." },
-        { status: 401 }
-      );
+      return NextResponse.json({ ok: false, message: "로그인이 필요합니다. 다시 로그인해주세요." }, { status: 401 });
     }
-
     const nextPath = `${pathname}${search || ""}`;
     const loginPath = buildLoginRedirectUrl(nextPath);
     const url = request.nextUrl.clone();
@@ -137,14 +115,9 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // The private workspace uses Connect's account, never an IP allowlist.
-  // Check the live Auth user here so expired/revoked sessions cannot read its
-  // static HTML (which contains the recovery snapshot) or any supporting files.
   if (isWorkHubPath(pathname)) {
     const { data: { user }, error } = await supabase.auth.getUser();
     if (error || !user || !isWorkHubOwner(user.id)) {
-      // 사람이 /work-hub를 직접 여는 경우에는 JSON 오류 대신
-      // 소유자 계정으로 다시 인증할 수 있는 로그인 화면으로 보낸다.
       if (pathname === "/work-hub") {
         const url = request.nextUrl.clone();
         url.pathname = "/login";
@@ -157,7 +130,6 @@ export async function middleware(request: NextRequest) {
         redirectResponse.headers.set("Vary", "Cookie");
         return redirectResponse;
       }
-
       return NextResponse.json(
         { ok: false, message: "내 업무관리는 소유자 계정만 이용할 수 있습니다." },
         { status: user && !error ? 403 : 401, headers: { "Cache-Control": "private, no-store", Vary: "Cookie" } }
@@ -171,7 +143,6 @@ export async function middleware(request: NextRequest) {
 
   const denied = await enforceAdminAccess(request, supabase, userId, supabaseResponse);
   if (denied) return denied;
-
   return supabaseResponse;
 }
 
@@ -182,35 +153,23 @@ async function enforceAdminAccess(
   supabaseResponse: NextResponse
 ) {
   const { pathname } = request.nextUrl;
-  const needsAdmin =
-    isAdminOnlyDashboardPath(pathname) || isAdminOnlyApiPath(pathname, request.method);
-
+  const needsAdmin = isAdminOnlyDashboardPath(pathname) || isAdminOnlyApiPath(pathname, request.method);
   if (!needsAdmin) return null;
-
   const { data: profile } = await supabase.from("profiles").select("role").eq("id", userId).maybeSingle();
   const role = profile?.role ? String(profile.role) : null;
   if (resolveIsAdmin(role)) return null;
-
-  if (pathname.startsWith("/api/")) {
-    return NextResponse.json({ ok: false, message: "관리자 권한이 필요합니다." }, { status: 403 });
-  }
-
+  if (pathname.startsWith("/api/")) return NextResponse.json({ ok: false, message: "관리자 권한이 필요합니다." }, { status: 403 });
   const url = request.nextUrl.clone();
   url.pathname = "/dashboard";
   url.search = "";
   const redirectResponse = NextResponse.redirect(url);
-  supabaseResponse.cookies.getAll().forEach((cookie) => {
-    redirectResponse.cookies.set(cookie.name, cookie.value);
-  });
+  supabaseResponse.cookies.getAll().forEach((cookie) => { redirectResponse.cookies.set(cookie.name, cookie.value); });
   return redirectResponse;
 }
 
 export const config = {
   matcher: [
     "/work-hub/:path*",
-    /*
-     * 정적 자산·이미지·파비콘 제외
-     */
     "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|woff2?)$).*)"
   ]
 };
