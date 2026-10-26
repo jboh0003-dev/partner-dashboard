@@ -8,6 +8,10 @@ function relationships(){return fks??=database().unsafe<FK[]>(`select c.conrelid
 export async function nativeFetch(input:RequestInfo|URL,init?:RequestInit):Promise<Response>{
  const url=new URL(typeof input==='string'?input:input instanceof URL?input.toString():input.url);
  const method=(init?.method||'GET').toUpperCase();
+ if(url.pathname.startsWith('/storage/v1/') && url.hostname==='mtpnkedvqenddwciazce.supabase.co') {
+  const storageURL=new URL(url);storageURL.hostname='mtpnkedvqenddwciazce.storage.supabase.co';
+  return fetch(storageURL,init);
+ }
  if(!url.pathname.startsWith('/rest/v1/')) return fetch(input,init);
  if(!['GET','HEAD'].includes(method))return Response.json({message:'복구 모드에서는 조회만 가능합니다.',code:'READ_ONLY'},{status:503});
  try{
