@@ -54,7 +54,7 @@ function connect() {
   db = postgres(url.toString(), {
     max: 1, idle_timeout: 5, connect_timeout: 5, prepare: false,
     ssl: process.env.CONNECT_DB_CA_PEM ? { rejectUnauthorized: true, ca: process.env.CONNECT_DB_CA_PEM } : { rejectUnauthorized: true },
-    connection: { statement_timeout: "5000", application_name: "partner-connect-continuity" },
+    connection: { statement_timeout: 5000, application_name: "partner-connect-continuity" },
     onnotice: () => undefined
   });
   return db;
