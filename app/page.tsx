@@ -174,7 +174,12 @@ export default function Home() {
     } catch (error) {
       console.error(error);
       const message = error instanceof Error ? error.message : "";
-      if (/invalid login credentials/i.test(message)) {
+      const status = typeof error === "object" && error && "status" in error
+        ? Number((error as { status?: number }).status)
+        : 0;
+      if (status === 402 || /payment required|service restriction|quota/i.test(message)) {
+        setAuthError("현재 Supabase 사용량 제한으로 로그인이 차단되어 있습니다. 비밀번호 문제가 아닙니다.");
+      } else if (/invalid login credentials/i.test(message)) {
         setAuthError("이메일 또는 비밀번호를 확인해주세요.");
       } else if (/already registered|already been registered|user already exists/i.test(message)) {
         setAuthError("이미 가입된 이메일입니다. 로그인해주세요.");
@@ -208,7 +213,15 @@ export default function Home() {
       setAuthInfo("비밀번호 재설정 메일을 보냈습니다. 메일의 링크를 눌러 새 비밀번호를 설정해주세요.");
     } catch (error) {
       console.error(error);
-      setAuthError("비밀번호 재설정 메일 전송에 실패했습니다.");
+      const message = error instanceof Error ? error.message : "";
+      const status = typeof error === "object" && error && "status" in error
+        ? Number((error as { status?: number }).status)
+        : 0;
+      if (status === 402 || /payment required|service restriction|quota/i.test(message)) {
+        setAuthError("Supabase 사용량 제한(402)으로 현재 로그인·비밀번호 재설정이 모두 차단되어 있습니다.");
+      } else {
+        setAuthError("비밀번호 재설정 메일 전송에 실패했습니다.");
+      }
     } finally {
       setSubmitting(false);
     }
