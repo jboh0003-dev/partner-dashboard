@@ -19,7 +19,7 @@ export async function nativeFetch(input:RequestInfo|URL,init?:RequestInit):Promi
   const col=ident(alias)+'.'+ident(column);let neg=false;if(value.startsWith('not.')){neg=true;value=value.slice(4);}const i=value.indexOf('.');const op=value.slice(0,i),v=value.slice(i+1);let expr:string;
   if(op==='is'){if(!['null','true','false','unknown'].includes(v))throw new Error('Invalid is filter');expr=`${col} IS ${v.toUpperCase()}`;}
   else if(op==='in'){const list=splitTop(v.replace(/^\(|\)$/g,'')).map(x=>x.replace(/^"|"$/g,''));expr=list.length?`${col} IN (${list.map(param).join(',')})`:'FALSE';}
-  else if(['eq','neq','gt','gte','lt','lte','like','ilike'].includes(op)){const ops:Record<string,string>={eq:'=',neq:'<>',gt:'>',gte:'>=',lt:'<',lte:'<=',like:'LIKE',ilike:'ILIKE'};expr=`${col} ${ops[op]} ${param(['like','ilike'].includes(op)?v.replace(/\*/g,'%'):v)}`;}
+  else if(['eq','neq','gt','gte','lt','lte','like','ilike'].includes(op)){const ops:Record<string,string>={eq:'=',neq:'<>',gt:'>',gte:'>=',lt:'<',lte:'<=',like:'LIKE',ilike:'ILIKE'};expr=`${col} ${ops[op]} ${param(['like','ilike'].includes(op)?v.replace(/\*/g,'%'):v==='true'?true:v==='false'?false:v)}`;}
   else if(op==='cs'||op==='cd'||op==='ov')expr=`${col} ${{cs:'@>',cd:'<@',ov:'&&'}[op]} ${param(v)}`;
   else throw new Error('Unsupported filter '+op);
   return neg?'NOT ('+expr+')':expr;
