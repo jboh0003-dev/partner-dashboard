@@ -24,21 +24,19 @@ function isProtectedPath(pathname: string): boolean {
 export async function middleware(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
 
-  const detachedWorkHub =
+  // Supabase Fair Use restriction can temporarily block Auth with HTTP 402.
+  // Keep the private Work Hub usable in local-only mode so existing browser
+  // localStorage data remains accessible until Supabase service is restored.
+  const localOnlyWorkHub =
     pathname === "/work-hub" ||
     pathname.startsWith("/work-hub/") ||
-    pathname === "/api/work-hub" ||
-    pathname.startsWith("/api/work-hub/") ||
     pathname.startsWith("/api/public/work-hub-");
 
-  if (detachedWorkHub) {
-    return new NextResponse(null, {
-      status: 404,
-      headers: {
-        "Cache-Control": "no-store",
-        "X-Robots-Tag": "noindex, nofollow"
-      }
-    });
+  if (localOnlyWorkHub) {
+    const response = NextResponse.next({ request });
+    response.headers.set("Cache-Control", "private, no-store, max-age=0");
+    response.headers.set("X-Robots-Tag", "noindex, nofollow");
+    return response;
   }
 
   let supabaseResponse = NextResponse.next({
