@@ -6,7 +6,7 @@ import { EVENT_DOCUMENT_TYPE_LABEL } from "@/lib/events/event-document-types";
 import {
   isPreviewableEventDocument,
   resolveEventDocumentExtension
-} from "@/lib/events/event-document-access";
+} from "@/lib/events/event-document-presentation";
 import { formatDate } from "@/lib/utils";
 import type { PartnerEventDocument } from "@/types/event";
 import { EventDocumentPreviewModal } from "@/components/events/event-document-preview-modal";

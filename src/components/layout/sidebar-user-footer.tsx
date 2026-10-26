@@ -22,6 +22,7 @@ export function SidebarUserFooter({ name, email, roleLabel }: SidebarUserFooterP
       const supabase = createClient();
       // 다른 PC/브라우저의 동일 계정 세션까지 끊지 않고,
       // 현재 브라우저의 세션만 제거한다.
+      await fetch("/api/recovery/session", {method:"DELETE"});
       await supabase.auth.signOut({ scope: "local" });
     } catch {
       // 로그인 쿠키가 이미 만료됐더라도 로그인 화면으로 이동한다.

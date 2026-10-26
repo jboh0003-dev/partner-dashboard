@@ -38,6 +38,13 @@ function LoginForm() {
     setError(null);
 
     try {
+      const mode = await fetch('/api/recovery/session', {cache:'no-store'}).then(r=>r.json());
+      if(mode.enabled){
+        const response=await fetch('/api/recovery/session',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:requestedEmail,password})});
+        const result=await response.json();
+        if(!response.ok){setError(result.message || '로그인에 실패했습니다.');setLoading(false);return;}
+        window.location.replace(redirectTo);return;
+      }
       const supabase = createClient();
       const { data, error: signInError } = await supabase.auth.signInWithPassword({
         email: requestedEmail,

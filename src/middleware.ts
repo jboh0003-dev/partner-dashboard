@@ -1,3 +1,4 @@
+import { verifyRecovery, RECOVERY_COOKIE } from "@/lib/recovery/session";
 import { isWorkHubOwner, isWorkHubPath } from "@/lib/auth/work-hub-access";
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
@@ -23,6 +24,18 @@ function isProtectedPath(pathname: string): boolean {
 
 export async function middleware(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
+  if (process.env.CONNECT_NATIVE_RECOVERY === 'true' && !isWorkHubPath(pathname) && pathname !== '/continuity') {
+    if (pathname === '/api/recovery/session') return NextResponse.next();
+    const user = await verifyRecovery(request.cookies.get(RECOVERY_COOKIE)?.value);
+    if (pathname === '/' || (pathname === '/login' && user)) return NextResponse.redirect(new URL(user ? '/dashboard' : '/login', request.url));
+    if (isProtectedPath(pathname)) {
+      if (!user) return pathname.startsWith('/api/') ? NextResponse.json({ok:false,message:'로그인이 필요합니다.'},{status:401}) : NextResponse.redirect(new URL(buildLoginRedirectUrl(pathname+search),request.url));
+      if (pathname.startsWith('/api/') && !['GET','HEAD','OPTIONS'].includes(request.method)) return NextResponse.json({ok:false,message:'복구 모드에서는 조회만 가능합니다.'},{status:503});
+      if (isAdminOnlyDashboardPath(pathname) && user.role !== 'admin') return NextResponse.redirect(new URL('/dashboard',request.url));
+    }
+    const response=NextResponse.next();response.headers.set('Cache-Control','private, no-store');response.headers.set('Vary','Cookie');return response;
+  }
+
 
   // This isolated route verifies its own owner-only signed session before
   // returning any rows. All other Connect paths keep their normal protection.

@@ -1,3 +1,5 @@
+import { recoveryEnabled } from "@/lib/recovery/database";
+import { nativeFetch } from "@/lib/recovery/rest";
 import { createClient } from "@supabase/supabase-js";
 
 export function createAdminClient() {
@@ -9,6 +11,7 @@ export function createAdminClient() {
   }
 
   return createClient(supabaseUrl, serviceRoleKey, {
+    ...(recoveryEnabled() ? { global: { fetch: nativeFetch } } : {}),
     auth: {
       autoRefreshToken: false,
       persistSession: false
