@@ -30,6 +30,9 @@ export default function Home() {
   const [authError, setAuthError] = useState("");
   const [authInfo, setAuthInfo] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [recoveryActive, setRecoveryActive] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [newPasswordConfirm, setNewPasswordConfirm] = useState("");
 
   const supabase = useMemo(
     () =>
@@ -46,10 +49,16 @@ export default function Home() {
   useEffect(() => {
     let active = true;
 
+    const urlLooksLikeRecovery =
+      typeof window !== "undefined" &&
+      (window.location.hash.includes("type=recovery") ||
+        window.location.search.includes("type=recovery"));
+
     supabase.auth.getUser().then(({ data, error }) => {
       if (!active) return;
       if (error) console.error(error);
       setUser(data.user ?? null);
+      if (urlLooksLikeRecovery) setRecoveryActive(true);
       setReady(true);
     });
 
@@ -179,6 +188,65 @@ export default function Home() {
     }
   }
 
+  async function requestPasswordReset() {
+    if (submitting) return;
+    const trimmedEmail = email.trim();
+    setAuthError("");
+    setAuthInfo("");
+
+    if (!trimmedEmail) {
+      setAuthError("비밀번호를 재설정할 이메일을 입력해주세요.");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(trimmedEmail, {
+        redirectTo: window.location.origin,
+      });
+      if (error) throw error;
+      setAuthInfo("비밀번호 재설정 메일을 보냈습니다. 메일의 링크를 눌러 새 비밀번호를 설정해주세요.");
+    } catch (error) {
+      console.error(error);
+      setAuthError("비밀번호 재설정 메일 전송에 실패했습니다.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function submitNewPassword(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (submitting) return;
+
+    setAuthError("");
+    setAuthInfo("");
+
+    if (newPassword.length < 6) {
+      setAuthError("새 비밀번호는 6자 이상으로 입력해주세요.");
+      return;
+    }
+    if (newPassword !== newPasswordConfirm) {
+      setAuthError("새 비밀번호가 서로 일치하지 않습니다.");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) throw error;
+      setAuthInfo("비밀번호를 변경했습니다. 잠시 후 Google로 들어갑니다.");
+      setNewPassword("");
+      setNewPasswordConfirm("");
+      window.history.replaceState({}, "", window.location.pathname);
+      window.setTimeout(() => setRecoveryActive(false), 500);
+    } catch (error) {
+      console.error(error);
+      setAuthError("비밀번호 변경에 실패했습니다. 재설정 메일을 다시 받아주세요.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   function switchMode(mode: AuthMode) {
     if (submitting) return;
     setAuthMode(mode);
@@ -190,6 +258,49 @@ export default function Home() {
     return (
       <main className="auth-shell">
         <div className="auth-card auth-loading">Google 불러오는 중…</div>
+      </main>
+    );
+  }
+
+  if (recoveryActive && user) {
+    return (
+      <main className="auth-shell">
+        <form className="auth-card" onSubmit={submitNewPassword}>
+          <div className="auth-kicker">GOOGLE · PASSWORD RESET</div>
+          <h1>새 비밀번호 설정</h1>
+          <p>새로 사용할 비밀번호를 입력해주세요.</p>
+
+          <label>
+            새 비밀번호
+            <input
+              type="password"
+              autoComplete="new-password"
+              minLength={6}
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              required
+            />
+          </label>
+
+          <label>
+            새 비밀번호 확인
+            <input
+              type="password"
+              autoComplete="new-password"
+              minLength={6}
+              value={newPasswordConfirm}
+              onChange={(e) => setNewPasswordConfirm(e.target.value)}
+              required
+            />
+          </label>
+
+          {authError ? <div className="auth-error" role="alert">{authError}</div> : null}
+          {authInfo ? <div className="auth-info" role="status">{authInfo}</div> : null}
+
+          <button className="auth-submit" type="submit" disabled={submitting}>
+            {submitting ? "변경 중…" : "새 비밀번호 저장"}
+          </button>
+        </form>
       </main>
     );
   }
@@ -261,6 +372,16 @@ export default function Home() {
               required
             />
           </label>
+          {authMode === "login" ? (
+            <button
+              type="button"
+              className="auth-link"
+              onClick={requestPasswordReset}
+              disabled={submitting}
+            >
+              비밀번호 재설정
+            </button>
+          ) : null}
 
           {authError ? <div className="auth-error" role="alert">{authError}</div> : null}
           {authInfo ? <div className="auth-info" role="status">{authInfo}</div> : null}
