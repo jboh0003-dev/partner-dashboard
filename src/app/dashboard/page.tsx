@@ -10,8 +10,8 @@ import { ExecutivePipelineSummarySection } from "@/components/performance/execut
 import { fetchDashboardRuntimeStats } from "@/lib/data/dashboard-runtime";
 import { fetchExecutivePerformanceStats } from "@/lib/data/partner-performance";
 
-/** 통계는 짧게 캐시해 초기 접속·페이지 전환을 가볍게 유지 */
-export const revalidate = 120;
+/** Supabase may be temporarily restricted; never fetch live statistics at build time. */
+export const dynamic = "force-dynamic";
 
 function SectionSkeleton({ height = "h-40" }: { height?: string }) {
   return (
