@@ -33,8 +33,8 @@ export async function nativeFetch(input:RequestInfo|URL,init?:RequestInit):Promi
     const options=foreign.filter(f=>(f.source===source&&f.target===ref)||(f.source===ref&&f.target===source));const hint=refRaw.split('!')[1];const fk=options.find(f=>hint&&f.column===hint)||options[0];if(!fk)throw new Error('Relationship unavailable '+source+' '+ref);
     const forward=fk.source===source;const join=forward?`${ident(next)}.${ident(fk.foreign_column)}=${ident(alias)}.${ident(fk.column)}`:`${ident(next)}.${ident(fk.column)}=${ident(alias)}.${ident(fk.foreign_column)}`;
     const value=projection(ref,inner,next);const query=forward?`(SELECT ${value} FROM public.${ident(ref)} ${ident(next)} WHERE ${join} LIMIT 1)`:`(SELECT coalesce(jsonb_agg(${value}),'[]'::jsonb) FROM public.${ident(ref)} ${ident(next)} WHERE ${join})`;
-    objects.push(`jsonb_build_object(${param(label)},${query})`);
-   }else{const [label,col]=part.includes(':')?part.split(':'):[part,part];objects.push(`jsonb_build_object(${param(label)},${ident(alias)}.${ident(col)})`);}
+    objects.push(`jsonb_build_object(${param(label)}::text,${query})`);
+   }else{const [label,col]=part.includes(':')?part.split(':'):[part,part];objects.push(`jsonb_build_object(${param(label)}::text,${ident(alias)}.${ident(col)})`);}
   }return objects.length?'('+objects.join(' || ')+')':`'{}'::jsonb`;
  }
  const select=projection(table,url.searchParams.get('select')||'*','t');
