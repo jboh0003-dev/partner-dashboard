@@ -36,6 +36,7 @@
     "lucide-react": "latest",
     "next": "latest",
     "pdf-lib": "^1.17.1",
+    "postgres": "3.4.7",
     "react": "latest",
     "react-dom": "latest",
     "xlsx": "latest",
