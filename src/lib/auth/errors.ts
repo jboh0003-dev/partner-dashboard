@@ -10,6 +10,14 @@ export function mapAuthErrorMessage(
   const code = String(error.code ?? "").toLowerCase();
 
   if (
+    error.status === 402 ||
+    /payment required|service restriction|exceed_.*quota|exceeded_.*quota/.test(message) ||
+    (message.includes("restricted") && message.includes("quota"))
+  ) {
+    return "Supabase 서비스 사용량 제한(402)으로 로그인과 데이터 조회가 차단되어 있습니다. 비밀번호 문제가 아니며, 새로고침이나 재로그인만으로 해제되지 않습니다.";
+  }
+
+  if (
     code === "invalid_credentials" ||
     message.includes("invalid login credentials") ||
     message.includes("invalid_credentials")
@@ -45,7 +53,6 @@ export function mapAuthErrorMessage(
     return "요청이 너무 많습니다. 잠시 후 다시 시도해주세요.";
   }
 
-  // 기술 메시지 원문 노출 방지
   return fallback;
 }
 
