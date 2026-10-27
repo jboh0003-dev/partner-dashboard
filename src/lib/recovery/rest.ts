@@ -5,7 +5,19 @@ export function splitTop(s:string){let depth=0,quoted=false,start=0;const out:st
 type FK={source:string;target:string;column:string;foreign_column:string};
 let fks: Promise<FK[]>|undefined;
 function relationships(){return fks??=database().unsafe<FK[]>(`select c.conrelid::regclass::text as source,c.confrelid::regclass::text as target,a.attname as column,b.attname as foreign_column from pg_constraint c join pg_attribute a on a.attrelid=c.conrelid and a.attnum=c.conkey[1] join pg_attribute b on b.attrelid=c.confrelid and b.attnum=c.confkey[1] where c.contype='f' and c.connamespace='public'::regnamespace`).then(rows=>rows.map(r=>({...r,source:r.source.replace(/^public\./,''),target:r.target.replace(/^public\./,'')})));}
+const readCache=new Map<string,{expires:number,status:number,headers:[string,string][],body:string}>();
+const pendingReads=new Map<string,Promise<Response>>();
 export async function nativeFetch(input:RequestInfo|URL,init?:RequestInit):Promise<Response>{
+ const raw=typeof input==='string'?input:input instanceof URL?input.toString():input.url;
+ const method=(init?.method||'GET').toUpperCase();
+ if(!raw.includes('/rest/v1/')||method!=='GET')return executeNativeFetch(input,init);
+ const headers=new Headers(init?.headers);const key=raw+'|'+headers.get('accept')+'|'+headers.get('prefer');
+ const cached=readCache.get(key);if(cached&&cached.expires>Date.now())return new Response(cached.body,{status:cached.status,headers:cached.headers});
+ const pending=pendingReads.get(key);if(pending)return (await pending).clone();
+ const work=executeNativeFetch(input,init);pendingReads.set(key,work);
+ try{const response=await work;if(response.ok){const body=await response.clone().text();if(body.length<=2000000){if(readCache.size>=150)readCache.delete(readCache.keys().next().value!);readCache.set(key,{expires:Date.now()+30000,status:response.status,headers:Array.from(response.headers.entries()),body});}}return response.clone();}finally{pendingReads.delete(key);}
+}
+async function executeNativeFetch(input:RequestInfo|URL,init?:RequestInit):Promise<Response>{
  const url=new URL(typeof input==='string'?input:input instanceof URL?input.toString():input.url);
  const method=(init?.method||'GET').toUpperCase();
  if(url.pathname.startsWith('/storage/v1/') && url.hostname==='mtpnkedvqenddwciazce.supabase.co') {
@@ -33,7 +45,7 @@ export async function nativeFetch(input:RequestInfo|URL,init?:RequestInit):Promi
   const parts=splitTop(selection);const objects:string[]=[];
   for(const part of parts){if(part==='*'){objects.push(`to_jsonb(${ident(alias)})`);continue;}
    const open=part.indexOf('(');
-   if(open>=0){const head=part.slice(0,open).trim(),inner=part.slice(open+1,-1);const [label,refRaw]=head.includes(':')?head.split(':'):[head,head];const ref=refRaw.split('!')[0];ident(ref);ident(label);const next='r'+(++serial);
+   if(open>=0){const head=part.slice(0,open).trim(),inner=part.slice(open+1,-1);const [label,refRaw]=head.includes(':')?head.split(':'):[head.split('!')[0],head];const ref=refRaw.split('!')[0];ident(ref);ident(label);const next='r'+(++serial);
     const options=foreign.filter(f=>(f.source===source&&f.target===ref)||(f.source===ref&&f.target===source));const hint=refRaw.split('!')[1];const fk=options.find(f=>hint&&f.column===hint)||options[0];if(!fk)throw new Error('Relationship unavailable '+source+' '+ref);
     const forward=fk.source===source;const join=forward?`${ident(next)}.${ident(fk.foreign_column)}=${ident(alias)}.${ident(fk.column)}`:`${ident(next)}.${ident(fk.column)}=${ident(alias)}.${ident(fk.foreign_column)}`;
     const value=projection(ref,inner,next);const query=forward?`(SELECT ${value} FROM public.${ident(ref)} ${ident(next)} WHERE ${join} LIMIT 1)`:`(SELECT coalesce(jsonb_agg(${value}),'[]'::jsonb) FROM public.${ident(ref)} ${ident(next)} WHERE ${join})`;

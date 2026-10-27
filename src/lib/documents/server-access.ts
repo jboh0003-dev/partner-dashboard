@@ -1,3 +1,4 @@
+import { database, recoveryEnabled } from "@/lib/recovery/database";
 import { PARTNER_DOCUMENTS_BUCKET } from "@/lib/documents/constants";
 import {
   getDocumentContentType,
@@ -127,6 +128,11 @@ export function resolveDocumentStoragePath(document: PartnerDocumentRecord): str
 }
 
 export async function downloadPartnerDocumentBlob(document: PartnerDocumentRecord) {
+  if(recoveryEnabled()) {
+    const rows=await database()`select content from connect_recovery_private.document_backups where document_id=${document.id}::uuid`;
+    if(rows.length)return {blob:new Blob([new Uint8Array(rows[0].content)],{type:getDocumentContentType(document)}),error:undefined};
+  }
+
   const storagePath = resolveDocumentStoragePath(document);
   if (!storagePath) {
     return { blob: null as Blob | null, error: "유효한 Storage 경로가 없습니다. 문서를 다시 업로드해 주세요." };
