@@ -40,7 +40,7 @@ async function executeNativeFetch(input:RequestInfo|URL,init?:RequestInit):Promi
   else throw new Error('Unsupported filter '+op);
   return neg?'NOT ('+expr+')':expr;
  }
- let serial=0;const foreign=await relationships();
+ let serial=0;const foreign=await relationships();const innerRelations:string[]=[];
  function projection(source:string,selection:string,alias:string):string{
   const parts=splitTop(selection);const objects:string[]=[];
   for(const part of parts){if(part==='*'){objects.push(`to_jsonb(${ident(alias)})`);continue;}
@@ -48,13 +48,14 @@ async function executeNativeFetch(input:RequestInfo|URL,init?:RequestInit):Promi
    if(open>=0){const head=part.slice(0,open).trim(),inner=part.slice(open+1,-1);const [label,refRaw]=head.includes(':')?head.split(':'):[head.split('!')[0],head];const ref=refRaw.split('!')[0];ident(ref);ident(label);const next='r'+(++serial);
     const options=foreign.filter(f=>(f.source===source&&f.target===ref)||(f.source===ref&&f.target===source));const hint=refRaw.split('!')[1];const fk=options.find(f=>hint&&f.column===hint)||options[0];if(!fk)throw new Error('Relationship unavailable '+source+' '+ref);
     const forward=fk.source===source;const join=forward?`${ident(next)}.${ident(fk.foreign_column)}=${ident(alias)}.${ident(fk.column)}`:`${ident(next)}.${ident(fk.column)}=${ident(alias)}.${ident(fk.foreign_column)}`;
+    if(alias==='t' && refRaw.split('!').includes('inner'))innerRelations.push(`EXISTS(SELECT 1 FROM public.${ident(ref)} ${ident(next)} WHERE ${join})`);
     const value=projection(ref,inner,next);const query=forward?`(SELECT ${value} FROM public.${ident(ref)} ${ident(next)} WHERE ${join} LIMIT 1)`:`(SELECT coalesce(jsonb_agg(${value}),'[]'::jsonb) FROM public.${ident(ref)} ${ident(next)} WHERE ${join})`;
     objects.push(`jsonb_build_object(${param(label)}::text,${query})`);
    }else{const [label,col]=part.includes(':')?part.split(':'):[part,part];objects.push(`jsonb_build_object(${param(label)}::text,${ident(alias)}.${ident(col)})`);}
   }return objects.length?'('+objects.join(' || ')+')':`'{}'::jsonb`;
  }
  const select=projection(table,url.searchParams.get('select')||'*','t');
- const where:string[]=[];for(const [k,v]of url.searchParams){if(['select','order','limit','offset'].includes(k)||k.endsWith('.order')||k.endsWith('.limit'))continue;where.push(condition(k,v));}
+ const where:string[]=[...innerRelations];for(const [k,v]of url.searchParams){if(['select','order','limit','offset'].includes(k)||k.endsWith('.order')||k.endsWith('.limit'))continue;where.push(condition(k,v));}
  const filter=where.length?' WHERE '+where.join(' AND '):'';
  const order=url.searchParams.get('order');const ordering=order?' ORDER BY '+splitTop(order).map(x=>{const [col,dir,...nulls]=x.split('.');return `t.${ident(col)} ${dir==='desc'?'DESC':'ASC'} ${nulls.includes('nullsfirst')?'NULLS FIRST':nulls.includes('nullslast')?'NULLS LAST':''}`;}).join(','):'';
  const limit=Math.min(10000,Math.max(0,Number(url.searchParams.get('limit')||1000)));const offset=Math.max(0,Number(url.searchParams.get('offset')||0));if(!Number.isFinite(limit)||!Number.isFinite(offset))throw new Error('Invalid range');

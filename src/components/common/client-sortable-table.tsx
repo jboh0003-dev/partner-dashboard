@@ -83,6 +83,7 @@ type ClientSortableTableProps<T> = {
   stickyRightKeys?: string[];
   /** 각 열 헤더에 Excel처럼 값 목록 체크 필터 표시 */
   excelFilters?: boolean;
+  pageSize?: number;
 };
 
 function resolveStickyLeftOffset(
@@ -120,8 +121,10 @@ export function ClientSortableTable<T>({
   dragScroll = false,
   stickyLeftKeys = [],
   stickyRightKeys = [],
-  excelFilters = false
+  excelFilters = false,
+  pageSize = 0
 }: ClientSortableTableProps<T>) {
+  const [page, setPage] = useState(1);
   const [sortKey, setSortKey] = useState(defaultSortKey);
   const [dir, setDir] = useState<SortDir>(defaultDir);
   const [columnFilters, setColumnFilters] = useState<Record<string, string[]>>({});
@@ -162,6 +165,12 @@ export function ClientSortableTable<T>({
     if (!column) return filteredRows;
     return sortRows(filteredRows, column.value, column.kind, dir);
   }, [filteredRows, columns, sortKey, dir, compareRows]);
+
+  const pageCount = pageSize > 0 ? Math.max(1, Math.ceil(sortedRows.length / pageSize)) : 1;
+  const currentPage = Math.min(page, pageCount);
+  const pageOffset = pageSize > 0 ? (currentPage - 1) * pageSize : 0;
+  const pageRows = pageSize > 0 ? sortedRows.slice(pageOffset, pageOffset + pageSize) : sortedRows;
+  useEffect(() => { setPage(1); }, [sortKey, dir, columnFilters, rows]);
 
   const activeFilterCount = Object.keys(columnFilters).length;
 
@@ -664,7 +673,8 @@ export function ClientSortableTable<T>({
                 </td>
               </tr>
             ) : (
-              sortedRows.map((row, rowIndex) => {
+              pageRows.map((row, pageRowIndex) => {
+                const rowIndex = pageRowIndex + pageOffset;
                 const id = rowKey(row);
                 const extraRowClass = getRowClassName?.(row, id);
                 return (
@@ -771,6 +781,14 @@ export function ClientSortableTable<T>({
           </tbody>
         </table>
       </div>
+      {pageSize > 0 && sortedRows.length > pageSize ? (
+        <nav aria-label="문서 목록 페이지" className="flex items-center justify-end gap-3 border-t border-slate-100 bg-white px-4 py-3 text-xs text-slate-600">
+          <span>{pageOffset + 1}-{Math.min(pageOffset + pageSize, sortedRows.length)} / {sortedRows.length}건</span>
+          <button type="button" className="rounded border px-3 py-1.5 disabled:opacity-40" disabled={currentPage <= 1} onClick={() => setPage(currentPage - 1)}>이전</button>
+          <span>{currentPage} / {pageCount}</span>
+          <button type="button" className="rounded border px-3 py-1.5 disabled:opacity-40" disabled={currentPage >= pageCount} onClick={() => setPage(currentPage + 1)}>다음</button>
+        </nav>
+      ) : null}
     </div>
   );
 }

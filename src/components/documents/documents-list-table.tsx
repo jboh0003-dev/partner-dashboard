@@ -365,6 +365,7 @@ export function DocumentsListTable({
 
       <ClientSortableTable
         rows={rows}
+        pageSize={50}
         columns={buildColumns({
           onRematch: setRematchDocument,
           onAction: handleAction,
