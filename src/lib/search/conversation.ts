@@ -25,6 +25,8 @@ type PartnerAgentProvider = {
 };
 
 function getPartnerAgentProvider(): PartnerAgentProvider | null {
+  const groqKey = process.env.GROQ_API_KEY?.trim();
+  if (groqKey) return { endpoint: "https://api.groq.com/openai/v1/chat/completions", token: groqKey, model: "openai/gpt-oss-120b" };
   const gatewayToken =
     process.env.AI_GATEWAY_API_KEY?.trim() ||
     process.env.VERCEL_OIDC_TOKEN?.trim();
