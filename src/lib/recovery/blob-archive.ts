@@ -31,8 +31,11 @@ export async function archiveRecoveryDocuments(request: NextRequest) {
       where m.document_id is null
       group by c.document_id,c.sha256
       having count(*)=min(c.total) and min(c.total)=max(c.total) and min(c.part)=0 and max(c.part)=min(c.total)-1
-      limit 15`);
-    for (const candidate of candidates) {
+      limit 30`);
+    const work = Array.from(new Map(candidates.map(candidate => [String(candidate.id), candidate])).values());
+    let cursor = 0;
+    await Promise.all(Array.from({ length: 3 }, async () => { while (cursor < work.length) {
+      const candidate = work[cursor++];
       if (Date.now() - started > 180000) break;
       const id = String(candidate.id), sha = String(candidate.sha256);
       try {
@@ -50,6 +53,7 @@ export async function archiveRecoveryDocuments(request: NextRequest) {
         const data = new Uint8Array(bodyRows[0].data);
         if (createHash('sha256').update(data).digest('hex') !== sha) throw new Error('SOURCE_HASH_MISMATCH');
         if (storedBytes + data.byteLength > 900000000) throw new Error('FREE_STORAGE_BUDGET_REACHED');
+        storedBytes += data.byteLength;
         const pathname = `documents/${id}/${sha}`;
         const response = await fetch(`https://vercel.com/api/blob/?${new URLSearchParams({ pathname })}`, {
           method: 'PUT',
@@ -66,14 +70,13 @@ export async function archiveRecoveryDocuments(request: NextRequest) {
           await tx`insert into connect_recovery_private.document_blob_backups(document_id,sha256,url,source_path,byte_size) values(${id}::uuid,${sha},${url},${String(sourcePath)},${data.byteLength}) on conflict(document_id) do update set sha256=excluded.sha256,url=excluded.url,source_path=excluded.source_path,byte_size=excluded.byte_size`;
           await tx`delete from connect_recovery_private.document_chunks where document_id=${id}::uuid and sha256=${sha}`;
         });
-        storedBytes += data.byteLength;
         completed.push(id);
       } catch (error) {
         const code = error instanceof Error ? error.message : 'ARCHIVE_FAILED';
         console.error('Private document archive failed', id, code);
         errors.push({ id, code });
       }
-    }
+    }}));
     return NextResponse.json({ completed, errors, storedBytes }, { headers: { 'Cache-Control': 'no-store' } });
   } catch (error) {
     console.error('Private document archive unavailable', error instanceof Error ? error.message : 'unknown');
