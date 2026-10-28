@@ -25,7 +25,7 @@ function isProtectedPath(pathname: string): boolean {
 export async function middleware(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
   if (process.env.CONNECT_NATIVE_RECOVERY === 'true' && !isWorkHubPath(pathname) && pathname !== '/continuity') {
-    if (pathname === '/api/recovery/session' || pathname === '/api/recovery/import-document') return NextResponse.next();
+    if (pathname === '/api/recovery/session') return NextResponse.next();
     const user = await verifyRecovery(request.cookies.get(RECOVERY_COOKIE)?.value);
     if (pathname === '/' || (pathname === '/login' && user)) return NextResponse.redirect(new URL(user ? '/dashboard' : '/login', request.url));
     if (isProtectedPath(pathname)) {
