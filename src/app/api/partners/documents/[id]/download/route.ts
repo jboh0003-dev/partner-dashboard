@@ -21,14 +21,6 @@ export async function GET(
       return NextResponse.json({ ok: false, message: error ?? "문서를 찾을 수 없습니다." }, { status: 404 });
     }
 
-    const { blob, error: downloadError } = await downloadPartnerDocumentBlob(document);
-    if (!blob) {
-      return NextResponse.json(
-        { ok: false, message: downloadError ?? "파일을 불러오지 못했습니다." },
-        { status: 404 }
-      );
-    }
-
     if (wantsJson) {
       return NextResponse.json({
         ok: true,
@@ -37,7 +29,17 @@ export async function GET(
       });
     }
 
-    return new NextResponse(blob, {
+    const { blob, error: downloadError } = await downloadPartnerDocumentBlob(document);
+    if (!blob) {
+      return NextResponse.json(
+        { ok: false, message: downloadError ?? "파일을 불러오지 못했습니다." },
+        { status: 404 }
+      );
+    }
+
+
+
+    return new NextResponse(blob.stream(), {
       headers: buildDocumentResponseHeaders(document, "attachment")
     });
   } catch (error) {

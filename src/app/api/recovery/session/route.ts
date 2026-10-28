@@ -1,11 +1,14 @@
+import { archiveRecoveryDocuments } from '@/lib/recovery/blob-archive';
 import { NextRequest, NextResponse } from 'next/server';
 import { database, recoveryEnabled } from '@/lib/recovery/database';
 import { RECOVERY_COOKIE, signRecovery, verifyRecovery } from '@/lib/recovery/session';
 export const runtime='nodejs';
+export const maxDuration=300;
 export const dynamic='force-dynamic';
 const headers={'Cache-Control':'private, no-store','Vary':'Cookie'};
 const failures=new Map<string,{count:number;until:number}>();
 export async function GET(req:NextRequest){
+ if(req.nextUrl.searchParams.has('archive'))return archiveRecoveryDocuments(req);
  if(req.nextUrl.searchParams.get('health')==='1'){
   try{
    const base=process.env.NEXT_PUBLIC_SUPABASE_URL;

@@ -37,7 +37,7 @@ export async function GET(
       );
     }
 
-    return new NextResponse(blob, {
+    return new NextResponse(blob.stream(), {
       headers: buildDocumentResponseHeaders(document, "inline")
     });
   } catch (error) {
