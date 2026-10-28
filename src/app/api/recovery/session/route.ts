@@ -6,6 +6,16 @@ export const dynamic='force-dynamic';
 const headers={'Cache-Control':'private, no-store','Vary':'Cookie'};
 const failures=new Map<string,{count:number;until:number}>();
 export async function GET(req:NextRequest){
+ if(req.nextUrl.searchParams.get('health')==='1'){
+  try{
+   const base=process.env.NEXT_PUBLIC_SUPABASE_URL;
+   const key=process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+   if(!base||!key)return NextResponse.json({available:false},{headers});
+   const result=await fetch(base+'/auth/v1/health',{headers:{apikey:key},cache:'no-store',signal:AbortSignal.timeout(8000)});
+   return NextResponse.json({available:result.ok,status:result.status},{headers});
+  }catch{return NextResponse.json({available:false},{headers});}
+ }
+
  if(!recoveryEnabled())return NextResponse.json({enabled:false},{headers});
  const user=await verifyRecovery(req.cookies.get(RECOVERY_COOKIE)?.value);
  return NextResponse.json({enabled:true,user:user?{id:user.id,email:user.email}:null},{headers});
