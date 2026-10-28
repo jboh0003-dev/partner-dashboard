@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { database, recoveryEnabled } from './database';
 import { blobCredentials, readPrivateBlob, validatePrivateBlobUrl } from './blob-storage';
-import { getDocumentContentType } from '@/lib/documents/display';
+import { getDocumentContentType, type DocumentDisplaySource } from '@/lib/documents/display';
 
 let running = false;
 export async function archiveRecoveryDocuments(request: NextRequest) {
@@ -53,7 +53,7 @@ export async function archiveRecoveryDocuments(request: NextRequest) {
         const pathname = `documents/${id}/${sha}`;
         const response = await fetch(`https://vercel.com/api/blob/?${new URLSearchParams({ pathname })}`, {
           method: 'PUT',
-          headers: { Authorization: `Bearer ${token}`, 'x-api-version': '13', 'x-vercel-blob-store-id': storeId, 'x-vercel-blob-access': 'private', 'x-add-random-suffix': '0', 'x-allow-overwrite': '1', 'x-content-type': getDocumentContentType(document), 'x-cache-control-max-age': '60' },
+          headers: { Authorization: `Bearer ${token}`, 'x-api-version': '13', 'x-vercel-blob-store-id': storeId, 'x-vercel-blob-access': 'private', 'x-add-random-suffix': '0', 'x-allow-overwrite': '1', 'x-content-type': getDocumentContentType(document as DocumentDisplaySource), 'x-cache-control-max-age': '60' },
           body: new Blob([data]), signal: AbortSignal.timeout(120000)
         });
         if (!response.ok) throw new Error(`PRIVATE_DOCUMENT_UPLOAD_${response.status}`);
