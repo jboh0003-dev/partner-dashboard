@@ -1,6 +1,7 @@
 "use client";
 
 import { Maximize2, Minimize2, X } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useRef } from "react";
 import { SearchChat } from "@/components/search/search-chat";
 import { OkeAvatar } from "@/components/search/oke-avatar";
@@ -68,6 +69,7 @@ export function OkePanelShell({
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
+          <Link href="/dashboard/ai" onClick={onClose ?? closePanel} className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-800 hover:bg-blue-100">범용 AI 대화</Link>
           {showFullscreenToggle ? (
             <button
               type="button"
