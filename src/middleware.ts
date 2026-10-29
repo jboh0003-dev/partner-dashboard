@@ -24,6 +24,10 @@ function isProtectedPath(pathname: string): boolean {
 
 export async function middleware(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
+  // The login page needs this non-sensitive mode check before signing in.
+  if (pathname === '/api/recovery/session' && request.method === 'GET' && !request.nextUrl.searchParams.has('archive')) {
+    return NextResponse.next();
+  }
   if (process.env.CONNECT_NATIVE_RECOVERY === 'true' && !isWorkHubPath(pathname) && pathname !== '/continuity') {
     if (pathname === '/api/recovery/session') return NextResponse.next();
     const user = await verifyRecovery(request.cookies.get(RECOVERY_COOKIE)?.value);

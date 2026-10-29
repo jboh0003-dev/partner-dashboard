@@ -1,5 +1,3 @@
-import { cookies } from 'next/headers';
-import { verifyRecovery, RECOVERY_COOKIE } from '@/lib/recovery/session';
 import { readArchivedDocument } from '@/lib/recovery/blob-storage';
 import { database, recoveryEnabled } from "@/lib/recovery/database";
 import { PARTNER_DOCUMENTS_BUCKET } from "@/lib/documents/constants";
@@ -12,6 +10,7 @@ import {
 } from "@/lib/documents/display";
 import { isSafeStorageObjectKey } from "@/lib/documents/storage-path";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 
 export type PartnerDocumentRecord = DocumentDisplaySource & {
   id: string;
@@ -130,32 +129,48 @@ export function resolveDocumentStoragePath(document: PartnerDocumentRecord): str
   return storagePath ?? null;
 }
 
-export async function downloadPartnerDocumentBlob(document: PartnerDocumentRecord) {
-  if(recoveryEnabled()) {
-    const user = await verifyRecovery((await cookies()).get(RECOVERY_COOKIE)?.value);
-    if (!user) return { blob: null as Blob | null, error: '로그인이 필요합니다.' };
-    const sourcePath = resolveDocumentStoragePath(document);
-    try {
-      const archived = await readArchivedDocument(document.id, sourcePath);
-      if (archived) return { blob: archived, error: undefined };
-    } catch (error) { console.error('Private document read failed', document.id, error instanceof Error ? error.message : 'unknown'); }
-    const rows=await database()`select content from connect_recovery_private.document_backups where document_id=${document.id}::uuid and source_path=${sourcePath}`;
-    if(rows.length)return {blob:new Blob([new Uint8Array(rows[0].content)],{type:getDocumentContentType(document)}),error:undefined};
+async function readDocumentBackup(document: PartnerDocumentRecord, sourcePath: string) {
+  try {
+    const archived = await readArchivedDocument(document.id, sourcePath);
+    if (archived) return archived;
+  } catch (error) {
+    console.error('Private document read failed', document.id, error instanceof Error ? error.message : 'unknown');
   }
+  if (!process.env.CONNECT_DATABASE_URL) return null;
+  try {
+    const rows = await database()`select content from connect_recovery_private.document_backups where document_id=${document.id}::uuid and source_path=${sourcePath}`;
+    return rows.length ? new Blob([new Uint8Array(rows[0].content)], { type: getDocumentContentType(document) }) : null;
+  } catch (error) {
+    console.error('Document backup read failed', document.id, error instanceof Error ? error.message : 'unknown');
+    return null;
+  }
+}
+
+export async function downloadPartnerDocumentBlob(document: PartnerDocumentRecord) {
+  // Backups use exactly the same verified login requirement as normal downloads.
+  const client = await createClient();
+  const { data: { user }, error: authError } = await client.auth.getUser();
+  if (authError || !user) return { blob: null as Blob | null, error: '로그인이 필요합니다.' };
 
   const storagePath = resolveDocumentStoragePath(document);
   if (!storagePath) {
     return { blob: null as Blob | null, error: "유효한 Storage 경로가 없습니다. 문서를 다시 업로드해 주세요." };
   }
+  if (recoveryEnabled()) {
+    const backup = await readDocumentBackup(document, storagePath);
+    if (backup) return { blob: backup, error: undefined };
+  }
 
   const supabase = createAdminClient();
   const { data, error } = await supabase.storage.from(PARTNER_DOCUMENTS_BUCKET).download(storagePath);
+  if (!error && data) return { blob: data, error: undefined };
 
-  if (error || !data) {
-    return { blob: null as Blob | null, error: error?.message ?? "파일을 불러오지 못했습니다." };
+  // Restoring Supabase authentication must not strand documents recovered during the outage.
+  if (!recoveryEnabled()) {
+    const backup = await readDocumentBackup(document, storagePath);
+    if (backup) return { blob: backup, error: undefined };
   }
-
-  return { blob: data, error: undefined };
+  return { blob: null as Blob | null, error: error?.message ?? "파일을 불러오지 못했습니다." };
 }
 
 export function buildContentDisposition(

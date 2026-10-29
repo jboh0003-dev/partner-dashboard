@@ -1,5 +1,6 @@
 import { recoveryEnabled } from "@/lib/recovery/database";
 import { nativeFetch } from "@/lib/recovery/rest";
+import { storageFetch } from "@/lib/supabase/storage-fetch";
 import { verifyRecovery, RECOVERY_COOKIE } from "@/lib/recovery/session";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
@@ -15,7 +16,7 @@ export async function createClient() {
   }
 
   const client = createServerClient(supabaseUrl, supabaseAnonKey, {
-    ...(recoveryEnabled() ? { global: { fetch: nativeFetch } } : {}),
+    global: { fetch: recoveryEnabled() ? nativeFetch : storageFetch },
     cookies: {
       getAll() {
         return cookieStore.getAll();
