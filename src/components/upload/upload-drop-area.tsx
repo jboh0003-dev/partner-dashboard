@@ -56,8 +56,9 @@ export async function filesFromDrop(dataTransfer: DataTransfer, allowFolders = f
     if (!allowFolders && entries.some((entry) => entry?.isDirectory)) {
       throw new Error("이 업로드는 파일만 지원합니다. 폴더 대신 파일을 선택해 주세요.");
     }
-    const groups = await Promise.all(entries.filter((entry): entry is LegacyEntry => !!entry)
-      .map((entry) => listEntryFiles(entry)));
+    const groups = await Promise.all(entries
+      .filter((entry) => entry !== null)
+      .map((entry) => listEntryFiles(entry as LegacyEntry)));
     const files = groups.flat();
     if (files.length) return files;
   }
