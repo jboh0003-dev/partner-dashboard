@@ -210,6 +210,11 @@ export async function POST(request: Request) {
     let updated = 0;
     let review = 0;
 
+    const opportunityByCode = new Map<string, {
+      payload: Record<string, unknown>;
+      row: z.infer<typeof InventoryRowSchema>;
+    }>();
+
     for (const row of parsed.inventory_rows) {
       if (!row.project_code?.trim()) continue;
 
@@ -264,42 +269,38 @@ export async function POST(request: Request) {
         updated_at: new Date().toISOString()
       };
 
-      if (snapshotAction === "replaced") {
-        const { error } = await supabase.from("partner_pipeline_opportunities").insert(payload);
-        if (error) throw new Error(error.message);
-        created += 1;
-      } else {
-        const { data: existing } = await supabase
-          .from("partner_pipeline_opportunities")
-          .select("id")
-          .eq("snapshot_id", snapshotId)
-          .eq("project_code", row.project_code.trim())
-          .maybeSingle();
-
-        if (existing?.id) {
-          const { error } = await supabase
-            .from("partner_pipeline_opportunities")
-            .update(payload)
-            .eq("id", existing.id);
-          if (error) throw new Error(error.message);
-          updated += 1;
-        } else {
-          const { error } = await supabase.from("partner_pipeline_opportunities").insert(payload);
-          if (error) throw new Error(error.message);
-          created += 1;
-        }
-      }
-
-      if (!row.matched_partner_id && !isUnknownPartnerName(row.raw_partner_name ?? row.partner_name)) {
-        review += 1;
-        await supabase.from("import_review_queue").insert({
-          import_job_id: importJobId,
-          entity_type: "partner_pipeline_opportunity",
-          reason: row.match_reason ?? "파트너명 매칭 실패",
-          raw_data: row
-        });
-      }
+      // One opportunity per (snapshot, project code), identical to the existing upsert behavior.
+      // Keep the last imported row for duplicate codes and write in small batches.
+      opportunityByCode.set(row.project_code.trim(), { payload, row });
     }
+
+    const opportunities = [...opportunityByCode.values()];
+    for (let offset = 0; offset < opportunities.length; offset += 80) {
+      const batch = opportunities.slice(offset, offset + 80);
+      const { error } = await supabase
+        .from("partner_pipeline_opportunities")
+        .upsert(batch.map(({ payload }) => payload), { onConflict: "snapshot_id,project_code" });
+      if (error) throw new Error(error.message);
+      created += batch.length;
+    }
+
+    const opportunityReviews = opportunities
+      .filter(({ row }) =>
+        !row.matched_partner_id &&
+        !isUnknownPartnerName(row.raw_partner_name ?? row.partner_name)
+      )
+      .map(({ row }) => ({
+        import_job_id: importJobId,
+        entity_type: "partner_pipeline_opportunity",
+        reason: row.match_reason ?? "파트너명 매칭 실패",
+        raw_data: row
+      }));
+    for (let offset = 0; offset < opportunityReviews.length; offset += 50) {
+      const { error } = await supabase.from("import_review_queue")
+        .insert(opportunityReviews.slice(offset, offset + 50));
+      if (error) throw new Error(error.message);
+    }
+    review = opportunityReviews.length;
 
     const currentSnapshotId = await refreshPipelineCurrentSnapshot(supabase);
 
@@ -316,38 +317,48 @@ export async function POST(request: Request) {
         .eq("revenue_year", 2025);
       if (deleteError) throw new Error(deleteError.message);
 
-      for (const row of parsed.revenue_rows ?? []) {
-        const { error } = await supabase.from("partner_revenue_records").insert({
-          revenue_year: 2025,
-          partner_name: row.matched_partner_name ?? row.partner_name,
-          raw_partner_name: row.raw_partner_name ?? row.partner_name,
-          matched_partner_id: row.matched_partner_id ?? null,
-          match_status: resolveDbMatchStatus(row),
-          match_reason: row.match_reason ?? null,
-          partner_grade: row.partner_grade ?? null,
-          sales_owner: row.sales_owner ?? null,
-          project_code: row.project_code ?? null,
-          customer_name: row.customer_name ?? null,
-          project_name: row.project_name ?? null,
-          product_revenue_million: row.product_revenue_million,
-          project_count: row.project_count ?? null,
-          source_sheet: row.raw_json?.sheet_name ? String(row.raw_json.sheet_name) : null,
-          source_file_name: parsed.file_name,
-          raw_json: row.raw_json ?? null
-        });
+      const revenues = (parsed.revenue_rows ?? []).map((row) => ({
+        revenue_year: 2025,
+        partner_name: row.matched_partner_name ?? row.partner_name,
+        raw_partner_name: row.raw_partner_name ?? row.partner_name,
+        matched_partner_id: row.matched_partner_id ?? null,
+        match_status: resolveDbMatchStatus(row),
+        match_reason: row.match_reason ?? null,
+        partner_grade: row.partner_grade ?? null,
+        sales_owner: row.sales_owner ?? null,
+        project_code: row.project_code ?? null,
+        customer_name: row.customer_name ?? null,
+        project_name: row.project_name ?? null,
+        product_revenue_million: row.product_revenue_million,
+        project_count: row.project_count ?? null,
+        source_sheet: row.raw_json?.sheet_name ? String(row.raw_json.sheet_name) : null,
+        source_file_name: parsed.file_name,
+        raw_json: row.raw_json ?? null
+      }));
+      for (let offset = 0; offset < revenues.length; offset += 80) {
+        const batch = revenues.slice(offset, offset + 80);
+        const { error } = await supabase.from("partner_revenue_records").insert(batch);
         if (error) throw new Error(error.message);
-        revenueCreated += 1;
-
-        if (!row.matched_partner_id && !isUnknownPartnerName(row.raw_partner_name ?? row.partner_name)) {
-          revenueReview += 1;
-          await supabase.from("import_review_queue").insert({
-            import_job_id: importJobId,
-            entity_type: "partner_revenue_record",
-            reason: row.match_reason ?? "파트너명 매칭 실패",
-            raw_data: row
-          });
-        }
+        revenueCreated += batch.length;
       }
+
+      const revenueReviews = (parsed.revenue_rows ?? [])
+        .filter((row) =>
+          !row.matched_partner_id &&
+          !isUnknownPartnerName(row.raw_partner_name ?? row.partner_name)
+        )
+        .map((row) => ({
+          import_job_id: importJobId,
+          entity_type: "partner_revenue_record",
+          reason: row.match_reason ?? "파트너명 매칭 실패",
+          raw_data: row
+        }));
+      for (let offset = 0; offset < revenueReviews.length; offset += 50) {
+        const { error } = await supabase.from("import_review_queue")
+          .insert(revenueReviews.slice(offset, offset + 50));
+        if (error) throw new Error(error.message);
+      }
+      revenueReview = revenueReviews.length;
     }
 
     const storageDeleted = await deleteTempImportFile(supabase, parsed.storage_path ?? null);
