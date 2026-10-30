@@ -1,5 +1,6 @@
 "use client";
 
+import { UploadDropArea } from "@/components/upload/upload-drop-area";
 import { useMemo, useState } from "react";
 import { Loader2, UploadCloud } from "lucide-react";
 import type { PolicyAnalyzeSlide, PolicyParseValidation } from "@/types/partner-policy";
@@ -167,15 +168,23 @@ export function PolicyUploadPanel() {
               onChange={(e) => setEffectiveDate(e.target.value)}
             />
           </label>
-          <label className="block md:col-span-2">
-            <span className="text-sm font-semibold text-slate-800">파일</span>
+          <UploadDropArea
+            accept=".pptx,.ppt,.pdf,.docx,.doc"
+            className="md:col-span-2 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-3"
+            disabled={loading || saving}
+            onError={setError}
+            onFiles={(files) => { setFile(files[0]); setAnalysis(null); }}
+          >
+          <label className="block">
+            <span className="text-sm font-semibold text-slate-800">파일 · 드래그 앤 드롭 가능</span>
             <input
               type="file"
               accept=".pptx,.ppt,.pdf,.docx,.doc"
               className="mt-1 block w-full text-sm"
-              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+              onChange={(e) => { setFile(e.target.files?.[0] ?? null); setAnalysis(null); }}
             />
           </label>
+          </UploadDropArea>
           <label className="block md:col-span-2">
             <span className="text-sm font-semibold text-slate-800">설명</span>
             <input

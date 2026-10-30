@@ -1,5 +1,6 @@
 "use client";
 
+import { UploadDropArea } from "@/components/upload/upload-drop-area";
 import Link from "next/link";
 import JSZip from "jszip";
 import {
@@ -510,15 +511,21 @@ export function PartnerOnboardingPackageUploadSection() {
 
   return (
     <div className="space-y-5">
+      <UploadDropArea
+        allowFolders
+        multiple
+        onError={setError}
+        onFiles={(files) => {
+          if (files.length === 1 && /\.zip$/i.test(files[0].name)) {
+            void analyzePackage(files[0]);
+          } else if (files.length > 0) {
+            void analyzePackage(files[0], files);
+          }
+        }}
+      >
       <div
         className="cursor-pointer rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-6 py-10 text-center transition hover:border-slate-400"
         onClick={() => inputRef.current?.click()}
-        onDragOver={(event) => event.preventDefault()}
-        onDrop={(event) => {
-          event.preventDefault();
-          const dropped = event.dataTransfer.files?.[0];
-          if (dropped) void analyzePackage(dropped);
-        }}
       >
         <UploadCloud className="mx-auto text-slate-400" size={34} />
         <div className="mt-3 text-sm font-semibold text-slate-900">
@@ -562,6 +569,7 @@ export function PartnerOnboardingPackageUploadSection() {
           </div>
         ) : null}
       </div>
+      </UploadDropArea>
 
       <p className="text-xs text-slate-500">용량 최적화: JPEG·PDF·Office 문서에서 실제 용량이 줄어드는 경우에만 적용합니다. 저장 공간 안전 한도 900MB를 초과하면 업로드를 차단합니다.</p>
       {analyzing ? (

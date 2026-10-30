@@ -1,5 +1,6 @@
 "use client";
 
+import { UploadDropArea } from "@/components/upload/upload-drop-area";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { FileSpreadsheet, Loader2, UploadCloud } from "lucide-react";
@@ -171,8 +172,15 @@ export function TechPartnerUploadPanel() {
         </p>
 
         <div className="mt-5 grid gap-4 md:grid-cols-2">
+          <UploadDropArea
+            accept=".xlsx,.xls"
+            disabled={loading || saving}
+            onError={setError}
+            onFiles={(files) => { setExamFile(files[0]); setAnalysis(null); }}
+          >
           <label className="block rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4">
             <span className="text-sm font-semibold text-slate-800">시험결과 파일</span>
+            <span className="mt-1 block text-xs text-slate-500">드래그 앤 드롭 가능</span>
             <input
               type="file"
               accept=".xlsx,.xls"
@@ -180,15 +188,24 @@ export function TechPartnerUploadPanel() {
               onChange={(e) => setExamFile(e.target.files?.[0] ?? null)}
             />
           </label>
+          </UploadDropArea>
+          <UploadDropArea
+            accept=".xlsx,.xls"
+            disabled={loading || saving}
+            onError={setError}
+            onFiles={(files) => { setRosterFile(files[0]); setAnalysis(null); }}
+          >
           <label className="block rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4">
             <span className="text-sm font-semibold text-slate-800">교육생 관리대장</span>
+            <span className="mt-1 block text-xs text-slate-500">드래그 앤 드롭 가능</span>
             <input
               type="file"
               accept=".xlsx,.xls"
               className="mt-2 block w-full text-sm"
-              onChange={(e) => setRosterFile(e.target.files?.[0] ?? null)}
+              onChange={(e) => { setRosterFile(e.target.files?.[0] ?? null); setAnalysis(null); }}
             />
           </label>
+          </UploadDropArea>
         </div>
 
         <div className="mt-4 flex flex-wrap gap-2">

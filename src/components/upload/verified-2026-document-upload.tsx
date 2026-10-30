@@ -1,5 +1,6 @@
 "use client";
 
+import { UploadDropArea } from "@/components/upload/upload-drop-area";
 import { useMemo, useState } from "react";
 import JSZip from "jszip";
 import { CheckCircle2, Loader2, UploadCloud, AlertTriangle } from "lucide-react";
@@ -274,7 +275,14 @@ export function Verified2026DocumentUpload() {
           유아이에스는 현재 Partner Connect의 활성 파트너와 매칭되지 않아 이번 반영에서 제외됩니다.
         </p>
 
-        <label className="mt-5 inline-flex cursor-pointer items-center gap-2 rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800">
+        <UploadDropArea
+          accept=".zip"
+          disabled={running}
+          className="mt-5 rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-5"
+          onError={(message) => setErrors([{ name: "ZIP 파일", message }])}
+          onFiles={(files) => { void processZip(files[0]); }}
+        >
+        <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800">
           {running ? <Loader2 size={16} className="animate-spin" /> : <UploadCloud size={16} />}
           {running ? "반영 중..." : "2026년.zip 선택"}
           <input
@@ -289,6 +297,8 @@ export function Verified2026DocumentUpload() {
             }}
           />
         </label>
+        <p className="mt-2 text-xs text-slate-500">ZIP 파일을 이 영역에 끌어다 놓을 수도 있습니다.</p>
+        </UploadDropArea>
 
         {summary ? (
           <div className="mt-5 rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-700">

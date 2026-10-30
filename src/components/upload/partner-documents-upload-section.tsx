@@ -1,5 +1,6 @@
 "use client";
 
+import { UploadDropArea } from "@/components/upload/upload-drop-area";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { FolderOpen, Loader2, UploadCloud } from "lucide-react";
@@ -221,7 +222,7 @@ export function PartnerDocumentsUploadSection() {
     handleFolderBulkApply(folderKey, suggestion.id);
   }
 
-  function handleFilesSelected(fileList: FileList | null) {
+  function handleFilesSelected(fileList: FileList | File[] | null) {
     if (!fileList || fileList.length === 0) return;
 
     const files = Array.from(fileList).filter((file) => !file.name.startsWith("."));
@@ -288,6 +289,12 @@ export function PartnerDocumentsUploadSection() {
 
   return (
     <div className="space-y-6">
+      <UploadDropArea
+        allowFolders
+        multiple
+        onError={setSaveError}
+        onFiles={handleFilesSelected}
+      >
       <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center">
         <UploadCloud className="mx-auto mb-3 text-slate-400" size={36} />
         <p className="text-sm font-semibold text-slate-900">
@@ -327,6 +334,7 @@ export function PartnerDocumentsUploadSection() {
           </p>
         ) : null}
       </div>
+      </UploadDropArea>
 
       {parsedRows.length > 0 ? (
         <>

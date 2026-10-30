@@ -9,6 +9,7 @@ import {
 } from "@/lib/performance/snapshot-persistence";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isUnknownPartnerName } from "@/lib/partners/performance-match";
+import { analyzeStoredPipelineFile } from "@/lib/imports/pipeline-storage";
 
 function resolveDbMatchStatus(row: {
   matched_partner_id?: string | null;
@@ -90,6 +91,14 @@ const RevenueRowSchema = z.object({
   raw_json: z.record(z.string(), z.unknown()).optional()
 });
 
+export const maxDuration = 300;
+
+const StoredSaveSchema = z.object({
+  file_name: z.string().min(1),
+  storage_path: z.string().min(1),
+  duplicate_mode: z.enum(["replace", "new_version"]).default("replace")
+});
+
 const SaveSchema = z.object({
   file_name: z.string(),
   snapshot_date: z.string(),
@@ -118,8 +127,45 @@ export async function POST(request: Request) {
   let importJobId: string | null = null;
 
   try {
-    const json = await request.json();
-    const parsed = SaveSchema.parse(json);
+    const json: unknown = await request.json();
+    let parsed: z.infer<typeof SaveSchema>;
+    if (
+      typeof json === "object" &&
+      json !== null &&
+      "storage_path" in json &&
+      !("inventory_rows" in json)
+    ) {
+      const input = StoredSaveSchema.parse(json);
+      const { analysis } = await analyzeStoredPipelineFile(
+        supabase, input.storage_path, input.file_name, auth.userId
+      );
+      if (!analysis.summary.can_save) {
+        throw new Error(analysis.summary.save_blockers.join(" / ") || "저장할 수 없는 파일입니다.");
+      }
+      // Reparse and validate the same signed-upload file on the server.
+      // Do not send thousands of rows through Vercel's request-body limit.
+      parsed = SaveSchema.parse({
+        file_name: input.file_name,
+        snapshot_date: analysis.summary.snapshot_date,
+        snapshot_label: analysis.summary.snapshot_label,
+        duplicate_mode: input.duplicate_mode,
+        storage_path: input.storage_path,
+        summary: {
+          total_pipeline_amount_million: analysis.summary.win_forecast_total_amount_million,
+          total_pipeline_count: analysis.summary.win_forecast_total_count,
+          partner_pipeline_amount_million: analysis.summary.win_forecast_partner_amount_million,
+          partner_pipeline_count: analysis.summary.win_forecast_partner_count,
+          new_total_pipeline_amount_million: analysis.summary.new_reg_total_amount_million,
+          new_total_pipeline_count: analysis.summary.new_reg_total_count,
+          new_partner_pipeline_amount_million: analysis.summary.new_reg_partner_amount_million,
+          new_partner_pipeline_count: analysis.summary.new_reg_partner_count
+        },
+        inventory_rows: analysis.inventory_rows,
+        revenue_rows: analysis.revenue_rows
+      });
+    } else {
+      parsed = SaveSchema.parse(json);
+    }
 
     const { data: importJob, error: importJobError } = await supabase
       .from("import_jobs")

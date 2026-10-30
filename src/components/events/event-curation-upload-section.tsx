@@ -1,5 +1,6 @@
 "use client";
 
+import { UploadDropArea } from "@/components/upload/upload-drop-area";
 import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -100,9 +101,8 @@ export function EventCurationUploadSection() {
     [rows, statusFilter, eventFilter, typeFilter]
   );
 
-  async function handleFolderSelect(event: React.ChangeEvent<HTMLInputElement>) {
-    const fileList = event.target.files;
-    if (!fileList?.length) return;
+  async function handleFolderSelect(fileList: File[]) {
+    if (!fileList.length) return;
 
     setError(null);
     setResult(null);
@@ -251,14 +251,22 @@ export function EventCurationUploadSection() {
           (event-documents)에 업로드됩니다. 대표자료는 기본 선택되며, 구버전·중복·용량 초과 파일은
           기본 미선택입니다.
         </p>
-        <div className="mt-4 flex flex-wrap items-center gap-3">
+        <UploadDropArea
+          allowFolders
+          multiple
+          disabled={isAnalyzing || isSaving}
+          className="mt-4 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4"
+          onError={setError}
+          onFiles={(files) => handleFolderSelect(files)}
+        >
+        <div className="flex flex-wrap items-center gap-3">
           <input
             ref={fileInputRef}
             type="file"
             multiple
             className="hidden"
             {...{ webkitdirectory: "", directory: "" }}
-            onChange={handleFolderSelect}
+            onChange={(ev) => { void handleFolderSelect(Array.from(ev.target.files ?? [])); }}
           />
           <button
             type="button"
@@ -281,6 +289,8 @@ export function EventCurationUploadSection() {
             </button>
           ) : null}
         </div>
+        <p className="mt-2 text-xs text-slate-500">행사 폴더나 여러 파일을 이 영역에 끌어다 놓을 수도 있습니다.</p>
+        </UploadDropArea>
         {error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}
         {result ? (
           <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-4">

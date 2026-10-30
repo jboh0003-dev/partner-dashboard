@@ -8,6 +8,9 @@ import type { PartnerPerformanceAnalysisResult } from "@/lib/imports/partner-per
 import type { PipelineDuplicateMode } from "@/lib/performance/snapshot-persistence";
 import { formatCount, formatEok, formatMillion } from "@/lib/performance/format";
 import { HorizontalBarChart } from "@/components/dashboard/bar-chart";
+import { UploadDropArea } from "@/components/upload/upload-drop-area";
+import { createClient } from "@/lib/supabase/client";
+import { readUploadApiJson } from "@/lib/imports/read-upload-api-json";
 
 type TabKey =
   | "summary"
@@ -46,17 +49,51 @@ export function PerformanceUploadPanel() {
     [analysis]
   );
 
-  async function uploadTempFile(selected: File): Promise<string | null> {
-    const formData = new FormData();
-    formData.set("file", selected);
-    formData.set("import_type", "partner_pipeline");
-    const response = await fetch("/api/import/temp-file", { method: "POST", body: formData });
-    const json = (await response.json().catch(() => null)) as {
-      ok?: boolean;
-      storage_path?: string;
-    } | null;
-    if (!response.ok || !json?.ok) return null;
-    return json.storage_path ?? null;
+  function selectFile(selected: File) {
+    if (!/\.(xlsx|xls)$/i.test(selected.name)) {
+      setError("실적/파이프라인은 Excel(.xlsx/.xls) 파일만 업로드할 수 있습니다.");
+      return;
+    }
+    // A different file invalidates the previous analysis and temporary upload.
+    if (storagePath) {
+      void fetch("/api/import/partners/performance/discard", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ storage_path: storagePath })
+      }).catch(() => {});
+    }
+    setFile(selected);
+    setFileName(null);
+    setAnalysis(null);
+    setSnapshotMeta(null);
+    setStoragePath(null);
+    setError(null);
+    setSaveMessage(null);
+  }
+
+  async function uploadTempFile(selected: File): Promise<string> {
+    const prepareResponse = await fetch("/api/import/partners/performance/prepare", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ file_name: selected.name, file_size: selected.size })
+    });
+    const prepared = await readUploadApiJson<{
+      ok: boolean; path: string; token: string; message?: string
+    }>(prepareResponse);
+    const { error: uploadError } = await createClient()
+      .storage.from("temp-imports")
+      .uploadToSignedUrl(prepared.path, prepared.token, selected, {
+        contentType: selected.type || "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      });
+    if (uploadError) {
+      void fetch("/api/import/partners/performance/discard", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ storage_path: prepared.path })
+      }).catch(() => {});
+      throw new Error("Supabase 파일 업로드 실패: " + uploadError.message);
+    }
+    return prepared.path;
   }
 
   async function handleAnalyze() {
@@ -67,16 +104,20 @@ export function PerformanceUploadPanel() {
     setLoading(true);
     setError(null);
     setSaveMessage(null);
-    setStoragePath(null);
     try {
-      const formData = new FormData();
-      formData.append("file", file);
+      let path = storagePath;
+      if (!path) {
+        path = await uploadTempFile(file);
+        setStoragePath(path);
+      }
       const response = await fetch("/api/import/partners/performance/analyze", {
         method: "POST",
-        body: formData
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ storage_path: path, file_name: file.name })
       });
-      const json = await response.json();
-      if (!response.ok || !json.ok) throw new Error(json.message ?? "분석 실패");
+      const json = await readUploadApiJson<PartnerPerformanceAnalysisResult & {
+        ok: boolean; snapshot_meta: SnapshotMeta; message?: string
+      }>(response);
       setAnalysis({
         summary: json.summary,
         inventory_rows: json.inventory_rows,
@@ -107,37 +148,29 @@ export function PerformanceUploadPanel() {
     setSaving(true);
     setError(null);
     try {
-      let path = storagePath;
-      if (!path) {
-        path = await uploadTempFile(file);
-        setStoragePath(path);
+      if (!storagePath) {
+        throw new Error("분석 파일의 임시 저장 경로가 없습니다. 분석을 다시 실행해 주세요.");
       }
-
       const response = await fetch("/api/import/partners/performance", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           file_name: fileName,
-          snapshot_date: analysis.summary.snapshot_date,
-          snapshot_label: analysis.summary.snapshot_label,
           duplicate_mode: duplicateMode,
-          storage_path: path,
-          summary: {
-            total_pipeline_amount_million: analysis.summary.win_forecast_total_amount_million,
-            total_pipeline_count: analysis.summary.win_forecast_total_count,
-            partner_pipeline_amount_million: analysis.summary.win_forecast_partner_amount_million,
-            partner_pipeline_count: analysis.summary.win_forecast_partner_count,
-            new_total_pipeline_amount_million: analysis.summary.new_reg_total_amount_million,
-            new_total_pipeline_count: analysis.summary.new_reg_total_count,
-            new_partner_pipeline_amount_million: analysis.summary.new_reg_partner_amount_million,
-            new_partner_pipeline_count: analysis.summary.new_reg_partner_count
-          },
-          inventory_rows: analysis.inventory_rows,
-          revenue_rows: analysis.revenue_rows
+          storage_path: storagePath
         })
       });
-      const json = await response.json();
-      if (!response.ok || !json.ok) throw new Error(json.message ?? "저장 실패");
+      const json = await readUploadApiJson<{
+        ok: boolean;
+        snapshot_action: string;
+        snapshot_version: number;
+        created: number;
+        updated: number;
+        review: number;
+        is_current: boolean;
+        message?: string;
+      }>(response);
+      setStoragePath(null);
       setSaveMessage(
         `저장 완료 — ${json.snapshot_action} (v${json.snapshot_version}), 생성 ${json.created}건, 업데이트 ${json.updated}건, 검토 ${json.review}건` +
           (json.is_current ? " · 현재 대시보드 기준 스냅샷" : "")
@@ -159,20 +192,36 @@ export function PerformanceUploadPanel() {
           파이프라인은 월별 스냅샷으로 누적 저장됩니다. 과거 스냅샷은 삭제되지 않으며, 대시보드는
           최신 기준일 스냅샷을 표시합니다.
         </p>
-        <label className="mt-5 block rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4">
-          <span className="text-sm font-semibold text-slate-800">실적/파이프라인 엑셀</span>
-          <input
-            type="file"
-            accept=".xlsx,.xls"
-            className="mt-2 block w-full text-sm"
-            onChange={(e) => {
-              setFile(e.target.files?.[0] ?? null);
-              setAnalysis(null);
-              setSnapshotMeta(null);
-              setStoragePath(null);
-            }}
-          />
-        </label>
+        <UploadDropArea
+          className="mt-5 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4"
+          accept=".xlsx,.xls"
+          disabled={loading || saving}
+          onFiles={(files) => selectFile(files[0])}
+          onError={setError}
+        >
+          <label className="block cursor-pointer">
+            <span className="text-sm font-semibold text-slate-800">실적/파이프라인 엑셀</span>
+            <span className="mt-1 block text-xs text-slate-500">
+              파일을 선택하거나 여기로 끌어다 놓으세요 (.xlsx / .xls)
+            </span>
+            <input
+              type="file"
+              accept=".xlsx,.xls"
+              disabled={loading || saving}
+              className="mt-2 block w-full cursor-pointer text-sm"
+              onChange={(event) => {
+                const selected = event.target.files?.[0];
+                if (selected) selectFile(selected);
+                event.currentTarget.value = "";
+              }}
+            />
+            {file ? (
+              <span className="mt-2 block text-xs font-medium text-blue-700">
+                {file.name} · {(file.size / 1024 / 1024).toFixed(2)} MB
+              </span>
+            ) : null}
+          </label>
+        </UploadDropArea>
         <div className="mt-4 flex flex-wrap gap-2">
           <button type="button" onClick={() => void handleAnalyze()} disabled={loading} className="ui-btn-accent inline-flex items-center gap-2">
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileSpreadsheet className="h-4 w-4" />}
@@ -312,6 +361,11 @@ export function PerformanceUploadPanel() {
             />
           ) : null}
 
+          {analysis.inventory_rows.length < analysis.summary.inventory_row_count ? (
+            <p className="text-xs text-slate-500">
+              미리보기 {analysis.inventory_rows.length.toLocaleString("ko-KR")}건 / 전체 {analysis.summary.inventory_row_count.toLocaleString("ko-KR")}건 · 저장 시 전체 원본을 서버에서 다시 검증합니다.
+            </p>
+          ) : null}
           {tab === "review" ? <OpportunityTable rows={reviewRows} /> : null}
           {tab === "win_forecast" ? (
             <OpportunityTable

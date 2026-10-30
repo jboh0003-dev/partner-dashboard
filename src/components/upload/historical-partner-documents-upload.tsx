@@ -1,5 +1,6 @@
 "use client";
 
+import { UploadDropArea } from "@/components/upload/upload-drop-area";
 import { useMemo, useState } from "react";
 import JSZip from "jszip";
 import { AlertTriangle, CheckCircle2, Loader2, UploadCloud } from "lucide-react";
@@ -163,7 +164,7 @@ export function HistoricalPartnerDocumentsUpload() {
     return `원본 ${result.totalFiles}건 · 대상 ${result.considered}건 · 반영대상 ${result.selected}건 · 신규반영 ${result.uploaded}건 · 기존동일 ${result.reused}건 · 원본중복/기등록 ${result.duplicateSkipped}건 · 미등록 파트너 제외 ${result.unregisteredExcluded}건 · 확인필요 ${result.unmatched.length}건 · 실패 ${result.failed}건`;
   }, [result]);
 
-  async function handleFiles(fileList: FileList | null) {
+  async function handleFiles(fileList: FileList | File[] | null) {
     if (!fileList?.length || running) return;
     setRunning(true);
     setResult(null);
@@ -390,7 +391,15 @@ export function HistoricalPartnerDocumentsUpload() {
           이미 등록된 동일·중복 파일은 다시 등록하지 않으며, 다운로드 파일명은 파트너명 기준으로 통일합니다.
         </p>
 
-        <label className="mt-5 inline-flex cursor-pointer items-center gap-2 rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800">
+        <UploadDropArea
+          accept=".zip"
+          multiple
+          disabled={running}
+          className="mt-5 rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-5"
+          onError={setStage}
+          onFiles={(files) => { void handleFiles(files); }}
+        >
+        <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800">
           {running ? <Loader2 size={16} className="animate-spin" /> : <UploadCloud size={16} />}
           {running ? "처리 중..." : "ZIP 여러 개 선택"}
           <input
@@ -405,6 +414,8 @@ export function HistoricalPartnerDocumentsUpload() {
             }}
           />
         </label>
+        <p className="mt-2 text-xs text-slate-500">ZIP 여러 개를 이 영역에 끌어다 놓을 수도 있습니다.</p>
+        </UploadDropArea>
 
         {stage ? (
           <div className="mt-4 rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-700">{stage}</div>
