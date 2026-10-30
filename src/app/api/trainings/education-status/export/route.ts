@@ -40,6 +40,7 @@ export async function GET(request: Request) {
           .select(EDUCATION_STATUS_ATTENDANCE_SELECT)
           .is("deleted_at", null)
           .order("created_at", { ascending: false })
+          .order("id", { ascending: false })
           .range(from, to)
       ),
       supabase.from("trainings").select("*").is("deleted_at", null),

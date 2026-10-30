@@ -120,6 +120,7 @@ export default async function TrainingsPage({
         .select(EDUCATION_STATUS_ATTENDANCE_SELECT)
         .is("deleted_at", null)
         .order("created_at", { ascending: false })
+        .order("id", { ascending: false })
         .range(from, to)
     )
       .then((data) => ({ data, error: null as { message: string } | null }))
@@ -421,7 +422,7 @@ function SummarySection({
               중복제외 인원: 해당 연도에 교육을 한 번이라도 참석한 인원 · 참여연인원: 월별 중복제외 인원의 합계
             </p>
           </div>
-          <span className="text-xs font-medium text-slate-500">파트너 참석·불참 제외 · 2025~2026</span>
+          <span className="text-xs font-medium text-slate-500">유효 참석 기록 기준 · 원본 이력 유지</span>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[680px] divide-y divide-slate-200">
