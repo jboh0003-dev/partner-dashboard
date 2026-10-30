@@ -1,4 +1,5 @@
 ﻿import Link from "next/link";
+import { ChevronRight } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { EmptyState } from "@/components/common/empty-state";
 import { EducationStatusExcelButton } from "@/components/trainings/education-status-excel-button";
@@ -17,7 +18,6 @@ import {
 import { parseCourseTagsParam } from "@/lib/trainings/course-tags";
 import { fetchRecruitmentSourceData } from "@/lib/data/training-recruitment";
 import {
-  findLatestTrainingMonth,
   formatAttendanceStatus,
   formatTrainingGroupLabel,
   formatTrainingProduct,
@@ -27,6 +27,11 @@ import {
 } from "@/lib/training-display";
 import { formatTrainingTypeLabel } from "@/lib/training/constants";
 import { monthlyAttendeeUniqueKey } from "@/lib/trainings/attendance-stats";
+import { buildAnnualTrainingKpis, TRAINING_KPI_YEAR } from "@/lib/trainings/annual-attendance-summary";
+import {
+  AnnualTrainingDetails,
+  isAnnualKpiView
+} from "@/components/trainings/annual-training-details";
 import { fetchAllRows } from "@/lib/imports/fetch-all-rows";
 import {
   buildEducationOverview,
@@ -49,6 +54,9 @@ import type { Training } from "@/types/training";
 type SearchParams = {
   tab?: string;
   year?: string;
+  view?: string;
+  partner?: string;
+  person?: string;
   q?: string;
   month?: string;
   training?: string;
@@ -154,16 +162,15 @@ export default async function TrainingsPage({
   const summarySelectedYear = yearlyRows.some((row) => String(row.year) === params.year)
     ? Number(params.year)
     : yearlyRows[0]?.year ?? null;
-  const selectedYearSummary = yearlyRows.find((row) => row.year === summarySelectedYear);
   const monthOptions = buildMonthOptions(trainings);
   const trainingOptions = buildTrainingOptions(trainings, params.month);
   const filteredAttendees = filterEducationStatusAttendees(allAttendees, params);
-  const kpi = {
-    uniqueAttendees: selectedYearSummary?.uniqueAttendees ?? 0,
-    participationCount: selectedYearSummary?.participationCount ?? 0,
-    partnerCount: selectedYearSummary?.partnerCount ?? 0,
-    latestMonth: findLatestTrainingMonth(trainings)
-  };
+  // Dashboard KPIs always describe 2026, independent of historical summary filters.
+  const kpi = buildAnnualTrainingKpis(countedAttendees, TRAINING_KPI_YEAR);
+  const showKpiDetail =
+    tab === "attendees" &&
+    params.year === String(TRAINING_KPI_YEAR) &&
+    isAnnualKpiView(params.view);
 
   const registrationResult =
     tab === "registrations"
@@ -231,7 +238,9 @@ export default async function TrainingsPage({
     평가결과: row.evaluation_result ?? ""
   }));
 
-  const techTrainings = trainings.filter((t) => /기술파트너/.test(t.training_name));
+  const techTrainings = trainings.filter((t) =>
+    t.training_year === TRAINING_KPI_YEAR && /기술파트너/.test(t.training_name)
+  );
 
   return (
     <>
@@ -244,7 +253,7 @@ export default async function TrainingsPage({
         }
         action={
           <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-start">
-            {isAdmin && tab !== "recruitment" ? (
+            {isAdmin && tab !== "recruitment" && !showKpiDetail ? (
               <EducationStatusExcelButton
                 q={tab === "attendees" ? params.q : undefined}
                 month={tab === "attendees" ? params.month : "all"}
@@ -324,11 +333,31 @@ export default async function TrainingsPage({
       ) : null}
 
       {tab !== "recruitment" ? (
-        <section className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <KpiBox label={`${summarySelectedYear ?? "전체"}년 중복제외 참석자`} value={kpi.uniqueAttendees} tone="blue" />
-          <KpiBox label="참여연인원 (월별 합계)" value={kpi.participationCount} tone="violet" />
-          <KpiBox label="참석 파트너" value={kpi.partnerCount} tone="slate" />
-          <KpiCard label="최근 교육월" value={kpi.latestMonth} tone="emerald" />
+        <section className="mb-6 grid grid-cols-1 gap-3 md:grid-cols-3">
+          <KpiBox
+            label="2026 참석자(중복제외)"
+            value={kpi.uniqueAttendees}
+            unit="명"
+            hint="실제 참석자 명단"
+            tone="blue"
+            href="/dashboard/trainings?tab=attendees&year=2026&view=unique"
+          />
+          <KpiBox
+            label="2026 참석자(중복포함)"
+            value={kpi.totalAttendances}
+            unit="건"
+            hint="교육별 참석 기록 전체"
+            tone="violet"
+            href="/dashboard/trainings?tab=attendees&year=2026&view=all"
+          />
+          <KpiBox
+            label="2026 참석파트너"
+            value={kpi.partnerCount}
+            unit="개사"
+            hint="참석 파트너별 명단"
+            tone="slate"
+            href="/dashboard/trainings?tab=attendees&year=2026&view=partners"
+          />
         </section>
       ) : null}
 
@@ -343,15 +372,26 @@ export default async function TrainingsPage({
           error={registrationResult.error?.message ?? null}
         />
       ) : tab === "attendees" ? (
-        <AttendeesSection
-          rows={filteredAttendees}
-          totalCount={allAttendees.length}
-          monthOptions={monthOptions}
-          trainingOptions={trainingOptions}
-          params={params}
-          error={attendanceDetailError?.message ?? null}
-          csvRows={attendeeExportRows}
-        />
+        showKpiDetail && isAnnualKpiView(params.view) ? (
+          <AnnualTrainingDetails
+            data={kpi}
+            view={params.view}
+            partnerId={params.partner}
+            personKey={params.person}
+            q={params.q}
+            error={fetchError}
+          />
+        ) : (
+          <AttendeesSection
+            rows={filteredAttendees}
+            totalCount={allAttendees.length}
+            monthOptions={monthOptions}
+            trainingOptions={trainingOptions}
+            params={params}
+            error={attendanceDetailError?.message ?? null}
+            csvRows={attendeeExportRows}
+          />
+        )
       ) : (
         <TrainingRecruitmentPanel
           rows={recruitmentRows}
@@ -418,7 +458,7 @@ function SummarySection({
           <div>
             <h2 className="text-base font-bold text-slate-900">연도별 교육 요약</h2>
             <p className="mt-1 text-xs text-slate-500">
-              중복제외 인원: 해당 연도에 교육을 한 번이라도 참석한 인원 · 참여연인원: 월별 중복제외 인원의 합계
+              중복제외: 연간 실제 참석자 · 중복포함: 교육과정별 참석 기록 전체
             </p>
           </div>
           <span className="text-xs font-medium text-slate-500">유효 참석 기록 기준 · 원본 이력 유지</span>
@@ -430,7 +470,7 @@ function SummarySection({
                 <Th>연도</Th>
                 <Th align="right">운영월</Th>
                 <Th align="right">중복제외 참석자</Th>
-                <Th align="right">참여연인원</Th>
+                <Th align="right">중복포함 참석기록</Th>
                 <Th align="right">참석 파트너</Th>
               </tr>
             </thead>
@@ -447,7 +487,7 @@ function SummarySection({
                   </td>
                   <td className="px-5 py-3.5 text-right text-sm tabular-nums text-slate-700">{row.monthCount}개월</td>
                   <td className="px-5 py-3.5 text-right text-sm font-bold tabular-nums text-slate-950">{row.uniqueAttendees.toLocaleString("ko-KR")}명</td>
-                  <td className="px-5 py-3.5 text-right text-sm tabular-nums text-slate-700">{row.participationCount.toLocaleString("ko-KR")}명</td>
+                  <td className="px-5 py-3.5 text-right text-sm tabular-nums text-slate-700">{row.totalAttendances.toLocaleString("ko-KR")}건</td>
                   <td className="px-5 py-3.5 text-right text-sm tabular-nums text-slate-700">{row.partnerCount.toLocaleString("ko-KR")}개사</td>
                 </tr>
               ))}
@@ -750,50 +790,40 @@ function Th({
 function KpiBox({
   label,
   value,
-  tone
+  unit,
+  hint,
+  tone,
+  href
 }: {
   label: string;
   value: number;
-  tone: "slate" | "blue" | "emerald" | "violet";
+  unit: string;
+  hint: string;
+  tone: "slate" | "blue" | "violet";
+  href: string;
 }) {
   const toneClass = {
     slate: "text-slate-900",
     blue: "text-blue-700",
-    emerald: "text-emerald-700",
     violet: "text-violet-700"
   }[tone];
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-      <div className="text-sm font-semibold text-slate-800">{label}</div>
-      <div className={`mt-2 text-3xl font-bold tabular-nums ${toneClass}`}>
-        {value.toLocaleString("ko-KR")}
+    <Link
+      href={href}
+      className="group rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+      title={hint}
+    >
+      <div className="flex items-center justify-between gap-3">
+        <div className="text-sm font-semibold text-slate-800">{label}</div>
+        <ChevronRight size={16} className="shrink-0 text-slate-400 transition group-hover:translate-x-0.5 group-hover:text-blue-700" />
       </div>
-    </div>
-  );
-}
-
-function KpiCard({
-  label,
-  value,
-  tone
-}: {
-  label: string;
-  value: string;
-  tone: "slate" | "blue" | "emerald" | "violet";
-}) {
-  const toneClass = {
-    slate: "text-slate-900",
-    blue: "text-blue-700",
-    emerald: "text-emerald-700",
-    violet: "text-violet-700"
-  }[tone];
-
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-      <div className="text-sm font-semibold text-slate-800">{label}</div>
-      <div className={`mt-2 text-xl font-bold ${toneClass}`}>{value}</div>
-    </div>
+      <div className={"mt-2 text-3xl font-bold tabular-nums " + toneClass}>
+        {value.toLocaleString("ko-KR")}
+        <span className="ml-1 text-base font-semibold text-slate-500">{unit}</span>
+      </div>
+      <p className="mt-1 text-xs text-slate-500">{hint} 보기</p>
+    </Link>
   );
 }
 
