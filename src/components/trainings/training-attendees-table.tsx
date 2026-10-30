@@ -2,7 +2,7 @@
 
 import { type SortableColumn } from "@/components/common/client-sortable-table";
 import { CopyableDataTable } from "@/components/common/copyable-data-table";
-import { TableClamp2, TableName, TableNowrap } from "@/components/common/table-cells";
+import { TableName, TableNowrap } from "@/components/common/table-cells";
 import { formatTrainingTypeLabel } from "@/lib/training/constants";
 import {
   formatAttendanceStatus,
@@ -33,7 +33,6 @@ export type TrainingAttendeeRow = {
   completion_status: string | null;
   score: number | null;
   evaluation_result: string | null;
-  note: string | null;
 };
 
 const columns: SortableColumn<TrainingAttendeeRow>[] = [
@@ -41,11 +40,14 @@ const columns: SortableColumn<TrainingAttendeeRow>[] = [
     key: "partner_name",
     label: "파트너사",
     kind: "text",
-    className: "min-w-[140px]",
+    className: "min-w-[210px] whitespace-nowrap",
     value: (row) => row.partner_name,
     render: (row) => (
-      <TableName title={row.partner_name} className="min-w-[140px] max-w-[200px]">
-        <span>{row.partner_name}</span>
+      <TableName
+        title={row.partner_name}
+        className="block min-w-[170px] max-w-[260px] truncate whitespace-nowrap break-keep font-medium text-slate-900 select-text"
+      >
+        {row.partner_name}
       </TableName>
     )
   },
@@ -97,12 +99,12 @@ const columns: SortableColumn<TrainingAttendeeRow>[] = [
     key: "training_name",
     label: "교육명",
     kind: "text",
-    className: "min-w-[220px]",
+    className: "min-w-[270px] whitespace-nowrap",
     value: (row) => row.training_name,
     render: (row) => (
-      <TableClamp2
+      <TableNowrap
         value={row.training_name}
-        className="min-w-[220px] max-w-[280px]"
+        className="min-w-[240px] max-w-[350px] truncate whitespace-nowrap break-keep"
       />
     )
   },
@@ -184,16 +186,6 @@ const columns: SortableColumn<TrainingAttendeeRow>[] = [
     className: "min-w-[80px]",
     value: (row) => row.evaluation_result,
     render: (row) => <TableNowrap value={row.evaluation_result} className="min-w-[80px]" />
-  },
-  {
-    key: "note",
-    label: "비고",
-    kind: "text",
-    className: "min-w-[160px]",
-    value: (row) => row.note,
-    render: (row) => (
-      <TableClamp2 value={row.note} className="min-w-[160px] max-w-[220px]" />
-    )
   }
 ];
 
@@ -212,7 +204,7 @@ export function TrainingAttendeesTable({
       columns={columns}
       defaultSortKey="training_year_month"
       defaultDir="desc"
-      minWidth="1520px"
+      minWidth="1760px"
       rowKey={(row) => row.id}
       toCopyableRow={trainingAttendeeRowToCopyable}
       selectedRowTsv={TRAINING_ATTENDEE_SELECTED_ROW_TSV}

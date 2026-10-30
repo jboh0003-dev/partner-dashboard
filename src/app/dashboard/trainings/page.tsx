@@ -228,8 +228,7 @@ export default async function TrainingsPage({
     참석상태: formatAttendanceStatus(row.attended, row.attendance_status),
     수료여부: row.completion_status ?? "",
     점수: row.score ?? "",
-    평가결과: row.evaluation_result ?? "",
-    비고: row.note ?? ""
+    평가결과: row.evaluation_result ?? ""
   }));
 
   const techTrainings = trainings.filter((t) => /기술파트너/.test(t.training_name));

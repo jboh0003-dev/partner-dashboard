@@ -17,8 +17,7 @@ export const EDUCATION_STATUS_EXPORT_HEADERS = [
   "연락처",
   "이메일",
   "참석상태",
-  "수료여부",
-  "비고"
+  "수료여부"
 ] as const;
 
 export const EDUCATION_STATUS_ATTENDANCE_SELECT =
@@ -226,8 +225,7 @@ export function toEducationStatusExcelRows(
     연락처: row.attendee_phone?.trim() ?? "",
     이메일: row.attendee_email?.trim() ?? "",
     참석상태: formatAttendanceStatus(row.attended, row.attendance_status),
-    수료여부: row.completion_status?.trim() ?? "",
-    비고: row.note?.trim() ?? ""
+    수료여부: row.completion_status?.trim() ?? ""
   }));
 }
 

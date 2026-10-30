@@ -94,7 +94,7 @@ export async function GET(request: Request) {
     details["!cols"] = [
       { wch: 24 }, { wch: 18 }, { wch: 38 }, { wch: 24 },
       { wch: 16 }, { wch: 22 }, { wch: 19 }, { wch: 31 },
-      { wch: 13 }, { wch: 15 }, { wch: 35 }
+      { wch: 13 }, { wch: 15 }
     ];
     XLSX.utils.book_append_sheet(workbook, details, "참석자 상세");
 
