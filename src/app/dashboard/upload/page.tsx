@@ -318,11 +318,11 @@ const UPLOAD_TYPES: UploadTypeMeta[] = [
   },
   {
     key: "partner_onboarding_package",
-    menuTitle: "파트너 신규등록",
-    menuHint: "메일 ZIP 한 번 업로드",
-    workTitle: "파트너 등록 패키지",
-    workDescription: "신청 ZIP을 한 번 올리면 회사·인력·첨부문서를 분석하고 파트너를 등록합니다.",
-    sourceFile: "메일 첨부 ZIP",
+    menuTitle: "파트너 자료 등록",
+    menuHint: "폴더 / ZIP · 신청서와 첨부 5종",
+    workTitle: "파트너 자료 통합 등록",
+    workDescription: "파트너별 폴더나 ZIP을 선택하면 신청서, 회사·인력 정보, 첨부문서를 일괄 확인하고 최적화 후 등록합니다.",
+    sourceFile: "파트너별 폴더 또는 ZIP",
     order: 6,
     mode: "active"
   },
@@ -334,7 +334,8 @@ const UPLOAD_TYPES: UploadTypeMeta[] = [
     workDescription: "계약서, 신청서, 사업자등록증 등 문서를 등록합니다.",
     sourceFile: "문서 폴더 (ZIP 해제 후)",
     order: 6,
-    mode: "active"
+    mode: "active",
+    showInMenu: false
   },
   {
     key: "partner_application",
@@ -344,7 +345,8 @@ const UPLOAD_TYPES: UploadTypeMeta[] = [
     workDescription: "신규 파트너 신청서를 분석하고 등록합니다.",
     sourceFile: "파트너 신청서.xlsx",
     order: 7,
-    mode: "active"
+    mode: "active",
+    showInMenu: false
   }
 ];
 
@@ -458,7 +460,7 @@ export default function UploadPage() {
   useEffect(() => {
     const type = searchParams.get("type");
     if (type && UPLOAD_TYPES.some((item) => item.key === type)) {
-      setSelectedType(type as UploadType);
+      setSelectedType(type === "partner_application" ? "partner_onboarding_package" : type as UploadType);
     }
   }, [searchParams]);
 

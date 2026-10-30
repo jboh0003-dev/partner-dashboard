@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireUser, unauthorizedJson } from "@/lib/auth/require-user";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { preparePartnerDocumentDirectUpload } from "@/lib/documents/direct-upload";
+import { requirePartnerStorageBudget } from "@/lib/storage/upload-budget";
 
 export const runtime = "nodejs";
 
@@ -40,6 +41,7 @@ export async function POST(
       return NextResponse.json({ ok: false, message: "파트너를 찾을 수 없습니다." }, { status: 404 });
     }
 
+    await requirePartnerStorageBudget(supabase, body.file_size);
     const result = await preparePartnerDocumentDirectUpload(supabase, {
       partnerId,
       documentType: body.document_type,

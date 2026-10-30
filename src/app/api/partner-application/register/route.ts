@@ -8,6 +8,7 @@ import {
   type PartnerContractGrade
 } from "@/lib/partner-application/contract-dates";
 import { registerPartnerApplication } from "@/lib/partner-application/register";
+import { requirePartnerStorageBudget } from "@/lib/storage/upload-budget";
 import type { ApplicationPerson } from "@/lib/partner-application/parse-application";
 
 export const runtime = "nodejs";
@@ -86,6 +87,7 @@ export async function POST(request: Request) {
     const people = parsedPayload.people as ApplicationPerson[];
     const fileBuffer = Buffer.from(await file.arrayBuffer());
     const supabase = createAdminClient();
+    await requirePartnerStorageBudget(supabase, fileBuffer.byteLength);
 
     const result = await registerPartnerApplication(supabase, {
       company: parsedPayload.company,

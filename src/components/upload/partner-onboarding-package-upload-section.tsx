@@ -6,12 +6,14 @@ import {
   AlertTriangle,
   CheckCircle2,
   FileArchive,
+  FolderOpen,
   FileCheck2,
   Loader2,
   UploadCloud
 } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { optimizePartnerUploadFile } from "@/lib/documents/optimize-upload-file";
 import { classifyDocumentType } from "@/lib/documents/classify";
 import {
   ALLOWED_DOCUMENT_EXTENSIONS,
@@ -182,6 +184,8 @@ async function sha256(file: File): Promise<string> {
 
 export function PartnerOnboardingPackageUploadSection() {
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const folderInputRef = useRef<HTMLInputElement | null>(null);
+  const [optimizedBytes, setOptimizedBytes] = useState(0);
   const [zipFile, setZipFile] = useState<File | null>(null);
   const [applicationFile, setApplicationFile] = useState<File | null>(null);
   const [documents, setDocuments] = useState<PackageDocument[]>([]);
@@ -210,42 +214,36 @@ export function PartnerOnboardingPackageUploadSection() {
     return REQUIRED_DOCUMENT_TYPES.filter((type) => !types.has(type));
   }, [documents]);
 
-  async function analyzePackage(file: File) {
+  async function analyzePackage(file: File, selectedFiles?: File[]) {
     setAnalyzing(true);
     setError(null);
     setResult(null);
     setZipFile(file);
 
     try {
-      if (!file.name.toLowerCase().endsWith(".zip")) {
-        throw new Error("ZIP 파일을 업로드해 주세요.");
-      }
-
-      const zip = await JSZip.loadAsync(file);
-      const entries = Object.values(zip.files).filter(
-        (entry) =>
-          !entry.dir &&
-          !entry.name.startsWith("__MACOSX/") &&
-          !basename(entry.name).startsWith(".")
-      );
-
-      if (entries.length === 0) {
-        throw new Error("ZIP 안에 파일이 없습니다.");
-      }
-      if (entries.length > 40) {
-        throw new Error("한 패키지에는 최대 40개 파일까지 처리할 수 있습니다.");
-      }
-
-      const extracted = await Promise.all(
-        entries.map(async (entry) => {
+      let extracted: File[] = [];
+      if (selectedFiles) {
+        extracted = selectedFiles.filter((item) => !basename(item.name).startsWith("."));
+      } else {
+        if (!file.name.toLowerCase().endsWith(".zip")) {
+          throw new Error("ZIP 또는 폴더를 선택해 주세요.");
+        }
+        const zip = await JSZip.loadAsync(file);
+        const entries = Object.values(zip.files).filter(
+          (entry) => !entry.dir && !entry.name.startsWith("__MACOSX/") &&
+            !basename(entry.name).startsWith(".")
+        );
+        if (entries.length > 40) throw new Error("한 번에 최대 40개 파일까지 처리할 수 있습니다.");
+        extracted = await Promise.all(entries.map(async (entry) => {
           const name = basename(entry.name);
           const blob = await entry.async("blob");
-          return new File([blob], name, {
-            type: contentTypeFor(name),
-            lastModified: Date.now()
-          });
-        })
-      );
+          return new File([blob], name, { type: contentTypeFor(name), lastModified: Date.now() });
+        }));
+      }
+      if (extracted.length === 0) throw new Error("선택한 폴더에 문서가 없습니다.");
+      if (extracted.length > 40) throw new Error("한 번에 최대 40개 파일까지 처리할 수 있습니다.");
+      const folderNames = new Set(selectedFiles?.map((f) => f.webkitRelativePath.split("/")[0]).filter(Boolean) ?? []);
+      if (folderNames.size > 1) throw new Error("파트너사별 폴더 하나씩 선택해 주세요.");
 
       const application =
         extracted.find(
@@ -354,14 +352,16 @@ export function PartnerOnboardingPackageUploadSection() {
     document: PackageDocument,
     receivedDate: string | null
   ): Promise<"uploaded" | "reused"> {
-    const fileHash = await sha256(document.file);
+    const optimized = await optimizePartnerUploadFile(document.file);
+    const storedFile = optimized.file;
+    const fileHash = await sha256(storedFile);
     const metadata = {
       document_type: document.documentType,
       display_name: document.displayName,
       original_filename: document.file.name,
-      file_size: document.file.size,
+      file_size: storedFile.size,
       file_hash: fileHash,
-      content_type: document.file.type || contentTypeFor(document.file.name),
+      content_type: storedFile.type || contentTypeFor(storedFile.name),
       received_date: receivedDate,
       note: "파트너 등록 패키지에서 자동 등록"
     };
@@ -387,7 +387,7 @@ export function PartnerOnboardingPackageUploadSection() {
     const supabase = createClient();
     const { error: uploadError } = await supabase.storage
       .from(PARTNER_DOCUMENTS_BUCKET)
-      .uploadToSignedUrl(prepared.path, prepared.token, document.file, {
+      .uploadToSignedUrl(prepared.path, prepared.token, storedFile, {
         contentType: metadata.content_type
       });
 
@@ -412,6 +412,7 @@ export function PartnerOnboardingPackageUploadSection() {
     if (!finalizeResponse.ok || !finalized.ok) {
       throw new Error(finalized.message ?? "문서 DB 등록 실패");
     }
+    if (!finalized.reused) setOptimizedBytes((current) => current + optimized.savedBytes);
     return finalized.reused ? "reused" : "uploaded";
   }
 
@@ -427,6 +428,7 @@ export function PartnerOnboardingPackageUploadSection() {
     }
 
     setRegistering(true);
+    setOptimizedBytes(0);
     setError(null);
     setResult(null);
 
@@ -520,11 +522,29 @@ export function PartnerOnboardingPackageUploadSection() {
       >
         <UploadCloud className="mx-auto text-slate-400" size={34} />
         <div className="mt-3 text-sm font-semibold text-slate-900">
-          메일로 받은 파트너 신청 ZIP을 그대로 올리세요
+          파트너 폴더 또는 메일 첨부 ZIP을 선택하세요
         </div>
         <div className="mt-1 text-xs text-slate-500">
-          신청서 · 회사소개서 · 사업계획서 · 사업자등록증 · 통장사본 · 신용평가서를 자동 분류합니다.
+          파트너 신청서 · 사업자등록증 · 통장사본 · 회사소개서 · 신용평가서를 자동 분류합니다.
         </div>
+        <div className="mt-4 flex items-center justify-center gap-2">
+          <button type="button" className="inline-flex items-center gap-2 rounded-lg bg-slate-950 px-4 py-2 text-xs font-semibold text-white"
+            onClick={(event) => { event.stopPropagation(); folderInputRef.current?.click(); }}>
+            <FolderOpen size={15} /> 폴더 선택
+          </button>
+          <button type="button" className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700"
+            onClick={(event) => { event.stopPropagation(); inputRef.current?.click(); }}>
+            <FileArchive size={15} /> ZIP 선택
+          </button>
+        </div>
+        <input ref={folderInputRef} type="file" multiple
+          {...({ webkitdirectory: "", directory: "" } as React.InputHTMLAttributes<HTMLInputElement>)}
+          className="hidden"
+          onChange={(event) => {
+            const files = Array.from(event.target.files ?? []);
+            if (files.length > 0) void analyzePackage(files[0], files);
+          }}
+        />
         <input
           ref={inputRef}
           type="file"
@@ -543,6 +563,7 @@ export function PartnerOnboardingPackageUploadSection() {
         ) : null}
       </div>
 
+      <p className="text-xs text-slate-500">용량 최적화: JPEG·PDF·Office 문서에서 실제 용량이 줄어드는 경우에만 적용합니다. 저장 공간 안전 한도 900MB를 초과하면 업로드를 차단합니다.</p>
       {analyzing ? (
         <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
           <Loader2 size={16} className="animate-spin" />
@@ -743,7 +764,7 @@ export function PartnerOnboardingPackageUploadSection() {
             {result.externalNo ? ` · ${result.externalNo}번` : ""}
           </div>
           <div className="mt-2 text-xs text-slate-700">
-            문서 신규/교체 {result.documentsSuccess}건 · 기존 동일 문서 재사용 {result.documentsReused}건
+            문서 신규/교체 {result.documentsSuccess}건 · 기존 동일 문서 재사용 {result.documentsReused}건 · 압축 절감 {formatBytes(optimizedBytes)}
           </div>
           {result.documentFailures.length > 0 ? (
             <div className="mt-3 text-xs text-rose-800">
