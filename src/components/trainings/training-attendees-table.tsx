@@ -46,11 +46,6 @@ const columns: SortableColumn<TrainingAttendeeRow>[] = [
     render: (row) => (
       <TableName title={row.partner_name} className="min-w-[140px] max-w-[200px]">
         <span>{row.partner_name}</span>
-        {row.is_non_partner ? (
-          <span className="ml-1.5 rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600">
-            비파트너
-          </span>
-        ) : null}
       </TableName>
     )
   },

@@ -26,12 +26,17 @@ import {
   trainingGroupKey
 } from "@/lib/training-display";
 import { formatTrainingTypeLabel } from "@/lib/training/constants";
+import { monthlyAttendeeUniqueKey } from "@/lib/trainings/attendance-stats";
+import { fetchAllRows } from "@/lib/imports/fetch-all-rows";
 import {
-  isCountedTrainingAttendee,
-  monthlyAttendeeUniqueKey
-} from "@/lib/trainings/attendance-stats";
+  buildEducationOverview,
+  dedupeTrainingAttendanceRows,
+  filterOfficialTrainingAttendees,
+  type MonthlyEducationSummary,
+  type YearlyEducationSummary
+} from "@/lib/trainings/overview-stats";
 import { getCachedViewerAuthContext } from "@/lib/auth/require-admin";
-import { getRealPartnerIdSet, isSamplePartnerName } from "@/lib/partners/sample-filter";
+import { getRealPartnerIdSet } from "@/lib/partners/sample-filter";
 import {
   EDUCATION_STATUS_ATTENDANCE_SELECT,
   filterEducationStatusAttendees,
@@ -43,6 +48,7 @@ import type { Training } from "@/types/training";
 
 type SearchParams = {
   tab?: string;
+  year?: string;
   q?: string;
   month?: string;
   training?: string;
@@ -55,15 +61,6 @@ type SearchParams = {
   contract_from?: string;
   contract_to?: string;
   contact_role?: string;
-};
-
-type MonthlySummaryRow = {
-  key: string;
-  label: string;
-  isTech: boolean;
-  attendanceCount: number;
-  partnerCount: number;
-  nonPartnerCount: number;
 };
 
 type AttendeeDetailRow = EducationStatusAttendeeRow;
@@ -105,77 +102,65 @@ export default async function TrainingsPage({
   const supabase = await createClient();
 
   const [
-    { error: attendanceCountError },
     { data: trainingsData, error: trainingsError },
-    { data: attendanceAggData, error: attendanceAggError },
-    { data: attendanceDetailData, error: attendanceDetailError },
+    attendanceDetailResult,
     { data: partnersData, error: partnersError }
   ] = await Promise.all([
-    supabase.from("training_attendance").select("*", { count: "exact", head: true }),
     supabase
       .from("trainings")
       .select("*")
+      .is("deleted_at", null)
       .order("training_year", { ascending: false, nullsFirst: false })
       .order("training_month", { ascending: false, nullsFirst: false })
       .order("start_date", { ascending: false, nullsFirst: false })
       .order("created_at", { ascending: false }),
-    supabase.from("training_attendance").select(
-      "id, training_id, partner_id, attendee_name, attended, attendance_status, company_name_raw"
-    ),
-    supabase
-      .from("training_attendance")
-      .select(EDUCATION_STATUS_ATTENDANCE_SELECT)
-      .order("created_at", { ascending: false }),
-    supabase.from("partners").select("id, company_name, external_no, memo")
+    fetchAllRows<Record<string, unknown>>((from, to) =>
+      supabase
+        .from("training_attendance")
+        .select(EDUCATION_STATUS_ATTENDANCE_SELECT)
+        .is("deleted_at", null)
+        .order("created_at", { ascending: false })
+        .range(from, to)
+    )
+      .then((data) => ({ data, error: null as { message: string } | null }))
+      .catch((error: unknown) => ({
+        data: null,
+        error: { message: error instanceof Error ? error.message : "참석 이력 조회 실패" }
+      })),
+    supabase.from("partners").select("id, company_name, external_no, memo").is("deleted_at", null)
   ]);
 
+  const attendanceDetailData = attendanceDetailResult.data;
+  const attendanceDetailError = attendanceDetailResult.error;
   const fetchError =
-    attendanceCountError?.message ??
-    trainingsError?.message ??
-    attendanceAggError?.message ??
-    attendanceDetailError?.message ??
-    partnersError?.message ??
-    null;
+    trainingsError?.message ?? attendanceDetailError?.message ?? partnersError?.message ?? null;
 
   const realPartnerIds = getRealPartnerIdSet((partnersData ?? []) as Partner[]);
   const trainings = (trainingsData ?? []) as Training[];
-
-  const allAttendees = flattenAttendeeRows(attendanceDetailData).filter(
-    (row) => row.is_non_partner || !isSamplePartnerName(row.partner_name)
+  const activeTrainingIds = new Set(trainings.map((training) => training.id));
+  const countedAttendees = dedupeTrainingAttendanceRows(
+    filterOfficialTrainingAttendees(
+      flattenAttendeeRows(attendanceDetailData),
+      realPartnerIds,
+      activeTrainingIds
+    )
   );
-  const countedAttendees = allAttendees.filter(isCountedTrainingAttendee);
-  const summaryRows = buildMonthlySummaryRows(trainings, countedAttendees, realPartnerIds);
+  const allAttendees = countedAttendees;
+  const { monthly: summaryRows, yearly: yearlyRows } = buildEducationOverview(
+    trainings,
+    countedAttendees
+  );
+  const summarySelectedYear = yearlyRows.some((row) => String(row.year) === params.year)
+    ? Number(params.year)
+    : yearlyRows[0]?.year ?? null;
+  const selectedYearSummary = yearlyRows.find((row) => row.year === summarySelectedYear);
   const monthOptions = buildMonthOptions(trainings);
   const trainingOptions = buildTrainingOptions(trainings, params.month);
   const filteredAttendees = filterEducationStatusAttendees(allAttendees, params);
-
-  const uniquePeople = new Set(
-    countedAttendees.map((row) =>
-      monthlyAttendeeUniqueKey(
-        row.training_year ?? 0,
-        row.training_month ?? 0,
-        isTechPartnerTraining(row),
-        row
-      )
-    )
-  );
   const kpi = {
-    attendanceCount: uniquePeople.size,
-    partnerCount: new Set(
-      countedAttendees
-        .filter((row) => row.partner_id && realPartnerIds.has(row.partner_id))
-        .map((row) => row.partner_id as string)
-    ).size,
-    nonPartnerCount: new Set(
-      countedAttendees.filter((row) => row.is_non_partner).map((row) =>
-        monthlyAttendeeUniqueKey(
-          row.training_year ?? 0,
-          row.training_month ?? 0,
-          isTechPartnerTraining(row),
-          row
-        )
-      )
-    ).size,
+    uniqueAttendees: selectedYearSummary?.uniqueAttendees ?? 0,
+    participationCount: selectedYearSummary?.participationCount ?? 0,
+    partnerCount: selectedYearSummary?.partnerCount ?? 0,
     latestMonth: findLatestTrainingMonth(trainings)
   };
 
@@ -222,7 +207,7 @@ export default async function TrainingsPage({
     : [];
 
   const attendeeExportRows = filteredAttendees.map((row) => ({
-    파트너사: row.is_non_partner ? `${row.partner_name} (비파트너)` : row.partner_name,
+    파트너사: row.partner_name,
     이름: row.attendee_name,
     교육연월: formatTrainingGroupLabel(
       row.training_year,
@@ -340,9 +325,9 @@ export default async function TrainingsPage({
 
       {tab !== "recruitment" ? (
         <section className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <KpiBox label="참석자" value={kpi.attendanceCount} tone="blue" />
-          <KpiBox label="참석 파트너" value={kpi.partnerCount} tone="violet" />
-          <KpiBox label="비파트너 교육생" value={kpi.nonPartnerCount} tone="slate" />
+          <KpiBox label={`${summarySelectedYear ?? "전체"}년 중복제외 참석자`} value={kpi.uniqueAttendees} tone="blue" />
+          <KpiBox label="참여연인원 (월별 합계)" value={kpi.participationCount} tone="violet" />
+          <KpiBox label="참석 파트너" value={kpi.partnerCount} tone="slate" />
           <KpiCard label="최근 교육월" value={kpi.latestMonth} tone="emerald" />
         </section>
       ) : null}
@@ -350,7 +335,7 @@ export default async function TrainingsPage({
       <TrainingTabs active={tab} searchParams={params} />
 
       {tab === "summary" ? (
-        <SummarySection rows={summaryRows} error={trainingsError?.message ?? null} />
+        <SummarySection rows={summaryRows} yearly={yearlyRows} selectedYear={summarySelectedYear} error={fetchError} />
       ) : tab === "registrations" ? (
         <RegistrationsSection
           rows={registrationRows}
@@ -405,74 +390,124 @@ function parseRecruitmentFilters(params: SearchParams): RecruitmentFilters {
 
 function SummarySection({
   rows,
+  yearly,
+  selectedYear,
   error
 }: {
-  rows: MonthlySummaryRow[];
+  rows: MonthlyEducationSummary[];
+  yearly: YearlyEducationSummary[];
+  selectedYear: number | null;
   error: string | null;
 }) {
   if (error) {
-    return (
-      <EmptyState title="교육 회차를 불러오지 못했습니다." description={error} />
-    );
+    return <EmptyState title="교육 현황을 불러오지 못했습니다." description={error} />;
   }
-
   if (rows.length === 0) {
     return (
       <EmptyState
         title="등록된 교육 데이터가 없습니다."
-        description="trainings·training_attendance 데이터가 추가되면 월별 요약이 표시됩니다."
+        description="정기교육 참석자 업로드 후 연도별·월별 요약이 표시됩니다."
       />
     );
   }
-
+  const visibleRows = selectedYear ? rows.filter((row) => row.year === selectedYear) : rows;
   return (
     <>
-      <div className="mb-3 text-xs text-slate-500">
-        총 <span className="font-semibold text-slate-700">{rows.length}</span>개의 교육연월이
-        있습니다.
+      <section className="mb-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="flex flex-wrap items-start justify-between gap-2 border-b border-slate-100 px-5 py-4">
+          <div>
+            <h2 className="text-base font-bold text-slate-900">연도별 교육 요약</h2>
+            <p className="mt-1 text-xs text-slate-500">
+              중복제외 인원: 해당 연도에 교육을 한 번이라도 참석한 인원 · 참여연인원: 월별 중복제외 인원의 합계
+            </p>
+          </div>
+          <span className="text-xs font-medium text-slate-500">파트너 참석·불참 제외 · 2025~2026</span>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[680px] divide-y divide-slate-200">
+            <thead className="bg-slate-50">
+              <tr>
+                <Th>연도</Th>
+                <Th align="right">운영월</Th>
+                <Th align="right">중복제외 참석자</Th>
+                <Th align="right">참여연인원</Th>
+                <Th align="right">참석 파트너</Th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {yearly.map((row) => (
+                <tr key={row.year} className={row.year === selectedYear ? "bg-blue-50/50" : "hover:bg-slate-50"}>
+                  <td className="px-5 py-3.5">
+                    <Link
+                      href={"/dashboard/trainings?tab=summary&year=" + row.year}
+                      className="font-semibold text-blue-700 hover:underline"
+                    >
+                      {row.year}년
+                    </Link>
+                  </td>
+                  <td className="px-5 py-3.5 text-right text-sm tabular-nums text-slate-700">{row.monthCount}개월</td>
+                  <td className="px-5 py-3.5 text-right text-sm font-bold tabular-nums text-slate-950">{row.uniqueAttendees.toLocaleString("ko-KR")}명</td>
+                  <td className="px-5 py-3.5 text-right text-sm tabular-nums text-slate-700">{row.participationCount.toLocaleString("ko-KR")}명</td>
+                  <td className="px-5 py-3.5 text-right text-sm tabular-nums text-slate-700">{row.partnerCount.toLocaleString("ko-KR")}개사</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-base font-bold text-slate-900">월별 교육 현황</h2>
+          <p className="mt-0.5 text-xs text-slate-500">
+            동일 교육연월에 여러 제품을 수강한 인원은 한 번만 계산합니다.
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {yearly.map((row) => (
+            <Link
+              key={row.year}
+              href={"/dashboard/trainings?tab=summary&year=" + row.year}
+              className={[
+                "rounded-lg border px-3 py-1.5 text-xs font-semibold transition",
+                row.year === selectedYear
+                  ? "border-slate-950 bg-slate-950 text-white"
+                  : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+              ].join(" ")}
+            >
+              {row.year}년
+            </Link>
+          ))}
+        </div>
       </div>
       <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="w-full overflow-x-auto">
+        <div className="overflow-x-auto">
           <table className="w-full min-w-[720px] divide-y divide-slate-200">
             <thead className="bg-slate-50">
               <tr>
                 <Th>교육연월</Th>
-                <Th align="right">참석자</Th>
-                <Th align="right">파트너</Th>
-                <Th align="right">비파트너</Th>
+                <Th>교육과정</Th>
+                <Th align="right">중복제외 참석자</Th>
+                <Th align="right">참석 파트너</Th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {rows.map((row) => (
-                <tr key={row.key} className="transition hover:bg-slate-50">
-                  <td className="px-5 py-4 text-sm">
+              {visibleRows.map((row) => (
+                <tr key={row.key} className="hover:bg-slate-50">
+                  <td className="px-5 py-3.5 text-sm">
                     <Link
-                      href={`/dashboard/trainings?tab=attendees&month=${encodeURIComponent(row.key)}`}
-                      className="font-semibold text-blue-700 hover:text-blue-900 hover:underline"
-                      title={`${row.label} 참석자 보기`}
+                      href={"/dashboard/trainings?tab=attendees&month=" + encodeURIComponent(row.key)}
+                      className="font-semibold text-blue-700 hover:underline"
                     >
-                      <span className="inline-flex flex-wrap items-center gap-2">
-                        {row.label}
-                        <span
-                          className={
-                            row.isTech
-                              ? "rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-semibold text-indigo-800"
-                              : "rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600"
-                          }
-                        >
-                          {row.isTech ? "기술파트너" : "정기교육"}
-                        </span>
-                      </span>
+                      {row.label}
                     </Link>
                   </td>
-                  <td className="px-5 py-4 text-right text-sm tabular-nums text-slate-900">
+                  <td className="px-5 py-3.5 text-xs text-slate-600">{row.courseSummary}</td>
+                  <td className="px-5 py-3.5 text-right text-sm font-semibold tabular-nums text-slate-900">
                     {row.attendanceCount.toLocaleString("ko-KR")}
                   </td>
-                  <td className="px-5 py-4 text-right text-sm tabular-nums text-blue-700">
+                  <td className="px-5 py-3.5 text-right text-sm tabular-nums text-slate-700">
                     {row.partnerCount.toLocaleString("ko-KR")}
-                  </td>
-                  <td className="px-5 py-4 text-right text-sm tabular-nums text-slate-600">
-                    {row.nonPartnerCount.toLocaleString("ko-KR")}
                   </td>
                 </tr>
               ))}
@@ -646,71 +681,6 @@ function AttendeesSection({
       )}
     </>
   );
-}
-
-function buildMonthlySummaryRows(
-  trainings: Training[],
-  attendanceRows: AttendeeDetailRow[],
-  realPartnerIds: Set<string>
-): MonthlySummaryRow[] {
-  const byGroup = new Map<
-    string,
-    {
-      year: number;
-      month: number;
-      isTech: boolean;
-      people: Set<string>;
-      partners: Set<string>;
-      nonPartners: Set<string>;
-    }
-  >();
-
-  for (const training of trainings) {
-    if (!training.training_year || !training.training_month) continue;
-    const isTech = isTechPartnerTraining(training);
-    const key = trainingGroupKey(training.training_year, training.training_month, isTech);
-    if (!byGroup.has(key)) {
-      byGroup.set(key, {
-        year: training.training_year,
-        month: training.training_month,
-        isTech,
-        people: new Set(),
-        partners: new Set(),
-        nonPartners: new Set()
-      });
-    }
-  }
-
-  for (const row of attendanceRows) {
-    if (!row.training_year || !row.training_month) continue;
-    const isTech = isTechPartnerTraining(row);
-    const key = trainingGroupKey(row.training_year, row.training_month, isTech);
-    const bucket = byGroup.get(key);
-    if (!bucket) continue;
-    const personKey = monthlyAttendeeUniqueKey(row.training_year, row.training_month, isTech, {
-      attendee_name: row.attendee_name,
-      partner_id: row.partner_id,
-      company_name_raw: row.is_non_partner ? row.partner_name : null,
-      partner_name: row.partner_name
-    });
-    bucket.people.add(personKey);
-    if (row.partner_id && realPartnerIds.has(row.partner_id)) {
-      bucket.partners.add(row.partner_id);
-    } else if (row.is_non_partner) {
-      bucket.nonPartners.add(personKey);
-    }
-  }
-
-  return Array.from(byGroup.entries())
-    .sort(([a], [b]) => b.localeCompare(a, "ko-KR", { numeric: true }))
-    .map(([key, bucket]) => ({
-      key,
-      label: formatTrainingGroupLabel(bucket.year, bucket.month, bucket.isTech),
-      isTech: bucket.isTech,
-      attendanceCount: bucket.people.size,
-      partnerCount: bucket.partners.size,
-      nonPartnerCount: bucket.nonPartners.size
-    }));
 }
 
 function buildMonthOptions(

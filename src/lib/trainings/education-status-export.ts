@@ -220,7 +220,7 @@ export function toEducationStatusExcelRows(
     교육일자: formatEducationDate(row.training_start_date, row.training_end_date),
     교육월: formatTrainingYearMonth(row.training_year, row.training_month),
     교육과정: row.training_name,
-    파트너사: row.is_non_partner ? `${row.partner_name} (비파트너)` : row.partner_name,
+    파트너사: row.partner_name,
     참석자명: row.attendee_name,
     "직함/부서": formatTitleDepartment(row.attendee_position, row.attendee_department),
     연락처: row.attendee_phone?.trim() ?? "",

@@ -6,7 +6,7 @@ export function isCountedTrainingAttendee(row: {
   attended?: boolean | null;
   attendance_status?: string | null;
 }): boolean {
-  if (row.attended === false) return false;
+  if (row.attended !== true) return false;
   const status = (row.attendance_status ?? "").trim();
   if (status && /불참|결석|미참석/.test(status) && !/참석인정|출석/.test(status)) {
     return false;
@@ -23,7 +23,7 @@ export function trainingAttendeeUniqueKey(row: {
 }): string {
   const name = normalizeAttendeePersonKey(row.attendee_name);
   const company = normalizeAttendeePersonKey(
-    row.company_name_raw || row.partner_name || row.partner_id || ""
+    row.partner_id || row.company_name_raw || row.partner_name || ""
   );
   return `${row.training_id}|${name}|${company}`;
 }
@@ -41,7 +41,7 @@ export function monthlyAttendeeUniqueKey(
 ): string {
   const name = normalizeAttendeePersonKey(row.attendee_name);
   const company = normalizeAttendeePersonKey(
-    row.company_name_raw || row.partner_name || row.partner_id || ""
+    row.partner_id || row.company_name_raw || row.partner_name || ""
   );
   return `${year}|${month}|${isTech ? "tech" : "regular"}|${name}|${company}`;
 }
