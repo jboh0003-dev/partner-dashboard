@@ -156,17 +156,16 @@ export async function downloadPartnerDocumentBlob(document: PartnerDocumentRecor
   if (!storagePath) {
     return { blob: null as Blob | null, error: "유효한 Storage 경로가 없습니다. 문서를 다시 업로드해 주세요." };
   }
-  if (recoveryEnabled()) {
-    const backup = await readDocumentBackup(document, storagePath);
-    if (backup) return { blob: backup, error: undefined };
-  }
-
+  // Storage is the source of truth. Recovery backups may hold the previous
+  // version of a document, so they must never mask a successfully updated
+  // primary object after compression or replacement.
   const supabase = createAdminClient();
   const { data, error } = await supabase.storage.from(PARTNER_DOCUMENTS_BUCKET).download(storagePath);
   if (!error && data) return { blob: data, error: undefined };
 
-  // Restoring Supabase authentication must not strand documents recovered during the outage.
-  if (!recoveryEnabled()) {
+  // Preserve outage recovery for genuinely unavailable primary objects.
+  // Never replace the primary file with backup bytes.
+  if (recoveryEnabled() || process.env.CONNECT_DATABASE_URL) {
     const backup = await readDocumentBackup(document, storagePath);
     if (backup) return { blob: backup, error: undefined };
   }
