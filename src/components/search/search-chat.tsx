@@ -36,6 +36,7 @@ type ChatMessage = {
   role: "user" | "assistant";
   content: string;
   result?: SearchResult;
+  general?: boolean;
 };
 
 const CAPABILITY_CARDS = [
@@ -93,32 +94,24 @@ export function SearchChat({ variant = "page" }: SearchChatProps) {
     setPendingQuery(trimmed);
 
     startTransition(async () => {
-      const generalQuestion = /^(?:안녕|고마워|감사|영업과\s*프리세일즈|프리세일즈란|사용법|너는\s*뭐)/.test(trimmed);
-      let result;
-      if (generalQuestion) {
+      try {
         const response = await fetch("/api/ai/chat", {
           method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ mode: "general", messages: [...history, { role: "user", content: trimmed }] })
+          body: JSON.stringify({ mode: "auto", messages: [...history, { role: "user", content: trimmed }] })
         });
-        const data = await response.json() as { answer?: string; error?: string };
-        result = {
-          answer: data.answer || data.error || "답변을 가져오지 못했습니다.",
-          intent: "partner_profile" as const, empty: false, matchedPartner: null,
-          partners: [], contacts: [], items: [], sources: [], matchStrategy: "none" as const
-        };
-      } else {
-        result = await runPartnerSearch(trimmed, history);
-      }
-      setPendingQuery("");
-      setMessages((current) => [
-        ...current,
-        {
-          id: `assistant-${Date.now()}`,
-          role: "assistant",
-          content: result.answer,
-          result
+        const data = await response.json() as { kind?: "general" | "partner"; answer?: string; result?: SearchResult; error?: string };
+        if (data.kind === "general" && data.answer) {
+          setMessages((current) => [...current, { id: `assistant-${Date.now()}`, role: "assistant", content: data.answer!, general: true }]);
+        } else {
+          // 검색은 AI 서비스 한도에 걸려도 계속 사용할 수 있어야 합니다.
+          const result = data.result ?? await runPartnerSearch(trimmed, history);
+          setMessages((current) => [...current, { id: `assistant-${Date.now()}`, role: "assistant", content: result.answer, result }]);
         }
-      ]);
+      } catch {
+        setMessages((current) => [...current, { id: `assistant-${Date.now()}`, role: "assistant", content: "답변을 가져오지 못했습니다. 잠시 후 다시 시도해주세요.", general: true }]);
+      } finally {
+        setPendingQuery("");
+      }
     });
   }
 
@@ -200,7 +193,12 @@ export function SearchChat({ variant = "page" }: SearchChatProps) {
                   </div>
                 </div>
               ) : (
-                <SearchResultPanel
+                message.general ? (
+                  <div className="ui-oke-result w-full p-5">
+                    <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-blue-700"><OkeAvatar size="sm" /> Partner Agent</div>
+                    <p className="whitespace-pre-wrap text-sm leading-7 text-slate-900">{message.content}</p>
+                  </div>
+                ) : <SearchResultPanel
                   answer={message.content}
                   result={message.result!}
                   onSelectQuery={submitQuery}
