@@ -65,7 +65,10 @@ const DOCUMENT_TYPE_ALIASES: Record<string, string> = {
   기타: "other"
 };
 
-const PREVIEWABLE_EXTENSIONS = new Set(["pdf", "png", "jpg", "jpeg", "gif", "webp"]);
+// Private Office files are rendered by our own authenticated preview page.
+const PREVIEWABLE_EXTENSIONS = new Set([
+  "pdf", "png", "jpg", "jpeg", "gif", "webp", "xlsx", "xls", "docx", "pptx"
+]);
 
 export type DocumentDisplaySource = {
   document_type: string | null;

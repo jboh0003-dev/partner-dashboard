@@ -23,7 +23,7 @@ export async function GET(
         {
           ok: false,
           previewable: false,
-          message: "미리보기를 지원하지 않는 파일 형식입니다. 다운로드 후 확인해 주세요."
+          message: "이 파일 형식은 미리보기를 지원하지 않습니다. 원본 파일로 확인해 주세요."
         },
         { status: 415 }
       );

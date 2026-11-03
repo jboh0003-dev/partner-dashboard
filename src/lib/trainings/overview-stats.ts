@@ -28,7 +28,6 @@ export type YearlyEducationSummary = {
   monthCount: number;
   uniqueAttendees: number;
   participationCount: number;
-  totalAttendances: number;
   partnerCount: number;
 };
 
@@ -193,7 +192,6 @@ export function buildEducationOverview(
       participationCount: monthly
         .filter((row) => row.year === year)
         .reduce((total, row) => total + row.attendanceCount, 0),
-      totalAttendances: attendeeRows.filter((row) => row.training_year === year).length,
       partnerCount: entry?.partners.size ?? 0
     };
   });

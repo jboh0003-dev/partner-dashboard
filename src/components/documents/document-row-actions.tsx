@@ -83,12 +83,12 @@ export function DocumentPreviewButton({
 
   function handlePreview() {
     if (!previewable) {
-      window.alert("미리보기를 지원하지 않는 파일 형식입니다. 다운로드 후 확인해 주세요.");
+      window.alert("이 파일 형식은 웹 미리보기를 지원하지 않습니다. 원본 파일을 확인해 주세요.");
       return;
     }
 
     window.open(
-      `/api/partners/documents/${documentId}/preview`,
+      `/dashboard/documents/preview/${documentId}`,
       "_blank",
       "noopener,noreferrer"
     );
@@ -101,7 +101,7 @@ export function DocumentPreviewButton({
       disabled={!previewable}
       title={
         previewable
-          ? "새 탭에서 미리보기"
+          ? "새 탭에서 문서 미리보기"
           : "미리보기를 지원하지 않는 파일 형식입니다."
       }
       className="rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
