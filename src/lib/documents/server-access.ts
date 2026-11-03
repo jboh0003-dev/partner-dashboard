@@ -1,5 +1,5 @@
 import { readArchivedDocument } from '@/lib/recovery/blob-storage';
-import { database, recoveryEnabled } from "@/lib/recovery/database";
+import { database } from "@/lib/recovery/database";
 import { PARTNER_DOCUMENTS_BUCKET } from "@/lib/documents/constants";
 import {
   getDocumentContentType,
@@ -165,10 +165,8 @@ export async function downloadPartnerDocumentBlob(document: PartnerDocumentRecor
 
   // Preserve outage recovery for genuinely unavailable primary objects.
   // Never replace the primary file with backup bytes.
-  if (recoveryEnabled() || process.env.CONNECT_DATABASE_URL) {
-    const backup = await readDocumentBackup(document, storagePath);
-    if (backup) return { blob: backup, error: undefined };
-  }
+  const backup = await readDocumentBackup(document, storagePath);
+  if (backup) return { blob: backup, error: undefined };
   return { blob: null as Blob | null, error: error?.message ?? "파일을 불러오지 못했습니다." };
 }
 
