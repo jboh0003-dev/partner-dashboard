@@ -93,7 +93,22 @@ export function SearchChat({ variant = "page" }: SearchChatProps) {
     setPendingQuery(trimmed);
 
     startTransition(async () => {
-      const result = await runPartnerSearch(trimmed, history);
+      const generalQuestion = /^(?:안녕|고마워|감사|영업과\s*프리세일즈|프리세일즈란|사용법|너는\s*뭐)/.test(trimmed);
+      let result;
+      if (generalQuestion) {
+        const response = await fetch("/api/ai/chat", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ mode: "general", messages: [...history, { role: "user", content: trimmed }] })
+        });
+        const data = await response.json() as { answer?: string; error?: string };
+        result = {
+          answer: data.answer || data.error || "답변을 가져오지 못했습니다.",
+          intent: "partner_profile" as const, empty: false, matchedPartner: null,
+          partners: [], contacts: [], items: [], sources: [], matchStrategy: "none" as const
+        };
+      } else {
+        result = await runPartnerSearch(trimmed, history);
+      }
       setPendingQuery("");
       setMessages((current) => [
         ...current,
