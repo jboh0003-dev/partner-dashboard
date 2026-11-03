@@ -74,8 +74,10 @@ async function isStructurallyCompatible(
 export async function POST(request: Request) {
   const denied = await rejectUnlessAdmin();
   if (denied) return denied;
+  let stagedPath: string | null = null;
   try {
     const input = Schema.parse(await request.json());
+    stagedPath = input.path;
     const supabase = createAdminClient();
     const { data: doc, error: docError } = await supabase.from("partner_documents")
       .select("id,partner_id,document_type,original_filename,file_size,file_hash,storage_path,file_path,file_ext")
@@ -141,6 +143,26 @@ export async function POST(request: Request) {
       removed_original: removedOriginal, budget
     });
   } catch (error) {
+    // Reclaim only the newly staged optimized object when validation fails.
+    // Never delete a path referenced by any current or historical document.
+    if (stagedPath && /\/optimized-[0-9a-f-]{36}\.(pdf|jpg|jpeg|pptx|docx|xlsx)$/i.test(stagedPath)) {
+      try {
+        const cleanup = createAdminClient();
+        const [a, b] = await Promise.all([
+          cleanup.from("partner_documents").select("id", { head: true, count: "exact" })
+            .eq("storage_path", stagedPath),
+          cleanup.from("partner_documents").select("id", { head: true, count: "exact" })
+            .eq("file_path", stagedPath)
+        ]);
+        if (!a.error && !b.error && a.count === 0 && b.count === 0) {
+          const { error: removeError } = await cleanup.storage
+            .from(PARTNER_DOCUMENTS_BUCKET).remove([stagedPath]);
+          if (removeError) console.error("[storage-optimize] staging cleanup failed", removeError.message);
+        }
+      } catch (cleanupError) {
+        console.error("[storage-optimize] staging cleanup failed", cleanupError);
+      }
+    }
     return NextResponse.json({ ok: false, message: error instanceof Error ? error.message : "교체 검증 실패" }, { status: 400 });
   }
 }
