@@ -418,7 +418,12 @@ export function StorageOptimizationPanel() {
           // Keep the ready status on a temporary upload error, so it may be retried.
           setOutcomes((previous) => ({
             ...previous,
-            [row.id]: { ...previous[row.id], status: "error", message }
+            [row.id]: {
+              status: "error",
+              savedBytes: previous[row.id]?.savedBytes ?? 0,
+              optimizedBytes: previous[row.id]?.optimizedBytes ?? 0,
+              message
+            }
           }));
         }
         done += 1;
