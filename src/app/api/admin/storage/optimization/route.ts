@@ -19,6 +19,25 @@ function extOf(name: string): string {
   return name.split(".").pop()?.toLowerCase() ?? "";
 }
 
+async function checkOtherDocumentReferences(
+  supabase: ReturnType<typeof createAdminClient>,
+  sourcePath: string,
+  documentId: string
+): Promise<void> {
+  const [storageRefs, fileRefs] = await Promise.all([
+    supabase.from("partner_documents")
+      .select("id").eq("storage_path", sourcePath).neq("id", documentId).limit(1),
+    supabase.from("partner_documents")
+      .select("id").eq("file_path", sourcePath).neq("id", documentId).limit(1)
+  ]);
+  if (storageRefs.error || fileRefs.error) {
+    throw new Error("원본 참조 확인에 실패해 교체를 중단했습니다.");
+  }
+  if ((storageRefs.data?.length ?? 0) > 0 || (fileRefs.data?.length ?? 0) > 0) {
+    throw new Error("다른 문서 이력이 원본을 참조하므로 안전한 교체 대상에서 제외했습니다.");
+  }
+}
+
 export async function GET() {
   const denied = await rejectUnlessAdmin();
   if (denied) return denied;
@@ -68,9 +87,14 @@ export async function POST(request: Request) {
     if (error || !doc) throw new Error(error?.message ?? "기존 문서를 찾지 못했습니다.");
     const ext = String(doc.file_ext ?? extOf(String(doc.original_filename ?? ""))).toLowerCase();
     if (!optimizable.has(ext)) throw new Error("이 형식은 안전한 브라우저 압축을 지원하지 않습니다.");
-    if (input.file_size >= Number(doc.file_size)) {
-      throw new Error("압축 파일이 원본보다 작지 않습니다.");
+    if (input.file_size > Number(doc.file_size) * 0.96) {
+      throw new Error("최소 4% 이상 작아진 문서만 교체할 수 있습니다.");
     }
+    const sourcePath = String(doc.storage_path ?? doc.file_path ?? "");
+    if (!sourcePath || !isSafeStorageObjectKey(sourcePath)) {
+      throw new Error("기존 문서 경로가 유효하지 않아 안전한 교체를 실행할 수 없습니다.");
+    }
+    await checkOtherDocumentReferences(supabase, sourcePath, input.document_id);
     await requirePartnerStorageBudget(supabase, input.file_size);
     const path = String(doc.partner_id) + "/" + String(doc.document_type) +
       "/optimized-" + crypto.randomUUID() + "." + ext;

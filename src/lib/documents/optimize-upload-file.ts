@@ -68,7 +68,7 @@ async function optimizeOffice(file: File): Promise<File | null> {
   if (Object.keys(zip.files).some((name) => /(^|\/)\_xmlsignatures\//i.test(name))) return null;
   let changed = 0;
   for (const entry of Object.values(zip.files)) {
-    if (entry.dir || !/^(?:ppt|word)\/media\/[^/]+\.jpe?g$/i.test(entry.name)) continue;
+    if (entry.dir || !/^(?:ppt|word|xl)\/media\/[^/]+\.jpe?g$/i.test(entry.name)) continue;
     const blob = await entry.async("blob");
     if (blob.size < MIN_IMAGE_BYTES) continue;
     const filePart = new File([blob], entry.name.split("/").pop() || "media.jpg", { type: "image/jpeg" });
@@ -81,17 +81,19 @@ async function optimizeOffice(file: File): Promise<File | null> {
       // An individual image cannot be decoded: leave that entry unchanged.
     }
   }
-  if (!changed) return null;
+  // Workbook XML, formulas, shared strings and styles remain byte-for-byte
+  // unchanged. Repackaging ZIP entries can also reclaim redundant deflate bytes.
   const result = await zip.generateAsync({
     type: "blob",
     compression: "DEFLATE",
-    compressionOptions: { level: 6 }
+    compressionOptions: { level: changed > 0 ? 6 : 9 }
   });
   return new File([result], file.name, { type: file.type, lastModified: file.lastModified });
 }
 
-// Only save a truly smaller, readable file. Already-compressed Excel files,
-// signed PDFs and unsupported formats retain their originals.
+// Only save a truly smaller, readable file. XLSX uses lossless ZIP repackaging
+// plus optional JPEG media recompression; XML and formulas remain unchanged.
+// Signed PDFs and unsupported formats retain their originals.
 export async function optimizePartnerUploadFile(file: File): Promise<OptimizedDocument> {
   const unchanged: OptimizedDocument = {
     file,
@@ -110,7 +112,7 @@ export async function optimizePartnerUploadFile(file: File): Promise<OptimizedDo
       const candidate = await optimizePdf(file);
       return candidate ? replacementIfSmaller(file, candidate, "pdf") : unchanged;
     }
-    if (extension === "docx" || extension === "pptx") {
+    if (extension === "docx" || extension === "pptx" || extension === "xlsx") {
       const candidate = await optimizeOffice(file);
       return candidate ? replacementIfSmaller(file, candidate, "office") : unchanged;
     }

@@ -26,6 +26,22 @@ function ext(name: string): string {
   return name.split(".").pop()?.toLowerCase() ?? "";
 }
 
+async function assertExclusiveSource(
+  supabase: ReturnType<typeof createAdminClient>,
+  documentId: string,
+  sourcePath: string
+): Promise<void> {
+  const [a, b] = await Promise.all([
+    supabase.from("partner_documents").select("id")
+      .eq("storage_path", sourcePath).neq("id", documentId).limit(1),
+    supabase.from("partner_documents").select("id")
+      .eq("file_path", sourcePath).neq("id", documentId).limit(1)
+  ]);
+  if (a.error || b.error || a.data?.length || b.data?.length) {
+    throw new Error("원본을 참조하는 다른 이력이 확인되어 교체를 보류했습니다.");
+  }
+}
+
 async function isStructurallyCompatible(
   extension: string, before: Buffer, after: Buffer
 ): Promise<boolean> {
@@ -91,6 +107,7 @@ export async function POST(request: Request) {
     if (!(await isStructurallyCompatible(extension, before, after))) {
       throw new Error("원본과 압축본 구조가 일치하지 않아 교체하지 않았습니다.");
     }
+    await assertExclusiveSource(supabase, input.document_id, sourcePath);
 
     // Compare-and-set ensures concurrent edits cannot be overwritten.
     let update = supabase.from("partner_documents")
@@ -117,7 +134,7 @@ export async function POST(request: Request) {
     }
     revalidatePath("/dashboard/documents");
     revalidatePath("/dashboard/partners/" + doc.partner_id);
-    const budget = await readPartnerStorageBudget(supabase);
+    const budget = await readPartnerStorageBudget(supabase).catch(() => null);
     return NextResponse.json({
       ok: true, saved_bytes: before.length - after.length,
       original_bytes: before.length, optimized_bytes: after.length,
