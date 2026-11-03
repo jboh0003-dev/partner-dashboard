@@ -4,6 +4,7 @@ import { searchPartners } from "@/lib/search/engine";
 import type { SearchResult } from "@/lib/search/types";
 import { normalizeSearchQuery } from "@/lib/search/query-normalize";
 import { requireUser } from "@/lib/auth/require-user";
+import { fetchSearchContext } from "@/lib/data/search";
 import {
   rewriteConversationalSearchQuery,
   synthesizeConversationalAnswer,
@@ -159,6 +160,17 @@ export async function runPartnerSearch(
       items: [],
       sources: [],
       matchStrategy: "none"
+    };
+  }
+
+  // Aggregate questions must use the live partner table, not a profile search.
+  if (/^(?:현재\s*|전체\s*|등록된\s*|우리\s*)?(?:파트너(?:사)?)(?:\s*(?:수|몇\s*(?:개|곳|명)|얼마나\s*많아|총\s*몇))\s*[?？.!]*$/i.test(trimmed)) {
+    const context = await fetchSearchContext();
+    const count = context.partners.length;
+    return {
+      answer: `현재 등록된 파트너는 ${count}곳입니다.`,
+      intent: "partner_profile", empty: false, matchedPartner: null,
+      partners: [], contacts: [], items: [], sources: [], matchStrategy: "none"
     };
   }
 
