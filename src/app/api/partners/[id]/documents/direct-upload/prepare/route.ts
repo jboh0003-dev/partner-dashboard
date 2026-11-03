@@ -15,6 +15,8 @@ const Schema = z.object({
   file_hash: z.string().regex(/^[a-f0-9]{64}$/i),
   content_type: z.string().optional().default("application/octet-stream"),
   received_date: z.string().nullable().optional(),
+  contract_date: z.string().nullable().optional(),
+  source_file: z.string().nullable().optional(),
   note: z.string().nullable().optional()
 });
 
@@ -41,7 +43,6 @@ export async function POST(
       return NextResponse.json({ ok: false, message: "파트너를 찾을 수 없습니다." }, { status: 404 });
     }
 
-    await requirePartnerStorageBudget(supabase, body.file_size);
     const result = await preparePartnerDocumentDirectUpload(supabase, {
       partnerId,
       documentType: body.document_type,
@@ -51,9 +52,12 @@ export async function POST(
       fileHash: body.file_hash,
       contentType: body.content_type,
       receivedDate: body.received_date ?? null,
+      contractDate: body.contract_date ?? null,
+      sourceFile: body.source_file ?? null,
       note: body.note ?? null
     });
 
+    if (result.ok && !result.reused) await requirePartnerStorageBudget(supabase, body.file_size);
     return NextResponse.json(result, { status: result.ok ? 200 : 400 });
   } catch (error) {
     return NextResponse.json(

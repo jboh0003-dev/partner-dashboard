@@ -19,6 +19,8 @@ import { buildAutoDisplayName } from "@/lib/documents/display";
 import { resolveSaveAction } from "@/lib/imports/partner-documents";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { rejectUnlessAdmin } from "@/lib/auth/require-admin";
+import { optimizePartnerUploadFile } from "@/lib/documents/optimize-upload-file";
+import { requirePartnerStorageBudget } from "@/lib/storage/upload-budget";
 import type { DocumentMatchSource, DocumentReviewStatus } from "@/lib/documents/constants";
 
 const ParsedRowSchema = z.object({
@@ -162,8 +164,10 @@ export async function POST(request: Request) {
 
       const previousStoragePath = pickSafePreviousPath(existingDocument);
 
-      const buffer = Buffer.from(await file.arrayBuffer());
+      const optimized = await optimizePartnerUploadFile(file);
+      const buffer = Buffer.from(await optimized.file.arrayBuffer());
       const fileHash = computeFileHash(buffer);
+      row.file_size = buffer.byteLength;
 
       if (existingDocument?.file_hash === fileHash) {
         skippedCount += 1;
@@ -235,7 +239,8 @@ export async function POST(request: Request) {
         continue;
       }
 
-      const uploadError = await uploadDocumentFile(supabase, storagePath, buffer, file.type);
+      await requirePartnerStorageBudget(supabase, buffer.byteLength);
+      const uploadError = await uploadDocumentFile(supabase, storagePath, buffer, optimized.file.type || file.type);
       if (uploadError) {
         skippedCount += 1;
         failedCount += 1;

@@ -7,6 +7,8 @@ import {
   uploadPartnerDocumentManual
 } from "@/lib/documents/manual-upload";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { optimizePartnerUploadFile } from "@/lib/documents/optimize-upload-file";
+import { requirePartnerStorageBudget } from "@/lib/storage/upload-budget";
 
 const UploadSchema = z.object({
   document_type: z.string().min(1),
@@ -77,7 +79,9 @@ export async function POST(
       return NextResponse.json({ ok: false, message: "파트너를 찾을 수 없습니다." }, { status: 404 });
     }
 
-    const buffer = Buffer.from(await file.arrayBuffer());
+    const optimized = await optimizePartnerUploadFile(file);
+    const buffer = Buffer.from(await optimized.file.arrayBuffer());
+    await requirePartnerStorageBudget(supabase, buffer.byteLength);
     const result = await uploadPartnerDocumentManual(supabase, {
       partnerId,
       documentType: metadata.document_type,

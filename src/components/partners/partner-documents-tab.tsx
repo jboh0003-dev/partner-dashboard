@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { optimizePartnerUploadFile } from "@/lib/documents/optimize-upload-file";
 import { useRouter } from "next/navigation";
 import {
   DocumentDownloadButton,
@@ -212,7 +213,8 @@ function DocumentRow({
     setRowMessage(null);
     try {
       const formData = new FormData();
-      formData.set("file", pendingReplaceFile);
+      const optimized = await optimizePartnerUploadFile(pendingReplaceFile);
+      formData.set("file", optimized.file);
 
       const response = await fetch(`/api/partners/documents/${document.id}/replace`, {
         method: "POST",

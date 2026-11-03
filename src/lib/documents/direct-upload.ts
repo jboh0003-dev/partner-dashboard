@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { createHash } from "node:crypto";
 import {
   ALLOWED_DOCUMENT_EXTENSIONS,
   DOCUMENT_TYPES,
@@ -28,6 +29,8 @@ export type DirectDocumentUploadInput = {
   fileHash: string;
   contentType: string;
   receivedDate: string | null;
+  contractDate?: string | null;
+  sourceFile?: string | null;
   note: string | null;
 };
 
@@ -198,9 +201,22 @@ export async function finalizePartnerDocumentDirectUpload(
     return { ok: true, document_id: exact.id, reused: true };
   }
 
-  const exists = await verifyStorageObject(supabase, input.storagePath);
-  if (!exists) {
-    return { ok: false, message: "Storage 업로드 완료 여부를 확인하지 못했습니다." };
+  // List-only checks cannot detect truncated, corrupt or wrongly uploaded bytes.
+  // Download the staged object and compare SHA-256 before any DB pointer moves.
+  const { data: stagedBlob, error: downloadError } = await supabase.storage
+    .from(PARTNER_DOCUMENTS_BUCKET)
+    .download(input.storagePath);
+  if (downloadError || !stagedBlob) {
+    return { ok: false, message: downloadError?.message ?? "저장된 파일을 재다운로드할 수 없습니다." };
+  }
+  if (stagedBlob.size !== input.fileSize) {
+    return { ok: false, message: "업로드 파일 크기 검증에 실패했습니다." };
+  }
+  const stagedHash = createHash("sha256")
+    .update(Buffer.from(await stagedBlob.arrayBuffer()))
+    .digest("hex");
+  if (stagedHash.toLowerCase() !== input.fileHash.toLowerCase()) {
+    return { ok: false, message: "다운로드 후 SHA-256 검증에 실패했습니다. 기존 파일은 변경하지 않았습니다." };
   }
 
   const target = await resolveUploadTarget(supabase, input);
@@ -224,8 +240,9 @@ export async function finalizePartnerDocumentDirectUpload(
     received_date: input.receivedDate,
     note: input.note,
     summary: input.note,
-    source_file: "partner_onboarding_package",
-    uploaded_by: "partner_onboarding_package",
+    source_file: input.sourceFile ?? "partner_onboarding_package",
+    uploaded_by: input.sourceFile ? "dashboard-bulk" : "partner_onboarding_package",
+    ...(input.contractDate ? { contract_date: input.contractDate } : {}),
     is_active: true,
     is_duplicate: false,
     duplicate_of: null,

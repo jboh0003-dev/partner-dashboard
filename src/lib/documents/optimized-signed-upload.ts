@@ -9,6 +9,8 @@ export type SignedDocumentUpload = {
   documentType: string;
   displayName: string;
   receivedDate?: string | null;
+  contractDate?: string | null;
+  sourceFile?: string | null;
   note?: string | null;
 };
 
@@ -63,6 +65,8 @@ export async function uploadOptimizedPartnerDocument(
     file_hash: await sha256(file),
     content_type: fileContentType(file),
     received_date: input.receivedDate ?? null,
+    contract_date: input.contractDate ?? null,
+    source_file: input.sourceFile ?? null,
     note: input.note ?? null
   };
   const endpoint = "/api/partners/" + encodeURIComponent(input.partnerId) + "/documents/direct-upload";

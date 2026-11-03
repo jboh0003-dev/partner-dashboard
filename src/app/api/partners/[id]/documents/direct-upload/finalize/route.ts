@@ -15,6 +15,8 @@ const Schema = z.object({
   file_hash: z.string().regex(/^[a-f0-9]{64}$/i),
   content_type: z.string().optional().default("application/octet-stream"),
   received_date: z.string().nullable().optional(),
+  contract_date: z.string().nullable().optional(),
+  source_file: z.string().nullable().optional(),
   note: z.string().nullable().optional(),
   storage_path: z.string().min(1)
 });
@@ -40,6 +42,8 @@ export async function POST(
       fileHash: body.file_hash,
       contentType: body.content_type,
       receivedDate: body.received_date ?? null,
+      contractDate: body.contract_date ?? null,
+      sourceFile: body.source_file ?? null,
       note: body.note ?? null,
       storagePath: body.storage_path
     });

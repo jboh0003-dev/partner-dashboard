@@ -1,4 +1,5 @@
 import { DocumentsListTable } from "@/components/documents/documents-list-table";
+import Link from "next/link";
 import { DocumentsToolbar } from "@/components/documents/documents-toolbar";
 import { PageHeader } from "@/components/layout/page-header";
 import { EmptyState } from "@/components/common/empty-state";
@@ -91,7 +92,15 @@ export default async function DocumentsPage({
       <PageHeader
         title="파트너 문서"
         description="파트너 계약서, 신청서, 사업자등록증 등 운영 문서를 조회·다운로드합니다."
-        action={<CsvDownloadButton rows={exportRows} filenamePrefix="partner-documents" />}
+        action={<div className="flex items-center gap-2">
+          {isAdmin ? (
+            <Link href="/dashboard/documents/optimize"
+              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">
+              용량 최적화
+            </Link>
+          ) : null}
+          <CsvDownloadButton rows={exportRows} filenamePrefix="partner-documents" />
+        </div>}
       />
 
       <DocumentsToolbar isAdmin={isAdmin} />

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
+import { optimizePartnerUploadFile } from "@/lib/documents/optimize-upload-file";
 import {
   ClientSortableTable,
   type SortableColumn
@@ -319,7 +320,8 @@ export function DocumentsListTable({
     startTransition(async () => {
       setError(null);
       const formData = new FormData();
-      formData.set("file", file);
+      const optimized = await optimizePartnerUploadFile(file);
+    formData.set("file", optimized.file);
       const response = await fetch(`/api/partners/documents/${replaceTarget.id}/replace`, {
         method: "POST",
         body: formData
