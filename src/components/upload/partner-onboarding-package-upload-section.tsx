@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { optimizePartnerUploadFile } from "@/lib/documents/optimize-upload-file";
+import { uploadOptimizedPartnerDocument } from "@/lib/documents/optimized-signed-upload";
 import { classifyDocumentType } from "@/lib/documents/classify";
 import {
   ALLOWED_DOCUMENT_EXTENSIONS,
@@ -353,68 +353,17 @@ export function PartnerOnboardingPackageUploadSection() {
     document: PackageDocument,
     receivedDate: string | null
   ): Promise<"uploaded" | "reused"> {
-    const optimized = await optimizePartnerUploadFile(document.file);
-    const storedFile = optimized.file;
-    const fileHash = await sha256(storedFile);
-    const metadata = {
-      document_type: document.documentType,
-      display_name: document.displayName,
-      original_filename: document.file.name,
-      file_size: storedFile.size,
-      file_hash: fileHash,
-      content_type: storedFile.type || contentTypeFor(storedFile.name),
-      received_date: receivedDate,
-      note: "파트너 등록 패키지에서 자동 등록"
-    };
-
-    const prepareResponse = await fetch(
-      `/api/partners/${partnerId}/documents/direct-upload/prepare`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(metadata)
-      }
-    );
-    const prepared = (await prepareResponse.json()) as
-      | { ok: true; reused: true; document_id: string }
-      | { ok: true; reused: false; path: string; token: string }
-      | { ok: false; message: string };
-
-    if (!prepareResponse.ok || !prepared.ok) {
-      throw new Error("message" in prepared ? prepared.message : "업로드 준비 실패");
-    }
-    if (prepared.reused) return "reused";
-
-    const supabase = createClient();
-    const { error: uploadError } = await supabase.storage
-      .from(PARTNER_DOCUMENTS_BUCKET)
-      .uploadToSignedUrl(prepared.path, prepared.token, storedFile, {
-        contentType: metadata.content_type
-      });
-
-    if (uploadError) {
-      throw new Error(uploadError.message);
-    }
-
-    const finalizeResponse = await fetch(
-      `/api/partners/${partnerId}/documents/direct-upload/finalize`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...metadata, storage_path: prepared.path })
-      }
-    );
-    const finalized = (await finalizeResponse.json()) as {
-      ok: boolean;
-      message?: string;
-      reused?: boolean;
-    };
-
-    if (!finalizeResponse.ok || !finalized.ok) {
-      throw new Error(finalized.message ?? "문서 DB 등록 실패");
-    }
-    if (!finalized.reused) setOptimizedBytes((current) => current + optimized.savedBytes);
-    return finalized.reused ? "reused" : "uploaded";
+    const result = await uploadOptimizedPartnerDocument({
+      partnerId,
+      file: document.file,
+      documentType: document.documentType,
+      displayName: document.displayName,
+      receivedDate,
+      note: "파트너 등록 패키지에서 자동 등록",
+      sourceFile: document.file.name
+    });
+    setOptimizedBytes((current) => current + result.savedBytes);
+    return result.status;
   }
 
   async function handleRegister() {

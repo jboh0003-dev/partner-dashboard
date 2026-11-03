@@ -1,6 +1,7 @@
 "use client";
 
 import { UploadDropArea } from "@/components/upload/upload-drop-area";
+import { uploadOptimizedPartnerDocument } from "@/lib/documents/optimized-signed-upload";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { FolderOpen, Loader2, UploadCloud } from "lucide-react";
@@ -74,6 +75,7 @@ export function PartnerDocumentsUploadSection() {
     error: null
   });
   const [isSaving, setIsSaving] = useState(false);
+  const [savedBytes, setSavedBytes] = useState(0);
   const [saveSummary, setSaveSummary] = useState<SaveSummary | null>(null);
   const [saveFailures, setSaveFailures] = useState<SaveFailure[]>([]);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -239,6 +241,7 @@ export function PartnerDocumentsUploadSection() {
     setParsedRows(rows);
     setSaveSummary(null);
     setSaveFailures([]);
+    setSavedBytes(0);
     setSaveError(null);
     setStatusFilter("needs_review");
     setNeedsReviewOnly(true);
@@ -247,38 +250,80 @@ export function PartnerDocumentsUploadSection() {
   }
 
   async function handleSave() {
+    setIsSaving(true);
+    setSaveError(null);
+    setSaveSummary(null);
+    setSaveFailures([]);
     try {
-      setIsSaving(true);
-      setSaveError(null);
-      setSaveSummary(null);
-      setSaveFailures([]);
+      // Send each optimized file to Supabase through a short-lived signed URL.
+      // No raw multi-file body crosses Vercel's request-size limit.
+      const targets = editableItems
+        .map((item) => ({ item, action: resolveSaveAction(item) }))
+        .filter((target) => Boolean(target.action && target.item.matched_partner_id));
+      const summary: SaveSummary = {
+        total: editableItems.length,
+        storage_success: 0,
+        db_success: 0,
+        success: 0,
+        created: 0,
+        updated: 0,
+        skipped: editableItems.length - targets.length,
+        needs_review: editableItems.filter((item) => item.review_status === "needs_review").length,
+        failed: 0
+      };
+      let totalSavedBytes = 0;
+      const failures: SaveFailure[] = [];
 
-      const formData = new FormData();
-      formData.append("batch_name", batchLabel ?? "partner-documents-upload");
-      formData.append("metadata", JSON.stringify(editableItems));
-
-      for (const item of editableItems) {
-        if (!resolveSaveAction(item)) continue;
+      for (const { item, action } of targets) {
         const file = fileMapRef.current.get(item.row_number);
-        if (!file) continue;
-        formData.append(`file_${item.row_number}`, file);
+        if (!file || !item.matched_partner_id) {
+          summary.failed += 1;
+          failures.push({
+            row_number: item.row_number,
+            filename: item.original_filename,
+            message: "파일 또는 파트너 매칭 정보가 없습니다."
+          });
+          continue;
+        }
+        try {
+          const result = await uploadOptimizedPartnerDocument({
+            partnerId: item.matched_partner_id,
+            file,
+            documentType: item.document_type,
+            displayName: item.display_name,
+            receivedDate: item.received_date ?? null,
+            contractDate: item.contract_date ?? null,
+            note: item.note ?? null,
+            sourceFile: item.source_file
+          });
+          if (result.status === "reused") {
+            summary.skipped += 1;
+          } else {
+            summary.storage_success += 1;
+            summary.db_success += 1;
+            summary.success += 1;
+            if (action === "update") summary.updated += 1;
+            else summary.created += 1;
+            totalSavedBytes += result.savedBytes;
+          }
+        } catch (error) {
+          summary.failed += 1;
+          failures.push({
+            row_number: item.row_number,
+            filename: item.original_filename,
+            message: error instanceof Error ? error.message : "문서 저장 실패"
+          });
+        }
       }
 
-      const response = await fetch("/api/import/partners/documents", {
-        method: "POST",
-        body: formData
-      });
-      const json = await response.json();
-      if (Array.isArray(json.failures)) {
-        setSaveFailures(json.failures);
-      }
-      if (json.summary) {
-        setSaveSummary(json.summary as SaveSummary);
-      }
-      if (!response.ok || !json.ok) {
-        throw new Error(json?.message ?? "문서 저장에 실패했습니다.");
-      }
-
+      setSaveSummary(summary);
+      setSaveFailures(failures);
+      setSaveError(failures.length
+        ? summary.success > 0
+          ? "일부 문서 업로드 실패: 실패 목록을 확인해 주세요."
+          : "문서 업로드에 실패했습니다. 실패 목록을 확인해 주세요."
+        : null);
+      setSavedBytes(totalSavedBytes);
       router.refresh();
     } catch (error) {
       setSaveError(error instanceof Error ? error.message : "문서 저장에 실패했습니다.");
