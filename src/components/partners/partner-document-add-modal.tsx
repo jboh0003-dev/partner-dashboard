@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { optimizePartnerUploadFile } from "@/lib/documents/optimize-upload-file";
 import { useRouter } from "next/navigation";
 import { CopyToast } from "@/components/common/copy-toast";
 import {
@@ -93,7 +94,7 @@ export function PartnerDocumentAddModal({
       setForm((prev) => ({ ...prev, display_name: nextFile.name }));
     }
     if (nextFile && nextFile.size > MANUAL_UPLOAD_MAX_BYTES) {
-      setWarnings(["파일 크기가 20MB를 초과합니다. 업로드 전 용량을 줄여 주세요."]);
+      setWarnings(["파일 크기가 50MB를 초과합니다. 업로드 전 용량을 줄여 주세요."]);
     } else {
       setWarnings([]);
     }
@@ -112,16 +113,17 @@ export function PartnerDocumentAddModal({
     }
 
     if (file.size > MANUAL_UPLOAD_MAX_BYTES) {
-      setError("파일 크기는 20MB를 초과할 수 없습니다.");
+      setError("파일 크기는 50MB를 초과할 수 없습니다.");
       setSaving(false);
       return;
     }
 
+    const optimized = await optimizePartnerUploadFile(file);
     const response = await fetch(`/api/partners/${partnerId}/documents`, {
       method: "POST",
       body: (() => {
         const formData = new FormData();
-        formData.set("file", file);
+        formData.set("file", optimized.file);
         formData.set(
           "metadata",
           JSON.stringify({
