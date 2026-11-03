@@ -1,5 +1,6 @@
 import JSZip from "jszip";
 import { PDFDocument } from "pdf-lib";
+import { hasPdfDigitalSignature } from "@/lib/documents/pdf-signature";
 
 export type OptimizedDocument = {
   file: File;
@@ -50,8 +51,7 @@ async function optimizeJpeg(file: File): Promise<File | null> {
 async function optimizePdf(file: File): Promise<File | null> {
   const data = new Uint8Array(await file.arrayBuffer());
   // Re-saving a digitally signed PDF invalidates its signature: preserve it verbatim.
-  const header = new TextDecoder("latin1").decode(data.subarray(0, Math.min(data.length, 1_048_576)));
-  if (/\/ByteRange\s*\[|\/Type\s*\/Sig\b/.test(header)) return null;
+  if (hasPdfDigitalSignature(data)) return null;
   const pdf = await PDFDocument.load(data, { updateMetadata: false });
   const pageCount = pdf.getPageCount();
   const compacted = await pdf.save({ useObjectStreams: true, addDefaultPage: false });

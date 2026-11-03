@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { PDFDocument } from "pdf-lib";
+import { hasPdfDigitalSignature } from "@/lib/documents/pdf-signature";
 import JSZip from "jszip";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { rejectUnlessAdmin } from "@/lib/auth/require-admin";
@@ -47,7 +48,7 @@ async function isStructurallyCompatible(
 ): Promise<boolean> {
   if (extension === "pdf") {
     // Digital signatures and encrypted PDFs are NEVER rewritten.
-    if (/\/ByteRange\s*\[|\/Type\s*\/Sig\b/.test(before.subarray(0, 1048576).toString("latin1"))) return false;
+    if (hasPdfDigitalSignature(new Uint8Array(before))) return false;
     try {
       const source = await PDFDocument.load(new Uint8Array(before), { updateMetadata: false });
       const result = await PDFDocument.load(new Uint8Array(after), { updateMetadata: false });
