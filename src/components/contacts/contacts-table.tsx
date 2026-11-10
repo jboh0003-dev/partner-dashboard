@@ -21,6 +21,7 @@ export type ContactTableRow = {
   partner_no: string | null;
   name: string;
   company_name: string;
+  partner_grade?: string | null;
   region_group?: string | null;
   region?: string | null;
   contract_start_date?: string | null;
@@ -68,6 +69,14 @@ const columns: SortableColumn<ContactTableRow>[] = [
         {row.company_name}
       </Link>
     )
+  },
+  {
+    key: "partner_grade",
+    label: "파트너 등급",
+    kind: "text",
+    className: "min-w-[7rem] whitespace-nowrap",
+    value: (row) => row.partner_grade ?? "-",
+    render: (row) => <TableText value={row.partner_grade ?? "-"} className="min-w-[7rem] whitespace-nowrap" />
   },
   {
     key: "region_group",

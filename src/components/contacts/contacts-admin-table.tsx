@@ -134,6 +134,19 @@ export function ContactsAdminTable({
         )
       },
       {
+        key: "partner_grade",
+        label: "파트너 등급",
+        kind: "text",
+        className: "min-w-[7rem] max-w-[9rem] whitespace-nowrap",
+        value: (row) => row.partner_grade ?? "-",
+        render: (row) => (
+          <TableText
+            value={row.partner_grade ?? "-"}
+            className="block min-w-[7rem] max-w-[9rem] truncate whitespace-nowrap text-[13px] text-slate-700"
+          />
+        )
+      },
+      {
         key: "region_group",
         label: "광역권",
         kind: "text",

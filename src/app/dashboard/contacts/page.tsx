@@ -128,6 +128,7 @@ export default async function ContactsPage({
         ? ""
         : formatPartnerNo({ external_no: row.partner_no }),
     회사명: row.company_name,
+    파트너등급: row.partner_grade ?? "-",
     광역권: row.region_group ?? "",
     지역: row.region ?? "",
     이름: row.name,

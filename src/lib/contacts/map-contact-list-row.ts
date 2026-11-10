@@ -1,4 +1,5 @@
 import { buildPersonKey } from "@/lib/contacts/person-key";
+import { getDisplayPartnerGradeLabel } from "@/lib/partners/grade";
 import { pickCanonicalContact } from "@/lib/contacts/contact-merge";
 import { roleLabelFromContact } from "@/lib/contacts/contact-details";
 import {
@@ -12,6 +13,10 @@ import type { PersonContactRow } from "@/lib/contacts/person-groups";
 type ContactPartnerEmbed = {
   company_name: string;
   external_no: string | null;
+  grade?: string | null;
+  grade_override?: string | null;
+  grade_original?: string | null;
+  grade_change_raw?: string | null;
   region_group?: string | null;
   region?: string | null;
   deleted_at?: string | null;
@@ -76,6 +81,7 @@ export function mapContactToPersonRow(row: ContactListDbRow): PersonContactRow {
     partner_no: partner?.external_no ?? null,
     name: row.name,
     company_name: partner?.company_name ?? "-",
+    partner_grade: partner ? getDisplayPartnerGradeLabel(partner) : "-",
     region_group: partner?.region_group ?? null,
     region: partner?.region ?? null,
     contract_start_date: null,

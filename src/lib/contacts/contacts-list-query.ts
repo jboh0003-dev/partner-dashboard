@@ -15,7 +15,7 @@ import { fixMissingLeadingZero, stripPhoneDigits } from "@/lib/contacts/phone-no
 export const CONTACTS_LIST_MAX = 5000;
 
 export const CONTACT_LIST_SELECT =
-  "id, partner_id, name, department, position, role_type, role_raw, email, phone, phone_display, phone_normalized, is_contract_contact, is_primary, review_required, review_reason, memo, created_at, is_active, in_current_full_db, partner:partners!partner_contacts_partner_id_fkey(company_name, external_no, region_group, region, deleted_at, is_active)";
+  "id, partner_id, name, department, position, role_type, role_raw, email, phone, phone_display, phone_normalized, is_contract_contact, is_primary, review_required, review_reason, memo, created_at, is_active, in_current_full_db, partner:partners!partner_contacts_partner_id_fkey(company_name, external_no, grade, grade_override, grade_original, grade_change_raw, region_group, region, deleted_at, is_active)";
 
 export function normalizeContactsRoleFilter(role?: string | null): string {
   const normalized = (role ?? "").trim();
