@@ -56,7 +56,7 @@ function contactRole(row: PersonContactRow): string {
   if (/대표/.test(explicit)) return "대표";
   if (row.role_type === "sales") return "영업";
   if (row.role_type === "engineer") return "기술";
-  if (row.role_type === "executive") return "대표";
+  if (row.role_type === "executive") return /대표/.test(row.position ?? "") ? "대표" : "";
   if (row.role_type === "admin") return "관리";
   return explicit && explicit !== "etc" && explicit !== "contract" ? explicit : "";
 }
@@ -83,9 +83,8 @@ export function buildPartnerDbWorkbook(
   workbook.created = new Date();
   const sheet = workbook.addWorksheet("파트너 DB_오재복", {
     properties: { defaultRowHeight: 15.6, defaultColWidth: 8.75 },
-    views: [{ state: "frozen", xSplit: 0, ySplit: 209, topLeftCell: "A210" }]
+    views: [{ state: "frozen", xSplit: 0, ySplit: 209, topLeftCell: "A210", showGridLines: true }]
   });
-  sheet.showGridLines = true;
   WIDTHS.forEach((width, i) => { sheet.getColumn(i + 1).width = width; });
   const header = sheet.getRow(1);
   header.height = 24;
