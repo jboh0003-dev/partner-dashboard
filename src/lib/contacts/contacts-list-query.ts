@@ -131,19 +131,16 @@ function applyListFilters(query: any, input: ContactsListQueryInput, useBaseline
         : filtered.eq("is_active", false);
       break;
     case "review":
-      filtered = useBaselineColumns
-        ? filtered.eq("review_required", true).eq("in_current_full_db", true)
-        : filtered.eq("review_required", true);
+      filtered = filtered.eq("review_required", true);
       break;
     case "bounced":
-      filtered = useBaselineColumns
-        ? filtered.eq("is_active", true).eq("in_current_full_db", true)
-        : filtered.eq("is_active", true);
+      filtered = filtered.eq("is_active", true);
       break;
     default:
-      filtered = useBaselineColumns
-        ? filtered.eq("is_active", true).eq("in_current_full_db", true)
-        : filtered.eq("is_active", true);
+      // New uploads and reviewed/reinstated people are active records too.
+      // in_current_full_db only denotes the legacy baseline spreadsheet and
+      // must not hide newly added Partner Connect contacts.
+      filtered = filtered.eq("is_active", true);
   }
 
   if (input.partnerId) {
@@ -296,12 +293,12 @@ async function runListQuery(
   };
 
   const query = applyListFilters(
-    supabase.from("partner_contacts").select(CONTACT_LIST_SELECT, { count: "exact" }),
+    supabase.from("partner_contacts").select(CONTACT_LIST_SELECT),
     queryInput,
     useBaselineColumns
   );
 
-  const { count, data, error } = await query
+  const { data, error } = await query
     .order("name", { ascending: true })
     .order("id", { ascending: true })
     .range(0, CONTACTS_LIST_MAX - 1);
@@ -310,7 +307,6 @@ async function runListQuery(
     throw new Error(error.message);
   }
 
-  const total = count ?? 0;
   const rawRows = (data ?? []) as unknown as ContactListDbRow[];
   let rows = rawRows
     .filter((row) => {
@@ -325,7 +321,8 @@ async function runListQuery(
 
   return {
     rows,
-    total,
+    // Match the count to the visible list, excluding retired partners.
+    total: rows.length,
     error: null,
     usedFallbackQuery: !useBaselineColumns
   };
@@ -371,14 +368,12 @@ export async function fetchContactsQuickStats(
         .from("partner_contacts")
         .select("id", { count: "exact", head: true })
         .eq("is_active", true)
-        .eq("in_current_full_db", true)
         .is("deleted_at", null)
         .is("merged_into_contact_id", null),
       supabase
         .from("partner_contacts")
         .select("id", { count: "exact", head: true })
         .eq("review_required", true)
-        .eq("in_current_full_db", true)
         .is("deleted_at", null)
         .is("merged_into_contact_id", null),
       supabase
