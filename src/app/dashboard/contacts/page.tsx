@@ -139,6 +139,10 @@ export default async function ContactsPage({
     이메일: row.email ?? ""
   }));
 
+  const viewHref = buildContactViewHref(view, { q, role, position, partnerId, regionGroup, region });
+  const querySuffix = viewHref.includes("?") ? viewHref.slice(viewHref.indexOf("?")) : "";
+  const excelExportHref = "/api/contacts/export" + querySuffix;
+
   const countLabel = buildContactsCountLabel({
     total: listTotal,
     view,
@@ -228,6 +232,7 @@ export default async function ContactsPage({
             totalCount={listTotal}
             countLabel={countLabel}
             csvRows={exportRows}
+            excelExportHref={excelExportHref}
             partnerOptions={partnerOptions}
             defaultPartnerId={partnerId || undefined}
             embedded

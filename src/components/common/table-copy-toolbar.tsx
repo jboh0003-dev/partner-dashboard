@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, Copy, Mail, X } from "lucide-react";
+import { ChevronDown, Copy, FileSpreadsheet, Mail, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { CsvDownloadButton } from "@/components/common/csv-download-button";
 import { CopyToast } from "@/components/common/copy-toast";
@@ -47,6 +47,7 @@ type TableCopyToolbarProps = {
   csvRows?: CsvRow[];
   csvFilenamePrefix?: string;
   csvLabel?: string;
+  xlsxHref?: string;
   className?: string;
 };
 
@@ -62,6 +63,7 @@ export function TableCopyToolbar({
   csvRows,
   csvFilenamePrefix,
   csvLabel,
+  xlsxHref,
   className
 }: TableCopyToolbarProps) {
   const [message, setMessage] = useState<string | null>(null);
@@ -184,7 +186,13 @@ export function TableCopyToolbar({
               </div>
             ) : null}
           </div>
-          {csvRows && csvFilenamePrefix ? (
+          {xlsxHref ? (
+            <a href={xlsxHref} className="ui-btn-secondary" title="파트너DB 원본 양식의 XLSX 파일로 다운로드됩니다.">
+              <FileSpreadsheet size={16} />
+              엑셀 다운로드
+              <span className="text-xs font-normal opacity-70">({totalCount.toLocaleString("ko-KR")})</span>
+            </a>
+          ) : csvRows && csvFilenamePrefix ? (
             <CsvDownloadButton
               rows={csvRows}
               filenamePrefix={csvFilenamePrefix}

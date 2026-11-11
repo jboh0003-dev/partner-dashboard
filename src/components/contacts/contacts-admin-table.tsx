@@ -38,6 +38,7 @@ type ContactsAdminTableProps = {
   totalCount?: number;
   countLabel?: string;
   csvRows?: CsvRow[];
+  excelExportHref?: string;
   partnerOptions: PartnerOption[];
   defaultPartnerId?: string;
   embedded?: boolean;
@@ -50,6 +51,7 @@ export function ContactsAdminTable({
   totalCount,
   countLabel,
   csvRows,
+  excelExportHref,
   partnerOptions,
   defaultPartnerId,
   embedded = false,
@@ -454,6 +456,7 @@ export function ContactsAdminTable({
         selectedRowTsv={CONTACT_SELECTED_ROW_TSV}
         csvRows={csvRows}
         csvFilenamePrefix="partner-contacts"
+        xlsxHref={excelExportHref}
       />
 
       {rows.length === 0 ? (
