@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
     const workbook = buildPartnerDbWorkbook(list.rows, partners, focalIds);
     const bytes = await workbook.xlsx.writeBuffer();
     const body = new ArrayBuffer(bytes.byteLength);
-    new Uint8Array(body).set(bytes);
+    new Uint8Array(body).set(bytes as unknown as Uint8Array);
     const filename = "PartnerConnect_파트너DB_인력현황_" + new Date().toISOString().slice(0, 10).replace(/-/g, "") + ".xlsx";
     return new NextResponse(body, {
       headers: {
