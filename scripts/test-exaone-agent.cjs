@@ -28,6 +28,14 @@ function load(file, dependencies = {}) {
 }
 
 (async () => {
+  const followUp = load('src/lib/search/follow-up-query.ts');
+  const names = ['튠시스템', '다른회사'];
+  const history = [{ role: 'user', content: '튠시스템 파트너 기본정보 알려줘' }];
+  assert.equal(followUp.resolvePartnerFollowUpQuery('그 회사 등급은 무엇인가요?', history, names), '튠시스템 기본 정보');
+  assert.equal(followUp.resolvePartnerFollowUpQuery('그 회사 교육은?', history, names), '튠시스템 교육은?');
+  assert.equal(followUp.resolvePartnerFollowUpQuery('튠시스템 등급은?', [], names), '튠시스템 기본 정보');
+  assert.equal(followUp.resolvePartnerFollowUpQuery('플래티넘 승급 기준은?', history, names), '플래티넘 승급 기준은?');
+  assert.equal(followUp.resolvePartnerFollowUpQuery('그 회사 등급은?', [{ role: 'user', content: '튠시스템과 다른회사 비교' }], names), '그 회사 등급은?');
   const provider = load('src/lib/search/ai-provider.ts');
   assert.equal(provider.getChatProvider(), null);
   env.GROQ_API_KEY = 'groq-test-only';

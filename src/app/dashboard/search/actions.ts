@@ -1,5 +1,7 @@
 "use server";
 
+import { needsPartnerReference, resolvePartnerFollowUpQuery, isPartnerGradeQuestion } from "@/lib/search/follow-up-query";
+
 import { searchPartners } from "@/lib/search/engine";
 import type { SearchResult } from "@/lib/search/types";
 import { normalizeSearchQuery } from "@/lib/search/query-normalize";
@@ -174,7 +176,14 @@ export async function runPartnerSearch(
     };
   }
 
-  const standalone = await rewriteConversationalSearchQuery(trimmed, history);
+  let contextualQuery = trimmed;
+  if (needsPartnerReference(trimmed)) {
+    const context = await fetchSearchContext();
+    contextualQuery = resolvePartnerFollowUpQuery(trimmed, history, context.partners.map(partner => partner.company_name));
+  }
+  const standalone = contextualQuery !== trimmed
+    ? contextualQuery
+    : await rewriteConversationalSearchQuery(trimmed, history);
   const normalized = normalizeConversationalQuery(standalone);
   const expanded = expandNaturalLanguageQuery(standalone);
 
@@ -189,6 +198,11 @@ export async function runPartnerSearch(
   ) {
     const retry = await searchPartners(expanded);
     result = preferResult(result, retry);
+  }
+
+  if (isPartnerGradeQuestion(trimmed) && result.matchedPartner && result.intent === "partner_profile") {
+    const grade = result.summaryCards?.find(card => card.label === "등급")?.value;
+    if (grade) return { ...result, answer: `${result.matchedPartner.name}의 파트너 등급은 ${grade}입니다.` };
   }
 
   const conversationalAnswer = await synthesizeConversationalAnswer({
