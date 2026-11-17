@@ -506,7 +506,7 @@ export function ClientSortableTable<T>({
                   <th
                     key={column.key}
                     className={[
-                      "sticky top-0 z-30 bg-slate-50",
+                      "sticky top-0 z-30 whitespace-nowrap bg-slate-50",
                       compact ? "px-3 py-2" : "px-5 py-3",
                       column.align === "right"
                         ? "text-right"
@@ -520,7 +520,7 @@ export function ClientSortableTable<T>({
                   >
                     <div
                       className={[
-                        "relative inline-flex items-center gap-1",
+                        "relative inline-flex w-max items-center gap-1",
                         column.align === "right" ? "ml-auto" : "",
                         column.align === "center" ? "mx-auto" : ""
                       ].join(" ")}
@@ -529,7 +529,7 @@ export function ClientSortableTable<T>({
                         type="button"
                         onClick={() => handleSort(column.key)}
                         className={[
-                          "inline-flex select-none items-center gap-1 transition hover:text-slate-800",
+                          "inline-flex shrink-0 select-none items-center gap-1 whitespace-nowrap transition hover:text-slate-800",
                           isActive ? "text-okestro-700" : ""
                         ].join(" ")}
                         title={`${column.label} 정렬`}
@@ -551,7 +551,7 @@ export function ClientSortableTable<T>({
                             setFilterSearch("");
                           }}
                           className={[
-                            "relative inline-flex h-6 w-6 items-center justify-center rounded-md border transition",
+                            "relative inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md border transition",
                             filterActive
                               ? "border-blue-200 bg-blue-100 text-blue-700"
                               : "border-transparent text-slate-500 hover:border-slate-200 hover:bg-white hover:text-slate-800"
@@ -760,6 +760,7 @@ export function ClientSortableTable<T>({
                         key={column.key}
                         className={[
                           cellClass,
+                          "whitespace-nowrap",
                           isTextSelectableColumn(column) ? "select-text" : "select-none",
                           column.align === "right"
                             ? "text-right tabular-nums"
@@ -771,7 +772,7 @@ export function ClientSortableTable<T>({
                         ].join(" ")}
                         style={stickyStyle(column)}
                       >
-                        {column.render(row)}
+                        {column.key === "actions" ? <div className="w-max">{column.render(row)}</div> : column.render(row)}
                       </td>
                     ))}
                   </tr>
