@@ -1,5 +1,6 @@
 "use client";
 
+import { ContractPdfDownload } from "@/components/partners/contract-pdf-download";
 import { UploadDropArea } from "@/components/upload/upload-drop-area";
 import Link from "next/link";
 import JSZip from "jszip";
@@ -781,6 +782,7 @@ export function PartnerOnboardingPackageUploadSection() {
           ) : null}
 
           <div className="flex justify-end">
+            <ContractPdfDownload company={company.company_name_contract} ceo={company.ceo_name} business={company.business_number} grade={grade} start={contractStartDate} />
             <button
               type="button"
               onClick={() => void handleRegister()}

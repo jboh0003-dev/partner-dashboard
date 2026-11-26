@@ -1,5 +1,6 @@
 "use client";
 
+import { ContractPdfDownload } from "@/components/partners/contract-pdf-download";
 import { useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import {
@@ -817,6 +818,7 @@ export function PartnerApplicationUploadSection({
           </AccordionSection>
 
           <div className="flex flex-wrap gap-3">
+            <ContractPdfDownload company={company.company_name_contract} ceo={company.ceo_name} business={company.business_number} grade={grade} start={contractStartDate} />
             <button
               type="button"
               disabled={busy}

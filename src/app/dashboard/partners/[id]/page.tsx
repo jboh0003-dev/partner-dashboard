@@ -1,3 +1,4 @@
+import { ContractPdfDownload } from "@/components/partners/contract-pdf-download";
 import { notFound } from "next/navigation";
 import { AnimatedSection } from "@/components/common/animated-section";
 import { PageHeader } from "@/components/layout/page-header";
@@ -38,6 +39,7 @@ export default async function PartnerDetailPage({
           title={p.company_name}
           description="파트너 통합 정보 — 기본정보, 이력, PoC, 장비, 문서를 한곳에서 조회합니다."
         />
+        {isAdmin && <div className="mb-4"><ContractPdfDownload company={("contract_display_name" in p && typeof p.contract_display_name === "string" && p.contract_display_name) || p.company_name} grade={getDisplayPartnerGradeLabel(p)} ceo={p.ceo_name} business={p.business_number} start={p.contract_start_date} end={p.contract_end_date} /></div>}
       </AnimatedSection>
 
       <section className="ui-stagger mb-4 grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-4">

@@ -7,10 +7,15 @@ import {
 } from "@/lib/partner-application/contract-dates";
 import { generatePartnerContractDocx } from "@/lib/partner-application/generate-contract";
 
+import { renderPartnerContractPdf } from "@/lib/partner-application/generate-contract-pdf";
+
+export const maxDuration = 120;
 export const runtime = "nodejs";
 
 const BodySchema = z.object({
   grade: z.string(),
+  format: z.enum(["docx", "pdf"]).default("docx"),
+  contract_end_date: z.string().date().optional(),
   company_name_contract: z.string().min(1),
   ceo_name: z.string().min(1),
   business_number: z.string().min(1),
@@ -32,25 +37,29 @@ export async function POST(request: Request) {
       );
     }
 
-    const contractEndDate = computeContractEndDate(body.contract_start_date);
-    const result = await generatePartnerContractDocx({
+    const contractEndDate = body.contract_end_date ?? computeContractEndDate(body.contract_start_date);
+    const input = {
       grade,
       companyNameContract: body.company_name_contract,
       ceoName: body.ceo_name,
       businessNumber: body.business_number,
       contractStartDate: body.contract_start_date,
       contractEndDate
-    });
+    };
+    const result = await generatePartnerContractDocx(input);
 
     if (!result.ok) {
       return NextResponse.json(result, { status: 400 });
     }
 
-    return new NextResponse(new Uint8Array(result.buffer), {
+    const pdf = body.format === "pdf";
+    const filename = pdf ? result.filename.replace(/\.docx$/, ".pdf") : result.filename;
+    const bytes = pdf ? await renderPartnerContractPdf(result.buffer) : result.buffer;
+    return new NextResponse(new Uint8Array(bytes), {
       status: 200,
       headers: {
-        "Content-Type": result.contentType,
-        "Content-Disposition": `attachment; filename*=UTF-8''${encodeURIComponent(result.filename)}`,
+        "Content-Type": pdf ? "application/pdf" : result.contentType,
+        "Content-Disposition": `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`,
         "Cache-Control": "no-store",
         "X-Contract-Storage": "none"
       }
