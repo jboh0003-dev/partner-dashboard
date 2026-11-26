@@ -41,7 +41,8 @@
     "react": "latest",
     "react-dom": "latest",
     "xlsx": "latest",
-    "zod": "latest"
+    "zod": "latest",
+    "pretendard": "1.3.9"
   },
   "devDependencies": {
     "@types/node": "latest",

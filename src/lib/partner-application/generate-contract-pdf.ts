@@ -31,7 +31,7 @@ export async function renderPartnerContractPdf(docx: Buffer) {
     await writeFile(inputPath, await fitCoverForPdf(docx));
     const converter = await createConverter({
       timeoutMs: 90_000,
-      fontDirectories: [path.join(process.cwd(), "assets/fonts")]
+      fontDirectories: [path.join(process.cwd(), "node_modules/pretendard/dist/public/static"), path.join(process.cwd(), "assets/fonts")]
     });
     try {
       await converter.render({ inputPath, outputPath });
