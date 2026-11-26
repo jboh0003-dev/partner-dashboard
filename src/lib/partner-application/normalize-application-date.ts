@@ -105,8 +105,16 @@ export function normalizeApplicationDate(value: unknown): NormalizedApplicationD
     return { iso: null, display: null, precision: null, raw: null, ok: true };
   }
 
+  // Accept common spreadsheet text formats without changing the source value.
+  const dateText = raw.replace(/\s*([./-])\s*/g, "$1").replace(/\.$/, "");
+  const compactDate = /^(\d{4})(\d{2})(\d{2})$/.exec(dateText);
+  if (compactDate) {
+    const iso = toIso(Number(compactDate[1]), Number(compactDate[2]), Number(compactDate[3]));
+    return { iso, display: iso ? `${Number(compactDate[1])}년 ${Number(compactDate[2])}월 ${Number(compactDate[3])}일` : raw, precision: "day", raw, ok: Boolean(iso) };
+  }
+
   // already ISO
-  let m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
+  let m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateText);
   if (m) {
     const iso = toIso(Number(m[1]), Number(m[2]), Number(m[3]));
     return {
@@ -119,7 +127,7 @@ export function normalizeApplicationDate(value: unknown): NormalizedApplicationD
   }
 
   // YYYY년 M월 D일
-  m = /^(\d{4})\s*년\s*(\d{1,2})\s*월\s*(\d{1,2})\s*일$/.exec(raw);
+  m = /^(\d{4})\s*년\s*(\d{1,2})\s*월\s*(\d{1,2})\s*일$/.exec(dateText);
   if (m) {
     const y = Number(m[1]);
     const month = Number(m[2]);
@@ -135,7 +143,7 @@ export function normalizeApplicationDate(value: unknown): NormalizedApplicationD
   }
 
   // YYYY년 M월 / YYYY년 MM월
-  m = /^(\d{4})\s*년\s*(\d{1,2})\s*월$/.exec(raw);
+  m = /^(\d{4})\s*년\s*(\d{1,2})\s*월$/.exec(dateText);
   if (m) {
     const y = Number(m[1]);
     const month = Number(m[2]);
@@ -150,7 +158,7 @@ export function normalizeApplicationDate(value: unknown): NormalizedApplicationD
   }
 
   // YYYY.MM.DD / YYYY/MM/DD / YYYY-MM-DD variants with 1-digit
-  m = /^(\d{4})[./-](\d{1,2})[./-](\d{1,2})$/.exec(raw);
+  m = /^(\d{4})[./-](\d{1,2})[./-](\d{1,2})$/.exec(dateText);
   if (m) {
     const y = Number(m[1]);
     const month = Number(m[2]);
@@ -166,7 +174,7 @@ export function normalizeApplicationDate(value: unknown): NormalizedApplicationD
   }
 
   // YYYY.MM / YYYY-MM / YYYY/MM
-  m = /^(\d{4})[./-](\d{1,2})$/.exec(raw);
+  m = /^(\d{4})[./-](\d{1,2})$/.exec(dateText);
   if (m) {
     const y = Number(m[1]);
     const month = Number(m[2]);
@@ -181,7 +189,7 @@ export function normalizeApplicationDate(value: unknown): NormalizedApplicationD
   }
 
   // YYYY년 / YYYY
-  m = /^(\d{4})\s*년?$/.exec(raw);
+  m = /^(\d{4})\s*년?$/.exec(dateText);
   if (m) {
     const y = Number(m[1]);
     const iso = toIso(y, 1, 1);

@@ -147,6 +147,12 @@ async function main() {
   assert(normalizeApplicationDate("2021-01").iso === "2021-01-01", "founded dashed");
   assert(normalizeApplicationDate("2021년").iso === "2021-01-01", "founded year");
   assert(normalizeApplicationDate("2021-01-15").iso === "2021-01-15", "founded full");
+  for (const date of ["2021. 01. 15.", "20210115", "2021/ 01/15"]) {
+    assert(normalizeApplicationDate(date).iso === "2021-01-15", `formatted date ${date}`);
+  }
+  for (const date of ["2021. 02. 30.", "20211315", "설립 미확인"]) {
+    assert(!normalizeApplicationDate(date).ok, `invalid date ${date}`);
+  }
   const foundedDateObject = normalizeApplicationDate(new Date(2008, 7, 1));
   assert(
     foundedDateObject.ok && foundedDateObject.iso === "2008-08-01",

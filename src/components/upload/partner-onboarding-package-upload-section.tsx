@@ -12,7 +12,7 @@ import {
   Loader2,
   UploadCloud
 } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { useId, useMemo, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { uploadOptimizedPartnerDocument } from "@/lib/documents/optimized-signed-upload";
 import { classifyDocumentType } from "@/lib/documents/classify";
@@ -29,6 +29,7 @@ import {
   PARTNER_CONTRACT_GRADE_LABEL,
   type PartnerContractGrade
 } from "@/lib/partner-application/contract-dates";
+import { normalizePersonName } from "@/lib/contacts/person-key";
 import { normalizeApplicationDate } from "@/lib/partner-application/normalize-application-date";
 import type { ApplicationPerson } from "@/lib/partner-application/parse-application";
 
@@ -184,6 +185,10 @@ async function sha256(file: File): Promise<string> {
 }
 
 export function PartnerOnboardingPackageUploadSection() {
+  const fieldId = useId();
+  const foundedInputRef = useRef<HTMLInputElement | null>(null);
+  const [foundedOriginal, setFoundedOriginal] = useState("");
+  const [documentStates, setDocumentStates] = useState<Record<string, "saving" | "uploaded" | "reused" | "failed">>({});
   const inputRef = useRef<HTMLInputElement | null>(null);
   const folderInputRef = useRef<HTMLInputElement | null>(null);
   const [optimizedBytes, setOptimizedBytes] = useState(0);
@@ -210,6 +215,24 @@ export function PartnerOnboardingPackageUploadSection() {
   const salesCount = activePeople.filter((person) => person.section === "sales").length;
   const engineerCount = activePeople.filter((person) => person.section === "engineer").length;
 
+  const foundedReview = normalizeApplicationDate(company.founded_date);
+  const foundedInvalid = Boolean(company.founded_date.trim() && !foundedReview.ok);
+  const reviewWarnings = warnings.filter(warning => !/설립일/.test(warning));
+  const peopleReview = useMemo(() => {
+    const byName = new Map<string, { name: string; roles: string[]; records: number; excluded: boolean }>();
+    for (const person of people) {
+      const key = normalizePersonName(person.name);
+      if (!key) continue;
+      const role = person.section === "contract_contact" ? "계약 담당" : person.section === "sales" ? "영업" : "기술";
+      const entry = byName.get(key) ?? { name: person.name, roles: [], records: 0, excluded: true };
+      if (!person.excluded && !entry.roles.includes(role)) entry.roles.push(role);
+      entry.records++;
+      entry.excluded = entry.excluded && Boolean(person.excluded);
+      byName.set(key, entry);
+    }
+    return [...byName.values()];
+  }, [people]);
+
   const missingRequired = useMemo(() => {
     const types = new Set(documents.filter((doc) => doc.supported).map((doc) => doc.documentType));
     return REQUIRED_DOCUMENT_TYPES.filter((type) => !types.has(type));
@@ -220,6 +243,13 @@ export function PartnerOnboardingPackageUploadSection() {
     setError(null);
     setResult(null);
     setZipFile(file);
+    setApplicationFile(null);
+    setDocuments([]);
+    setPeople([]);
+    setFoundedOriginal("");
+    setDocumentStates({});
+    setWarnings([]);
+    setDuplicateHints([]);
 
     try {
       let extracted: File[] = [];
@@ -303,6 +333,7 @@ export function PartnerOnboardingPackageUploadSection() {
         "";
       const applicationDate = normalizeApplicationDate(parsedCompany.application_date ?? null);
 
+      setFoundedOriginal(founded);
       setApplicationFile(application);
       setDocuments(nextDocs);
       setCompany({
@@ -377,10 +408,17 @@ export function PartnerOnboardingPackageUploadSection() {
       return;
     }
 
+    if (foundedInvalid) {
+      setError("설립일자를 확인하고 아래 입력란에서 수정해주세요.");
+      foundedInputRef.current?.focus();
+      return;
+    }
+
     setRegistering(true);
     setOptimizedBytes(0);
     setError(null);
     setResult(null);
+    setDocumentStates({});
 
     try {
       const registerForm = new FormData();
@@ -428,14 +466,17 @@ export function PartnerOnboardingPackageUploadSection() {
       for (const document of documents) {
         if (!document.supported) continue;
         try {
+          setDocumentStates(current => ({ ...current, [document.key]: "saving" }));
           const action = await uploadPackageDocument(
             registered.partner_id,
             document,
             contractStartDate
           );
+          setDocumentStates(current => ({ ...current, [document.key]: action === "reused" ? "reused" : "uploaded" }));
           if (action === "reused") documentsReused += 1;
           else documentsSuccess += 1;
         } catch (err) {
+          setDocumentStates(current => ({ ...current, [document.key]: "failed" }));
           documentFailures.push({
             name: document.file.name,
             message: err instanceof Error ? err.message : "문서 등록 실패"
@@ -553,13 +594,13 @@ export function PartnerOnboardingPackageUploadSection() {
               <div className="text-right text-xs text-slate-500">
                 <div>신청서: {applicationFile.name}</div>
                 <div className="mt-1">
-                  담당 {contactCount} · 영업 {salesCount} · 기술 {engineerCount}
+                  등록 인력 {peopleReview.filter(person => !person.excluded).length}명 · 계약 {contactCount} · 영업 {salesCount} · 기술 {engineerCount}
                 </div>
               </div>
             </div>
 
             <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              <Metric label="매출액" value={company.revenue || "-"} />
+              <Metric label="매출액" value={company.revenue ? `${company.revenue}${/(?:억원|백만원|만원|천원|원|USD|KRW|달러)/i.test(company.revenue) ? "" : " (단위 미확인)"}` : "-"} />
               <Metric label="임직원" value={company.employee_count ? `${company.employee_count}명` : "-"} />
               <Metric label="엔지니어" value={company.engineer_count ? `${company.engineer_count}명` : "-"} />
               <Metric label="신용등급" value={company.credit_rating || "-"} />
@@ -599,6 +640,35 @@ export function PartnerOnboardingPackageUploadSection() {
               </label>
             </div>
 
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
+              <div>
+                <label htmlFor={`${fieldId}-founded`} className="text-xs font-semibold text-slate-600">설립일자</label>
+                <input
+                  ref={foundedInputRef}
+                  id={`${fieldId}-founded`}
+                  value={company.founded_date}
+                  onChange={event => {
+                    setCompany(current => ({ ...current, founded_date: event.target.value }));
+                    setError(null);
+                  }}
+                  disabled={registering || Boolean(result)}
+                  aria-invalid={foundedInvalid}
+                  aria-describedby={`${fieldId}-founded-help`}
+                  placeholder="YYYY-MM-DD 또는 YYYY-MM"
+                  className={`ui-input mt-1 w-full ${foundedInvalid ? "border-rose-400" : ""}`}
+                />
+                <p className="mt-1 text-xs text-slate-500">신청서 원문: {foundedOriginal || "미기재"}</p>
+                <p id={`${fieldId}-founded-help`} role={foundedInvalid ? "alert" : undefined} className={`mt-1 text-xs ${foundedInvalid ? "text-rose-700" : "text-slate-500"}`}>
+                  {foundedInvalid ? "날짜 형식을 확인해주세요. 예: 2021-01-15 또는 2021-01" : foundedReview.iso ? `저장될 설립일: ${foundedReview.iso}${foundedReview.precision === "month" ? " (해당 월 1일 기준)" : foundedReview.precision === "year" ? " (해당 연도 1월 1일 기준)" : ""}` : "설립일 미기재. 계약/등록 기준일과 별개인 회사 설립일입니다."}
+                </p>
+              </div>
+              <label className="text-xs font-semibold text-slate-600">
+                매출액 (단위 포함)
+                <input value={company.revenue} disabled={registering || Boolean(result)} onChange={event => setCompany(current => ({ ...current, revenue: event.target.value }))} className="ui-input mt-1 w-full" placeholder="신청서의 금액과 단위를 입력해주세요" />
+                <span className="mt-1 block text-xs font-normal text-slate-500">신청서의 단위를 확인해 함께 입력해주세요. 단위가 없으면 임의로 환산하지 않습니다.</span>
+              </label>
+            </div>
+
             {existingPartnerId ? (
               <div className="mt-4 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-xs text-blue-800">
                 기존 파트너 <span className="font-semibold">{existingPartnerName}</span>와 매칭되어
@@ -616,7 +686,7 @@ export function PartnerOnboardingPackageUploadSection() {
                 </div>
               </div>
               <div className="text-xs text-slate-500">
-                저장 대상 {documents.filter((doc) => doc.supported).length}개
+                첨부 문서 {documents.filter((doc) => doc.supported).length}개
               </div>
             </div>
 
@@ -644,9 +714,9 @@ export function PartnerOnboardingPackageUploadSection() {
                       </td>
                       <td className="px-3 py-2">
                         {document.supported ? (
-                          <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700">
-                            <FileCheck2 size={13} />
-                            저장
+                          <span className={`inline-flex items-center gap-1 text-xs font-semibold ${documentStates[document.key] === "failed" ? "text-rose-700" : documentStates[document.key] === "uploaded" || documentStates[document.key] === "reused" ? "text-emerald-700" : "text-slate-500"}`}>
+                            {documentStates[document.key] === "failed" ? <AlertTriangle size={13} /> : <FileCheck2 size={13} />}
+                            {documentStates[document.key] === "saving" ? "저장 중" : documentStates[document.key] === "uploaded" ? "저장 완료" : documentStates[document.key] === "reused" ? "기존 문서 재사용" : documentStates[document.key] === "failed" ? "저장 실패" : "저장 예정"}
                           </span>
                         ) : (
                           <span className="text-xs font-semibold text-rose-700">
@@ -671,12 +741,29 @@ export function PartnerOnboardingPackageUploadSection() {
             )}
           </section>
 
-          {warnings.length > 0 || (duplicateHints?.length ?? 0) > 0 ? (
+          <section className="rounded-2xl border border-slate-200 bg-white p-5">
+            <h3 className="text-sm font-semibold text-slate-950">등록 인력 확인</h3>
+            <p className="mt-1 text-xs text-slate-500">같은 이름은 한 명으로 등록하고 역할을 함께 저장합니다. 다른 사람이라면 신청서의 이름을 구분한 뒤 다시 분석해주세요.</p>
+            <div className="mt-3 overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-slate-50 text-xs text-slate-500"><tr><th className="p-2">등록</th><th className="p-2">이름</th><th className="p-2">저장할 역할</th><th className="p-2">처리</th></tr></thead>
+                <tbody>{peopleReview.map(person => <tr key={normalizePersonName(person.name)} className="border-t border-slate-100">
+                  <td className="p-2"><input type="checkbox" checked={!person.excluded} disabled={registering || Boolean(result)} aria-label={`${person.name} 등록`} onChange={event => {
+                    const excluded = !event.target.checked;
+                    setPeople(current => current.map(entry => normalizePersonName(entry.name) === normalizePersonName(person.name) ? { ...entry, excluded } : entry));
+                  }} /></td>
+                  <td className="p-2 font-medium">{person.name}</td><td className="p-2">{person.roles.join(" · ") || "등록 제외"}</td><td className="p-2 text-xs text-slate-500">{person.excluded ? "등록 제외" : person.records > 1 ? `신청서 ${person.records}개 항목 → 1명으로 등록` : "1명 등록"}</td>
+                </tr>)}</tbody>
+              </table>
+            </div>
+          </section>
+
+          {reviewWarnings.length > 0 || (duplicateHints?.length ?? 0) > 0 ? (
             <section className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-900">
               <div className="font-semibold">등록 전 확인</div>
-              {warnings.length > 0 ? (
+              {reviewWarnings.length > 0 ? (
                 <ul className="mt-2 list-disc space-y-1 pl-5">
-                  {warnings.map((warning) => (
+                  {reviewWarnings.map((warning) => (
                     <li key={warning}>{warning}</li>
                   ))}
                 </ul>
@@ -685,7 +772,7 @@ export function PartnerOnboardingPackageUploadSection() {
                 <ul className="mt-2 list-disc space-y-1 pl-5">
                   {duplicateHints.map((hint, index) => (
                     <li key={`${hint.name}-${index}`}>
-                      {hint.name}: {hint.reason}
+                      {hint.name}: {hint.reason}{hint.sections.length ? ` · ${[...new Set(hint.sections)].map(section => section === "contract_contact" ? "계약 담당" : section === "sales" ? "영업" : "기술").join(" + ")}` : ""}
                     </li>
                   ))}
                 </ul>
@@ -697,7 +784,7 @@ export function PartnerOnboardingPackageUploadSection() {
             <button
               type="button"
               onClick={() => void handleRegister()}
-              disabled={registering}
+              disabled={analyzing || registering || foundedInvalid || Boolean(result)}
               className="inline-flex items-center gap-2 rounded-xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
             >
               {registering ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
